@@ -5,7 +5,8 @@ import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/session";
 import { findUserByCredentials } from "@/lib/services/userService";
 import { redirect } from "next/navigation";
-import { findUser } from "@/lib/mockUsers";
+
+
 
 export async function getSession() {
   const session = await getIronSession<SessionData>(cookies(), sessionOptions);
@@ -16,15 +17,15 @@ export async function login(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  const user = findUser(email, password);
+  const user = await findUserByCredentials(email, password);
 
   if (!user) {
     redirect("/?error=invalid");
   }
 
   const session = await getSession();
-  session.userId = user.id.toString();
-  session.email = user.email;
+  //session.userId = user.userId;
+  session.userId = user._id.toString();
   session.name = user.name;
   session.role = user.role;
   session.isLoggedIn = true;

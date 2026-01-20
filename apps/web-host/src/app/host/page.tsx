@@ -1,5 +1,6 @@
 import { getSession, logOut } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 export default async function HostPage() {
   const session = await getSession();
@@ -25,8 +26,12 @@ export default async function HostPage() {
         <p>Bienvenido al panel de control del Bingo.</p>
 
         <div className="actions">
-          <button>Crear Nueva Ronda</button>
-          <button>Ver Rondas</button>
+          <Link href="/host/rondas/crear" className="btn-primary">
+            Crear Nueva Ronda
+          </Link>
+          <Link href="/host/rondas" className="btn-secondary">
+            Ver Rondas
+          </Link>
         </div>
       </section>
     </main>
