@@ -113,13 +113,25 @@ export async function startRoundAction(formData: FormData) {
 
   try {
     await startRound(id);
-    revalidatePath("/host/rondas");
-    redirect(`/host/rondas/${id}/jugar`);
+
+    try {
+      await fetch("http://localhost:3001/notify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ type: "ROUND_STARTED", data: { roundId: id } }),
+      });
+    } catch (error) {
+      console.error("Error notifying mobile players:", error);
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Error al iniciar la ronda";
     redirect(`/host/rondas?error=${encodeURIComponent(message)}`);
   }
+  revalidatePath("/host/rondas");
+  redirect(`/host/rondas/${id}/jugar`);
 }
 
 export async function getRoundAction(id: string) {
