@@ -43,3 +43,6 @@ yarn-error.log*
 *.app
 android/
 ios/
+
+# Claude Code temp files
+tmpclaude-*
