@@ -42,7 +42,7 @@ export default async function EditarRondaPage({
       {error && <div className="error-message">{decodeURIComponent(error)}</div>}
 
       <form action={updateRoundAction} className="round-form">
-        <input type="hidden" name="id" value={round._id.toString()} />
+        <input type="hidden" name="id" value={round.id} />
 
         <div className="form-group">
           <label htmlFor="name">Nombre de la Ronda</label>
@@ -77,7 +77,7 @@ export default async function EditarRondaPage({
             id="maxNumber"
             name="maxNumber"
             min="9"
-            defaultValue={round.maxNumber}
+            defaultValue={round.numberRange.max}
             required
           />
           <small>Cantidad de números disponibles para sacar (ej: 75 significa del 1 al 75)</small>

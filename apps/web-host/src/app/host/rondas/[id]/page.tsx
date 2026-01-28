@@ -67,7 +67,7 @@ export default async function VerRondaPage({
 
           <div className="detail-item">
             <label>Números Disponibles</label>
-            <span>1 - {round.maxNumber}</span>
+            <span>{round.numberRange.min} - {round.numberRange.max}</span>
           </div>
 
           <div className="detail-item">
@@ -110,19 +110,19 @@ export default async function VerRondaPage({
         <div className="detail-actions">
           {round.status === "configurada" && (
             <>
-              <Link href={`/host/rondas/editar/${round._id}`} className="btn-secondary">
+              <Link href={`/host/rondas/editar/${round.id}`} className="btn-secondary">
                 Editar
               </Link>
 
               <form action={startRoundAction} style={{ display: "inline" }}>
-                <input type="hidden" name="id" value={round._id.toString()} />
+                <input type="hidden" name="id" value={round.id} />
                 <button type="submit" className="btn-primary">
                   Iniciar Ronda
                 </button>
               </form>
 
               <form action={deleteRoundAction} style={{ display: "inline" }}>
-                <input type="hidden" name="id" value={round._id.toString()} />
+                <input type="hidden" name="id" value={round.id} />
                 <button type="submit" className="btn-danger">
                   Eliminar
                 </button>
@@ -131,7 +131,7 @@ export default async function VerRondaPage({
           )}
 
           {round.status === "en_progreso" && (
-            <Link href={`/host/rondas/${round._id}/jugar`} className="btn-primary">
+            <Link href={`/host/rondas/${round.id}/jugar`} className="btn-primary">
               Continuar Jugando
             </Link>
           )}

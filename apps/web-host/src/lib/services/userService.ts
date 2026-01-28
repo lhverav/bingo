@@ -1,49 +1,59 @@
-import { connectToDatabase } from "../mongodb"
-import User, {IUserDocument} from "@/lib/models/user"
-import bcrypt from "bcryptjs"
+import { User, CreateUserData } from '@bingo/domain';
+import { userRepository } from '@/infrastructure/repositories';
+import bcrypt from 'bcryptjs';
 
+/**
+ * User service - Business logic for user operations
+ * Uses UserRepository for data access
+ */
 
-
+/**
+ * Find a user by credentials (email and password)
+ * Returns null if credentials are invalid
+ */
 export async function findUserByCredentials(
-    email:string,
-    password:string
-):Promise<IUserDocument | null> {
-    await connectToDatabase();
+  email: string,
+  password: string
+): Promise<User | null> {
+  const user = await userRepository.findByEmail(email);
 
-    const user= await User.findOne({email:email.toLowerCase()});
+  if (!user) {
+    return null;
+  }
 
-    if(!user){
-        return null;
-    }
+  const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    const isPasswordValid= await bcrypt.compare(password, user.password);
+  if (!isPasswordValid) {
+    return null;
+  }
 
-    if(!isPasswordValid){
-        return null;
-    }
-    return user;
+  return user;
 }
 
-export async function getUserById(id:string):Promise<IUserDocument | null>{
-    await connectToDatabase();
-    return User.findById(id);
+/**
+ * Get a user by ID
+ */
+export async function getUserById(id: string): Promise<User | null> {
+  return userRepository.findById(id);
 }
 
+/**
+ * Create a new user with hashed password
+ */
 export async function createUser(
-    email:string,
-    password:string,
-    name:string,
-    role:"host" | "admin" = "host"
-):Promise<IUserDocument>{
-    await connectToDatabase();
-    const hashedPassword= await bcrypt.hash(password, 10);
+  email: string,
+  password: string,
+  name: string,
+  role: 'host' | 'admin' = 'host'
+): Promise<User> {
+  const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user= await User.create({
-        email:email.toLowerCase(),
-        password:hashedPassword,
-        name,
-        role,
-    });
+  const userData: CreateUserData = {
+    email: email.toLowerCase(),
+    password: hashedPassword,
+    name,
+    role,
+  };
 
-    return user;
+  return userRepository.create(userData);
 }

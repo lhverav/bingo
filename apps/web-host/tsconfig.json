@@ -10,6 +10,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@infrastructure/*": ["./src/infrastructure/*"],
+      "@bingo/domain": ["../../packages/domain/src"],
       "@bingo/shared": ["../../packages/shared/src"]
     }
   },

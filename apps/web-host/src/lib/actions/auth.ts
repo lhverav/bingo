@@ -24,8 +24,7 @@ export async function login(formData: FormData) {
   }
 
   const session = await getSession();
-  //session.userId = user.userId;
-  session.userId = user._id.toString();
+  session.userId = user.id;
   session.name = user.name;
   session.role = user.role;
   session.isLoggedIn = true;

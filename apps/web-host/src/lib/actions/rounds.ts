@@ -10,7 +10,7 @@ import {
   startRound,
   getRoundById,
 } from "@/lib/services/roundService";
-import { GamePattern, StartMode } from "@/lib/models/round";
+import { GamePattern, StartMode } from "@bingo/domain";
 
 export async function createRoundAction(formData: FormData) {
   const session = await getSession();

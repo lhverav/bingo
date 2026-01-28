@@ -108,6 +108,9 @@ importers:
 
   apps/web-host:
     dependencies:
+      '@bingo/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@bingo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -145,6 +148,12 @@ importers:
       '@types/react-dom':
         specifier: ^18.3.0
         version: 18.3.7(@types/react@18.3.27)
+      typescript:
+        specifier: ^5.4.0
+        version: 5.9.3
+
+  packages/domain:
+    devDependencies:
       typescript:
         specifier: ^5.4.0
         version: 5.9.3

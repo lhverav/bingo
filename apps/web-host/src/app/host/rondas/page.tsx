@@ -76,10 +76,10 @@ export default async function RondasPage({
             </thead>
             <tbody>
               {rounds.map((round) => (
-                <tr key={round._id.toString()}>
+                <tr key={round.id}>
                   <td className="round-name">{round.name}</td>
                   <td>{round.cardSize}x{round.cardSize}</td>
-                  <td>1 - {round.maxNumber}</td>
+                  <td>{round.numberRange.min} - {round.numberRange.max}</td>
                   <td>{patternLabels[round.gamePattern]}</td>
                   <td>
                     {round.startMode === "manual" ? "Manual" : `Auto (${round.autoStartDelay}s)`}
@@ -91,7 +91,7 @@ export default async function RondasPage({
                   </td>
                   <td className="actions-cell">
                     <Link
-                      href={`/host/rondas/${round._id}`}
+                      href={`/host/rondas/${round.id}`}
                       className="btn-action btn-view"
                     >
                       Ver
@@ -100,21 +100,21 @@ export default async function RondasPage({
                     {round.status === "configurada" && (
                       <>
                         <Link
-                          href={`/host/rondas/editar/${round._id}`}
+                          href={`/host/rondas/editar/${round.id}`}
                           className="btn-action btn-edit"
                         >
                           Editar
                         </Link>
 
                         <form action={startRoundAction} style={{ display: "inline" }}>
-                          <input type="hidden" name="id" value={round._id.toString()} />
+                          <input type="hidden" name="id" value={round.id} />
                           <button type="submit" className="btn-action btn-start">
                             Iniciar
                           </button>
                         </form>
 
                         <form action={deleteRoundAction} style={{ display: "inline" }}>
-                          <input type="hidden" name="id" value={round._id.toString()} />
+                          <input type="hidden" name="id" value={round.id} />
                           <button type="submit" className="btn-action btn-delete">
                             Eliminar
                           </button>
@@ -124,7 +124,7 @@ export default async function RondasPage({
 
                     {round.status === "en_progreso" && (
                       <Link
-                        href={`/host/rondas/${round._id}/jugar`}
+                        href={`/host/rondas/${round.id}/jugar`}
                         className="btn-action btn-play"
                       >
                         Continuar

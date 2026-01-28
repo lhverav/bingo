@@ -34,9 +34,9 @@ export default async function JugarRondaPage({
     redirect(`/host/rondas/${params.id}?error=${encodeURIComponent("La ronda no ha sido iniciada")}`);
   }
 
-  // Generate all possible numbers (1 to maxNumber)
+  // Generate all possible numbers (min to max)
   const allNumbers: number[] = [];
-  for (let i = 1; i <= round.maxNumber; i++) {
+  for (let i = round.numberRange.min; i <= round.numberRange.max; i++) {
     allNumbers.push(i);
   }
 
@@ -60,7 +60,7 @@ export default async function JugarRondaPage({
         allNumbers={allNumbers}
         drawnNumbers={round.drawnNumbers}
         isFinished={round.status === "finalizada"}
-        maxNumber={round.maxNumber}
+        maxNumber={round.numberRange.max}
       />
     </main>
   );
