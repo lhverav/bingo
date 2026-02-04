@@ -11,6 +11,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@bingo/domain": "workspace:*",
+    "@bingo/game-core": "workspace:*",
     "@bingo/shared": "workspace:*",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

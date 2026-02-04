@@ -1,5 +1,5 @@
 import { Round, CreateRoundData, UpdateRoundData, RoundStatus } from '@bingo/domain';
-import { connectToDatabase } from '@/lib/mongodb';
+import { connectToDatabase } from '../database/connection';
 import { RoundModel } from '../database/schemas/round.schema';
 import { RoundMapper } from '../database/mappers/round.mapper';
 

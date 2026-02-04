@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@bingo/domain": "workspace:*",
+    "@bingo/game-core": "workspace:*",
     "@bingo/shared": "workspace:*",
     "bcryptjs": "^3.0.3",
     "iron-session": "^8.0.4",

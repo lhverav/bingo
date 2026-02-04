@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import { getRoundById } from "@bingo/game-core";
 
 // Load environment variables from .env file
 
@@ -27,6 +28,19 @@ app.use(express.json());
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Example route using game-core
+app.get("/rounds/:id", async (req, res) => {
+  try {
+    const round = await getRoundById(req.params.id);
+    if (!round) {
+      return res.status(404).json({ error: "Round not found" });
+    }
+    res.json(round);
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // TODO: Add routes

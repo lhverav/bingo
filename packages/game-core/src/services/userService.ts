@@ -1,5 +1,5 @@
 import { User, CreateUserData } from '@bingo/domain';
-import { userRepository } from '@/infrastructure/repositories';
+import { userRepository } from '../repositories';
 import bcrypt from 'bcryptjs';
 
 /**

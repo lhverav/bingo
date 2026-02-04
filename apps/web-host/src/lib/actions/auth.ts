@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { getIronSession } from "iron-session";
 import { sessionOptions, SessionData } from "@/lib/session";
-import { findUserByCredentials } from "@/lib/services/userService";
+import { findUserByCredentials } from "@bingo/game-core";
 import { redirect } from "next/navigation";
 
 

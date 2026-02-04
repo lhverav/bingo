@@ -1,5 +1,5 @@
 import { User, CreateUserData, UpdateUserData } from '@bingo/domain';
-import { connectToDatabase } from '@/lib/mongodb';
+import { connectToDatabase } from '../database/connection';
 import { UserModel } from '../database/schemas/user.schema';
 import { UserMapper } from '../database/mappers/user.mapper';
 

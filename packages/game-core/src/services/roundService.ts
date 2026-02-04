@@ -5,7 +5,7 @@ import {
   GamePattern,
   StartMode,
 } from '@bingo/domain';
-import { roundRepository } from '@/infrastructure/repositories';
+import { roundRepository } from '../repositories';
 
 /**
  * Round service - Business logic for round operations

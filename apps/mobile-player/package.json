@@ -6,7 +6,6 @@
     "dev": "pnpm run --parallel dev:client dev:server",
     "dev:client": "pnpm --filter mobile-player-client dev",
     "dev:server": "pnpm --filter mobile-player-server dev",
-    "build": "pnpm run --parallel build:client build:server",
     "build:client": "pnpm --filter mobile-player-client build",
     "build:server": "pnpm --filter mobile-player-server build"
   }

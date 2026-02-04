@@ -1,11 +1,7 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import { Schema, Document, Model } from 'mongoose';
+import { mongoose } from '../connection';
 
-/**
- * Round document interface for Mongoose
- * This extends Document for Mongoose-specific functionality
- */
 export interface RoundDocument extends Document {
-  _id: mongoose.Types.ObjectId;
   name: string;
   cardSize: number;
   minNumber: number;
@@ -20,10 +16,6 @@ export interface RoundDocument extends Document {
   updatedAt: Date;
 }
 
-/**
- * Mongoose schema for Round collection
- * Database-specific concerns (validation, indexes, etc.)
- */
 const RoundSchema = new Schema<RoundDocument>(
   {
     name: {
@@ -82,7 +74,6 @@ const RoundSchema = new Schema<RoundDocument>(
   }
 );
 
-// Validation: ensure we have enough numbers for the card
 RoundSchema.pre('save', function () {
   const totalCells = this.cardSize * this.cardSize;
   const availableNumbers = this.maxNumber - this.minNumber + 1;
@@ -93,11 +84,7 @@ RoundSchema.pre('save', function () {
   }
 });
 
-// Handle hot reload in development
-if (mongoose.models.Round) {
-  delete mongoose.models.Round;
-}
-
-const RoundModel: Model<RoundDocument> = mongoose.model<RoundDocument>('Round', RoundSchema);
+const RoundModel: Model<RoundDocument> =
+  mongoose.models.Round || mongoose.model<RoundDocument>('Round', RoundSchema);
 
 export { RoundSchema, RoundModel };

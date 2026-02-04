@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
-import { getRoundById } from "@/lib/services/roundService";
+import { getRoundById } from "@bingo/game-core";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import GameBoard from "./GameBoard";

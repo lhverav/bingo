@@ -1,16 +1,26 @@
-import { StyleSheet, Text, View, Dimensions, Modal, TouchableOpacity } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  Dimensions,
+  Modal,
+  TouchableOpacity,
+} from "react-native";
 import { useState, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
 import YoutubePlayer from "react-native-youtube-iframe";
 
 const SERVER_URL = "http://10.0.0.35:3001";
-const YOUTUBE_VIDEO_ID = process.env.EXPO_PUBLIC_YOUTUBE_VIDEO_ID || "dQw4w9WgXcQ";
+const YOUTUBE_VIDEO_ID =
+  process.env.EXPO_PUBLIC_YOUTUBE_VIDEO_ID || "dQw4w9WgXcQ";
 
 export default function HomeScreen() {
   const [connected, setConnected] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [currentNotification, setCurrentNotification] = useState<string | null>(null);
+  const [currentNotification, setCurrentNotification] = useState<string | null>(
+    null,
+  );
 
   const onStateChange = useCallback((state: string) => {
     if (state === "ended") {

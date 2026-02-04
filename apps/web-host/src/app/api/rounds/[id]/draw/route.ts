@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/actions/auth";
-import { drawNumber } from "@/lib/services/roundService";
+import { drawNumber } from "@bingo/game-core";
 
 export async function POST(
   request: NextRequest,

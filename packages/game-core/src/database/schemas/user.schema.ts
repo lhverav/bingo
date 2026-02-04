@@ -1,11 +1,7 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import { Schema, Document, Model } from 'mongoose';
+import { mongoose } from '../connection';
 
-/**
- * User document interface for Mongoose
- * This extends Document for Mongoose-specific functionality
- */
 export interface UserDocument extends Document {
-  _id: mongoose.Types.ObjectId;
   email: string;
   password: string;
   name: string;
@@ -14,10 +10,6 @@ export interface UserDocument extends Document {
   updatedAt: Date;
 }
 
-/**
- * Mongoose schema for User collection
- * Database-specific concerns (validation, indexes, etc.)
- */
 const UserSchema = new Schema<UserDocument>(
   {
     email: {
@@ -48,7 +40,6 @@ const UserSchema = new Schema<UserDocument>(
   }
 );
 
-// Handle hot reload in development
 const UserModel: Model<UserDocument> =
   mongoose.models.User || mongoose.model<UserDocument>('User', UserSchema);
 

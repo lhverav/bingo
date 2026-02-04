@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(file:ARCHITECTURE_MIGRATION_PLAN.md)",
+      "Edit(file:**/ARCHITECTURE_MIGRATION_PLAN.md)",
+      "Write(file:ARCHITECTURE_MIGRATION_PLAN.md)",
+      "Write(file:**/ARCHITECTURE_MIGRATION_PLAN.md)"
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
-import { getRoundsByUser } from "@/lib/services/roundService";
+import { getRoundsByUser } from "@bingo/game-core";
 import { deleteRoundAction, startRoundAction } from "@/lib/actions/rounds";
 import Link from "next/link";
 
