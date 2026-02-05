@@ -18,6 +18,7 @@ export interface Round {
   status: RoundStatus;
   createdBy: string; // User ID
   drawnNumbers: number[];
+  cardBunchId?: string; // Optional reference to pre-generated card bunch
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +37,7 @@ export interface CreateRoundData {
   startMode: StartMode;
   autoStartDelay?: number;
   createdBy: string;
+  cardBunchId?: string;
 }
 
 /**
@@ -51,4 +53,5 @@ export interface UpdateRoundData {
   gamePattern?: GamePattern;
   startMode?: StartMode;
   autoStartDelay?: number;
+  cardBunchId?: string;
 }

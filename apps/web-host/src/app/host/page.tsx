@@ -34,6 +34,20 @@ export default async function HostPage() {
           </Link>
         </div>
       </section>
+
+      <section className="host-content">
+        <h2>Gestión de Cartas</h2>
+        <p>Crea grupos de cartas pre-generadas para usar en tus rondas.</p>
+
+        <div className="actions">
+          <Link href="/host/cartas/crear" className="btn-primary">
+            Crear Grupo de Cartas
+          </Link>
+          <Link href="/host/cartas" className="btn-secondary">
+            Ver Grupos de Cartas
+          </Link>
+        </div>
+      </section>
     </main>
   );
 }

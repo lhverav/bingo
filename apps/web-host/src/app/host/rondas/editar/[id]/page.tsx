@@ -2,6 +2,8 @@ import { getSession } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
 import { getRoundById } from "@bingo/game-core";
 import { updateRoundAction } from "@/lib/actions/rounds";
+import { getAllCardBunchesAction } from "@/lib/actions/cardBunches";
+import CardBunchSelector from "../../crear/CardBunchSelector";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -28,6 +30,7 @@ export default async function EditarRondaPage({
     redirect(`/host/rondas?error=${encodeURIComponent("Solo se pueden editar rondas que no han iniciado")}`);
   }
 
+  const cardBunches = await getAllCardBunchesAction();
   const error = searchParams.error;
 
   return (
@@ -116,6 +119,8 @@ export default async function EditarRondaPage({
           />
           <small>Solo aplica si el modo de inicio es automático</small>
         </div>
+
+        <CardBunchSelector bunches={cardBunches} defaultValue={round.cardBunchId} />
 
         <div className="form-actions">
           <Link href="/host/rondas" className="btn-secondary">

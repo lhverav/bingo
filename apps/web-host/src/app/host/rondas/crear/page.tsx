@@ -1,6 +1,8 @@
 import { getSession } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
 import { createRoundAction } from "@/lib/actions/rounds";
+import { getAllCardBunchesAction } from "@/lib/actions/cardBunches";
+import CardBunchSelector from "./CardBunchSelector";
 import Link from "next/link";
 
 export default async function CrearRondaPage({
@@ -14,6 +16,7 @@ export default async function CrearRondaPage({
     redirect("/");
   }
 
+  const cardBunches = await getAllCardBunchesAction();
   const error = searchParams.error;
 
   return (
@@ -99,6 +102,8 @@ export default async function CrearRondaPage({
           />
           <small>Solo aplica si el modo de inicio es automático</small>
         </div>
+
+        <CardBunchSelector bunches={cardBunches} />
 
         <div className="form-actions">
           <Link href="/host/rondas" className="btn-secondary">

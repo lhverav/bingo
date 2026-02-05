@@ -24,6 +24,7 @@ export interface CreateRoundInput {
   startMode: StartMode;
   autoStartDelay?: number;
   createdBy: string;
+  cardBunchId?: string;
 }
 
 /**
@@ -37,6 +38,7 @@ export interface UpdateRoundInput {
   gamePattern?: GamePattern;
   startMode?: StartMode;
   autoStartDelay?: number;
+  cardBunchId?: string;
 }
 
 /**
@@ -54,6 +56,7 @@ export async function createRound(data: CreateRoundInput): Promise<Round> {
     startMode: data.startMode,
     autoStartDelay: data.autoStartDelay,
     createdBy: data.createdBy,
+    cardBunchId: data.cardBunchId,
   };
 
   return roundRepository.create(createData);
@@ -108,6 +111,7 @@ export async function updateRound(
   if (data.gamePattern !== undefined) updateData.gamePattern = data.gamePattern;
   if (data.startMode !== undefined) updateData.startMode = data.startMode;
   if (data.autoStartDelay !== undefined) updateData.autoStartDelay = data.autoStartDelay;
+  if (data.cardBunchId !== undefined) updateData.cardBunchId = data.cardBunchId;
 
   return roundRepository.update(id, updateData);
 }

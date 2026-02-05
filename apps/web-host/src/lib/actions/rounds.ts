@@ -27,6 +27,7 @@ export async function createRoundAction(formData: FormData) {
   const autoStartDelay = formData.get("autoStartDelay")
     ? parseInt(formData.get("autoStartDelay") as string)
     : undefined;
+  const cardBunchId = formData.get("cardBunchId") as string | null;
 
   try {
     await createRound({
@@ -37,6 +38,7 @@ export async function createRoundAction(formData: FormData) {
       startMode,
       autoStartDelay: startMode === "automatico" ? autoStartDelay : undefined,
       createdBy: session.userId,
+      cardBunchId: cardBunchId || undefined,
     });
   } catch (error) {
     console.log("LOG: Llega al error", error);
@@ -64,6 +66,7 @@ export async function updateRoundAction(formData: FormData) {
   const autoStartDelay = formData.get("autoStartDelay")
     ? parseInt(formData.get("autoStartDelay") as string)
     : undefined;
+  const cardBunchId = formData.get("cardBunchId") as string | null;
 
   try {
     await updateRound(id, {
@@ -73,6 +76,7 @@ export async function updateRoundAction(formData: FormData) {
       gamePattern,
       startMode,
       autoStartDelay: startMode === "automatico" ? autoStartDelay : undefined,
+      cardBunchId: cardBunchId || undefined,
     });
   } catch (error) {
     const message =

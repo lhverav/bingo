@@ -12,6 +12,7 @@ export interface RoundDocument extends Document {
   status: 'configurada' | 'en_progreso' | 'finalizada' | 'cancelada';
   createdBy: mongoose.Types.ObjectId;
   drawnNumbers: number[];
+  cardBunchId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,6 +68,10 @@ const RoundSchema = new Schema<RoundDocument>(
     drawnNumbers: {
       type: [Number],
       default: [],
+    },
+    cardBunchId: {
+      type: Schema.Types.ObjectId,
+      ref: 'CardBunch',
     },
   },
   {
