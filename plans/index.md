@@ -14,7 +14,7 @@ No plan currently in progress. All plans completed.
 
 | ID | Title | File | Status | Next Step |
 |----|-------|------|--------|-----------|
-| 001 | Architecture Migration to game-core | `plans/001-architecture-migration.md` | Phases 1–10 done. Phase 11 (verification) pending | 11.1 — user runs `pnpm install` |
+| 001 | Architecture Migration to game-core | `plans/001-architecture-migration.md` | Completed | All 11 phases done |
 | 002 | Card Bunch Feature | `plans/002-card-bunch-feature.md` | Completed | All 22 steps done + menu added |
 | 003 | Card Bunch Progress & Cancellation | `plans/003-card-bunch-progress-cancellation.md` | Completed | All 8 steps done |
 | 004 | Chunked Card Storage | `plans/004-chunked-card-storage.md` | Completed | All 14 steps done |

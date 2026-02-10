@@ -1,6 +1,6 @@
 # Plan 001 — Architecture Migration to game-core
 
-**Status:** Phases 1–10 completed. Phase 11 (verification) pending.
+**Status:** Completed
 **Created:** 2026-02-03
 **Last Updated:** 2026-02-05
 
@@ -147,19 +147,19 @@ These steps are commands the user runs manually (see RULES.md rule 1).
 
 | Step | Action | Purpose | Status |
 |------|--------|---------|--------|
-| 11.1 | Run `pnpm install` from repo root | Re-link workspace so `@bingo/game-core` is resolved | [ ] Pending |
-| 11.2 | Run `pnpm build` | Catch any TypeScript or import errors across all packages | [ ] Pending |
-| 11.3 | Test web-host: create a round | Confirm the create-round form works end to end | [ ] Pending |
-| 11.4 | Test web-host: start a round + draw numbers | Confirm game flow still works | [ ] Pending |
-| 11.5 | Test mobile-server: starts without errors | Confirm it can import from game-core | [ ] Pending |
+| 11.1 | Run `pnpm install` from repo root | Re-link workspace so `@bingo/game-core` is resolved | [x] Completed |
+| 11.2 | Run `pnpm build` | Catch any TypeScript or import errors across all packages | [x] Completed |
+| 11.3 | Test web-host: create a round | Confirm the create-round form works end to end | [x] Completed |
+| 11.4 | Test web-host: start a round + draw numbers | Confirm game flow still works | [x] Completed |
+| 11.5 | Test mobile-server: starts without errors | Confirm it can import from game-core | [x] Completed |
 
 ---
 
 ## Progress Summary
 
 - **Phases 1–10:** All completed (29 steps + 6 extra import fixes)
-- **Phase 11:** 5 verification steps pending — these are manual checks by the user
-- **Next step:** 11.1 — run `pnpm install`
+- **Phase 11:** All 5 verification steps completed
+- **Plan completed:** 2026-02-09
 
 ---
 
