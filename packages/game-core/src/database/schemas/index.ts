@@ -4,3 +4,5 @@ export { RoundSchema, RoundModel } from './round.schema';
 export type { RoundDocument } from './round.schema';
 export { CardBunchSchema, CardBunchModel } from './cardBunch.schema';
 export type { CardBunchDocument } from './cardBunch.schema';
+export { BunchCardSchema, BunchCardModel } from './bunchCard.schema';
+export type { BunchCardDocument } from './bunchCard.schema';

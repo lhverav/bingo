@@ -16,6 +16,7 @@ export class CardBunchMapper {
       cardSize: doc.cardSize,
       maxNumber: doc.maxNumber,
       cards: doc.cards,
+      cardCount: doc.cardCount,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };

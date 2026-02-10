@@ -23,10 +23,13 @@ export type { CreateRoundInput, UpdateRoundInput } from './roundService';
 // CardBunch services
 export {
   createCardBunch,
+  saveCardBunch,
   getCardBunches,
   getCardBunchesByDimensions,
   deleteCardBunch,
   generateCards,
+  generateCardsInChunks,
+  generateAndSaveCardsInChunks,
 } from './cardBunchService';
 
-export type { CreateCardBunchInput } from './cardBunchService';
+export type { CreateCardBunchInput, SaveCardBunchInput, GenerateAndSaveInput } from './cardBunchService';

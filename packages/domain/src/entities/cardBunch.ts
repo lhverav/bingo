@@ -6,7 +6,8 @@ export interface CardBunch {
   name: string;
   cardSize: number;
   maxNumber: number; // numbers are always 1 to maxNumber
-  cards: number[][][]; // each card is a 2D grid; 0 = free center
+  cards: number[][][]; // Legacy: embedded cards (empty for new bunches)
+  cardCount?: number;  // New: count of cards in BunchCard collection
   createdAt: Date;
   updatedAt: Date;
 }

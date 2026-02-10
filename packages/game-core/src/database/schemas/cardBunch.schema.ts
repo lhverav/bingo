@@ -5,7 +5,8 @@ export interface CardBunchDocument extends Document {
   name: string;
   cardSize: number;
   maxNumber: number;
-  cards: number[][][];
+  cards: number[][][];  // Legacy: embedded cards (empty for new bunches)
+  cardCount?: number;   // New: count of cards in BunchCard collection
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,8 +32,13 @@ const CardBunchSchema = new Schema<CardBunchDocument>(
     },
     cards: {
       type: [[[Number]]],
-      required: [true, 'Las cartas son requeridas'],
+      required: false,  // No longer required - cards stored in BunchCard collection
       default: [],
+    },
+    cardCount: {
+      type: Number,
+      required: false,
+      default: 0,
     },
   },
   {
