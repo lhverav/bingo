@@ -1,14 +1,9 @@
-import {
-  StyleSheet,
-  Text,
-  View,
-  ActivityIndicator,
-} from "react-native";
+import { StyleSheet, Text, View, ActivityIndicator } from "react-native";
 import { useState, useEffect } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { io, Socket } from "socket.io-client";
 
-const SERVER_URL = "http://10.0.0.35:3001";
+const SERVER_URL = "http://10.0.0.40:3001";
 
 interface Card {
   id: string;
@@ -24,7 +19,9 @@ interface Player {
 
 export default function JoinRoundScreen() {
   const { roundId } = useLocalSearchParams<{ roundId: string }>();
-  const [status, setStatus] = useState<"connecting" | "joining" | "error">("connecting");
+  const [status, setStatus] = useState<"connecting" | "joining" | "error">(
+    "connecting",
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
 
@@ -44,20 +41,23 @@ export default function JoinRoundScreen() {
       newSocket.emit("player:join", { roundId });
     });
 
-    newSocket.on("cards:delivered", (data: { player: Player; cards: Card[]; deadline: string }) => {
-      console.log("Cards delivered:", data);
-      // Navigate to card selection with the data
-      router.replace({
-        pathname: "/card-selection",
-        params: {
-          roundId,
-          playerCode: data.player.playerCode,
-          playerId: data.player.id,
-          cards: JSON.stringify(data.cards),
-          deadline: data.deadline,
-        },
-      });
-    });
+    newSocket.on(
+      "cards:delivered",
+      (data: { player: Player; cards: Card[]; deadline: string }) => {
+        console.log("Cards delivered:", data);
+        // Navigate to card selection with the data
+        router.replace({
+          pathname: "/card-selection",
+          params: {
+            roundId,
+            playerCode: data.player.playerCode,
+            playerId: data.player.id,
+            cards: JSON.stringify(data.cards),
+            deadline: data.deadline,
+          },
+        });
+      },
+    );
 
     newSocket.on("error", (data: { message: string }) => {
       console.error("Server error:", data.message);
@@ -77,7 +77,9 @@ export default function JoinRoundScreen() {
   if (status === "error") {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>{errorMessage || "Error al unirse a la ronda"}</Text>
+        <Text style={styles.errorText}>
+          {errorMessage || "Error al unirse a la ronda"}
+        </Text>
         <Text style={styles.backLink} onPress={() => router.back()}>
           Volver
         </Text>

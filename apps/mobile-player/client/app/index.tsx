@@ -46,6 +46,7 @@ export default function HomeScreen() {
     // When notification received, show popup
     socket.on("notification", (data) => {
       console.log("Notification received:", data);
+      console.log("Notification data:", JSON.stringify(data)); // Check Metro terminal
       setCurrentNotification(data.message);
       if (data.roundId) {
         setCurrentRoundId(data.roundId);
@@ -98,12 +99,16 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.buttonJugar}
                 onPress={() => {
+                  console.log("Jugar button pressed");
                   setModalVisible(false);
                   if (currentRoundId) {
+                    console.log("Joining round:", currentRoundId);
                     router.push({
                       pathname: "/join-round",
                       params: { roundId: currentRoundId },
                     });
+                  } else {
+                    console.warn("No round ID available to join");
                   }
                 }}
               >

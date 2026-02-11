@@ -86,11 +86,12 @@ httpServer.listen(PORT, () => {
 
 app.post("/notify", (req, res) => {
   const { type, data } = req.body;
-  console.log("Received notification request: $(type)", type);
+  console.log("Received notification request:", type, data);
 
   io.emit("notification", {
-    type: "TEST",
-    message: "Test notification",
+    type: type || "UNKNOWN",
+    message: type === "ROUND_STARTED" ? "¡Nueva ronda disponible!" : "Notificación",
+    roundId: data?.roundId,
     timestamp: new Date().toISOString(),
   });
 
