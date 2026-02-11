@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { getRoundById } from "@bingo/game-core";
+import { registerRoundEvents } from "./events/roundEvents";
+import { registerGameEvents } from "./events/gameEvents";
 
 // Load environment variables from .env file
 
@@ -54,6 +56,10 @@ app.get("/rounds/:id", async (req, res) => {
 
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
+
+  // Register event handlers
+  registerRoundEvents(io, socket);
+  registerGameEvents(io, socket);
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);

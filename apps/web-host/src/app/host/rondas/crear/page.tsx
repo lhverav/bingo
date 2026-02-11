@@ -105,6 +105,65 @@ export default async function CrearRondaPage({
 
         <CardBunchSelector bunches={cardBunches} />
 
+        {/* Card Delivery Configuration */}
+        <fieldset className="form-fieldset">
+          <legend>Configuración de Entrega de Cartones</legend>
+
+          <div className="form-group">
+            <label htmlFor="selectionTimeSeconds">Tiempo para Seleccionar (segundos)</label>
+            <input
+              type="number"
+              id="selectionTimeSeconds"
+              name="selectionTimeSeconds"
+              min="10"
+              defaultValue="60"
+              required
+            />
+            <small>Tiempo que tiene el jugador para elegir sus cartones</small>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="freeCardsDelivered">Cartones Entregados</label>
+              <input
+                type="number"
+                id="freeCardsDelivered"
+                name="freeCardsDelivered"
+                min="1"
+                defaultValue="3"
+                required
+              />
+              <small>Cartones mostrados al jugador para elegir</small>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="freeCardsToSelect">Cartones a Seleccionar</label>
+              <input
+                type="number"
+                id="freeCardsToSelect"
+                name="freeCardsToSelect"
+                min="1"
+                defaultValue="2"
+                required
+              />
+              <small>Cantidad que el jugador debe elegir</small>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="freeCardsOnTimeout">Cartones Auto-asignados si no Selecciona</label>
+            <input
+              type="number"
+              id="freeCardsOnTimeout"
+              name="freeCardsOnTimeout"
+              min="1"
+              defaultValue="1"
+              required
+            />
+            <small>Cartones entregados automáticamente si se acaba el tiempo</small>
+          </div>
+        </fieldset>
+
         <div className="form-actions">
           <Link href="/host/rondas" className="btn-secondary">
             Cancelar

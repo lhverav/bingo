@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
-import { getRoundById } from "@bingo/game-core";
+import { getRoundById, getPlayersByRound } from "@bingo/game-core";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import GameBoard from "./GameBoard";
@@ -25,6 +25,7 @@ export default async function JugarRondaPage({
   }
 
   const round = await getRoundById(params.id);
+  const players = await getPlayersByRound(params.id);
 
   if (!round) {
     notFound();
@@ -61,6 +62,7 @@ export default async function JugarRondaPage({
         drawnNumbers={round.drawnNumbers}
         isFinished={round.status === "finalizada"}
         maxNumber={round.numberRange.max}
+        initialPlayers={players}
       />
     </main>
   );

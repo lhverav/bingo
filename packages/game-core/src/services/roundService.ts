@@ -4,6 +4,7 @@ import {
   UpdateRoundData as DomainUpdateRoundData,
   GamePattern,
   StartMode,
+  CardDeliveryConfig,
 } from '@bingo/domain';
 import { roundRepository } from '../repositories';
 
@@ -25,6 +26,7 @@ export interface CreateRoundInput {
   autoStartDelay?: number;
   createdBy: string;
   cardBunchId?: string;
+  cardDelivery?: CardDeliveryConfig;
 }
 
 /**
@@ -39,6 +41,7 @@ export interface UpdateRoundInput {
   startMode?: StartMode;
   autoStartDelay?: number;
   cardBunchId?: string;
+  cardDelivery?: CardDeliveryConfig;
 }
 
 /**
@@ -57,6 +60,7 @@ export async function createRound(data: CreateRoundInput): Promise<Round> {
     autoStartDelay: data.autoStartDelay,
     createdBy: data.createdBy,
     cardBunchId: data.cardBunchId,
+    cardDelivery: data.cardDelivery,
   };
 
   return roundRepository.create(createData);
@@ -112,6 +116,7 @@ export async function updateRound(
   if (data.startMode !== undefined) updateData.startMode = data.startMode;
   if (data.autoStartDelay !== undefined) updateData.autoStartDelay = data.autoStartDelay;
   if (data.cardBunchId !== undefined) updateData.cardBunchId = data.cardBunchId;
+  if (data.cardDelivery !== undefined) updateData.cardDelivery = data.cardDelivery;
 
   return roundRepository.update(id, updateData);
 }

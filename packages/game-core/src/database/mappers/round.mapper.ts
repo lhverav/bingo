@@ -25,6 +25,12 @@ export class RoundMapper {
       createdBy: doc.createdBy.toString(),
       drawnNumbers: doc.drawnNumbers,
       cardBunchId: doc.cardBunchId?.toString(),
+      cardDelivery: doc.cardDelivery ? {
+        selectionTimeSeconds: doc.cardDelivery.selectionTimeSeconds,
+        freeCardsDelivered: doc.cardDelivery.freeCardsDelivered,
+        freeCardsToSelect: doc.cardDelivery.freeCardsToSelect,
+        freeCardsOnTimeout: doc.cardDelivery.freeCardsOnTimeout,
+      } : undefined,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
@@ -47,6 +53,7 @@ export class RoundMapper {
       createdBy: data.createdBy,
       drawnNumbers: [],
       cardBunchId: data.cardBunchId,
+      cardDelivery: data.cardDelivery,
     };
   }
 
@@ -67,6 +74,7 @@ export class RoundMapper {
     if (data.startMode !== undefined) update.startMode = data.startMode;
     if (data.autoStartDelay !== undefined) update.autoStartDelay = data.autoStartDelay;
     if (data.cardBunchId !== undefined) update.cardBunchId = data.cardBunchId;
+    if (data.cardDelivery !== undefined) update.cardDelivery = data.cardDelivery;
 
     return update;
   }

@@ -1,4 +1,4 @@
-import { Schema, Document, Model } from 'mongoose';
+import { Schema, Document, Model, Types } from 'mongoose';
 import { mongoose } from '../connection';
 
 export interface RoundDocument extends Document {
@@ -10,9 +10,15 @@ export interface RoundDocument extends Document {
   startMode: 'manual' | 'automatico';
   autoStartDelay?: number;
   status: 'configurada' | 'en_progreso' | 'finalizada' | 'cancelada';
-  createdBy: mongoose.Types.ObjectId;
+  createdBy: Types.ObjectId;
   drawnNumbers: number[];
-  cardBunchId?: mongoose.Types.ObjectId;
+  cardBunchId?: Types.ObjectId;
+  cardDelivery?: {
+    selectionTimeSeconds: number;
+    freeCardsDelivered: number;
+    freeCardsToSelect: number;
+    freeCardsOnTimeout: number;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -72,6 +78,24 @@ const RoundSchema = new Schema<RoundDocument>(
     cardBunchId: {
       type: Schema.Types.ObjectId,
       ref: 'CardBunch',
+    },
+    cardDelivery: {
+      selectionTimeSeconds: {
+        type: Number,
+        min: [10, 'El tiempo minimo de seleccion es 10 segundos'],
+      },
+      freeCardsDelivered: {
+        type: Number,
+        min: [1, 'Debe entregar al menos 1 carton'],
+      },
+      freeCardsToSelect: {
+        type: Number,
+        min: [1, 'El jugador debe seleccionar al menos 1 carton'],
+      },
+      freeCardsOnTimeout: {
+        type: Number,
+        min: [1, 'Debe entregar al menos 1 carton en timeout'],
+      },
     },
   },
   {

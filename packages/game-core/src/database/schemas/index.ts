@@ -6,3 +6,5 @@ export { CardBunchSchema, CardBunchModel } from './cardBunch.schema';
 export type { CardBunchDocument } from './cardBunch.schema';
 export { BunchCardSchema, BunchCardModel } from './bunchCard.schema';
 export type { BunchCardDocument } from './bunchCard.schema';
+export { RoundPlayerSchema, RoundPlayerModel } from './roundPlayer.schema';
+export type { RoundPlayerDocument } from './roundPlayer.schema';

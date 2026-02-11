@@ -29,6 +29,12 @@ export async function createRoundAction(formData: FormData) {
     : undefined;
   const cardBunchId = formData.get("cardBunchId") as string | null;
 
+  // Card delivery configuration
+  const selectionTimeSeconds = parseInt(formData.get("selectionTimeSeconds") as string);
+  const freeCardsDelivered = parseInt(formData.get("freeCardsDelivered") as string);
+  const freeCardsToSelect = parseInt(formData.get("freeCardsToSelect") as string);
+  const freeCardsOnTimeout = parseInt(formData.get("freeCardsOnTimeout") as string);
+
   try {
     await createRound({
       name,
@@ -39,6 +45,12 @@ export async function createRoundAction(formData: FormData) {
       autoStartDelay: startMode === "automatico" ? autoStartDelay : undefined,
       createdBy: session.userId,
       cardBunchId: cardBunchId || undefined,
+      cardDelivery: {
+        selectionTimeSeconds,
+        freeCardsDelivered,
+        freeCardsToSelect,
+        freeCardsOnTimeout,
+      },
     });
   } catch (error) {
     console.log("LOG: Llega al error", error);
@@ -68,6 +80,20 @@ export async function updateRoundAction(formData: FormData) {
     : undefined;
   const cardBunchId = formData.get("cardBunchId") as string | null;
 
+  // Card delivery configuration
+  const selectionTimeSeconds = formData.get("selectionTimeSeconds")
+    ? parseInt(formData.get("selectionTimeSeconds") as string)
+    : undefined;
+  const freeCardsDelivered = formData.get("freeCardsDelivered")
+    ? parseInt(formData.get("freeCardsDelivered") as string)
+    : undefined;
+  const freeCardsToSelect = formData.get("freeCardsToSelect")
+    ? parseInt(formData.get("freeCardsToSelect") as string)
+    : undefined;
+  const freeCardsOnTimeout = formData.get("freeCardsOnTimeout")
+    ? parseInt(formData.get("freeCardsOnTimeout") as string)
+    : undefined;
+
   try {
     await updateRound(id, {
       name,
@@ -77,6 +103,14 @@ export async function updateRoundAction(formData: FormData) {
       startMode,
       autoStartDelay: startMode === "automatico" ? autoStartDelay : undefined,
       cardBunchId: cardBunchId || undefined,
+      cardDelivery: selectionTimeSeconds && freeCardsDelivered && freeCardsToSelect && freeCardsOnTimeout
+        ? {
+            selectionTimeSeconds,
+            freeCardsDelivered,
+            freeCardsToSelect,
+            freeCardsOnTimeout,
+          }
+        : undefined,
     });
   } catch (error) {
     const message =

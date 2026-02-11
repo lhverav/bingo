@@ -8,9 +8,10 @@ import {
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
+import { router } from "expo-router";
 import YoutubePlayer from "react-native-youtube-iframe";
 
-const SERVER_URL = "http://10.0.0.35:3001";
+const SERVER_URL = "http://10.0.0.40:3001";
 const YOUTUBE_VIDEO_ID =
   process.env.EXPO_PUBLIC_YOUTUBE_VIDEO_ID || "dQw4w9WgXcQ";
 
@@ -21,6 +22,7 @@ export default function HomeScreen() {
   const [currentNotification, setCurrentNotification] = useState<string | null>(
     null,
   );
+  const [currentRoundId, setCurrentRoundId] = useState<string | null>(null);
 
   const onStateChange = useCallback((state: string) => {
     if (state === "ended") {
@@ -45,6 +47,9 @@ export default function HomeScreen() {
     socket.on("notification", (data) => {
       console.log("Notification received:", data);
       setCurrentNotification(data.message);
+      if (data.roundId) {
+        setCurrentRoundId(data.roundId);
+      }
       setModalVisible(true);
     });
 
@@ -94,8 +99,12 @@ export default function HomeScreen() {
                 style={styles.buttonJugar}
                 onPress={() => {
                   setModalVisible(false);
-                  // TODO: Navigate to game or join round
-                  console.log("Joining round:", currentNotification);
+                  if (currentRoundId) {
+                    router.push({
+                      pathname: "/join-round",
+                      params: { roundId: currentRoundId },
+                    });
+                  }
                 }}
               >
                 <Text style={styles.buttonJugarText}>Jugar</Text>

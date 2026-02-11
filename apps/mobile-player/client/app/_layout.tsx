@@ -12,6 +12,27 @@ export default function RootLayout() {
             title: 'Bingote de Oro',
           }}
         />
+        <Stack.Screen
+          name="join-round"
+          options={{
+            title: 'Unirse a Ronda',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="card-selection"
+          options={{
+            title: 'Seleccionar Cartones',
+            headerBackVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="game"
+          options={{
+            title: 'Juego',
+            headerBackVisible: false,
+          }}
+        />
       </Stack>
     </>
   );

@@ -4,7 +4,7 @@
 export * from './services';
 
 // Export repositories (for advanced use cases)
-export { userRepository, roundRepository, cardBunchRepository } from './repositories';
+export { userRepository, roundRepository, cardBunchRepository, roundPlayerRepository } from './repositories';
 
 // Export database connection (for apps that need direct access)
 export { connectToDatabase } from './database/connection';

@@ -6,7 +6,9 @@
 
 ## Current Plan
 
-No plan currently in progress. All plans completed.
+**Plan 005 — Play Flow: Card Distribution & Selection**
+- File: `plans/005-play-flow-card-distribution.md`
+- Next Step: 1.2 — Export RoundPlayer entity
 
 ---
 
@@ -18,6 +20,7 @@ No plan currently in progress. All plans completed.
 | 002 | Card Bunch Feature | `plans/002-card-bunch-feature.md` | Completed | All 22 steps done + menu added |
 | 003 | Card Bunch Progress & Cancellation | `plans/003-card-bunch-progress-cancellation.md` | Completed | All 8 steps done |
 | 004 | Chunked Card Storage | `plans/004-chunked-card-storage.md` | Completed | All 14 steps done |
+| 005 | Play Flow: Card Distribution & Selection | `plans/005-play-flow-card-distribution.md` | In Progress | 1.2 — Export RoundPlayer entity |
 
 ---
 

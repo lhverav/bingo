@@ -1,6 +1,16 @@
 import { GamePattern, RoundStatus, StartMode } from '../value-objects';
 
 /**
+ * Configuration for card delivery during player join phase
+ */
+export interface CardDeliveryConfig {
+  selectionTimeSeconds: number;     // Time for player to select cards
+  freeCardsDelivered: number;       // Cards shown to player for selection
+  freeCardsToSelect: number;        // Cards player must choose
+  freeCardsOnTimeout: number;       // Cards auto-assigned if timeout
+}
+
+/**
  * Round entity - Pure domain object
  * Represents a bingo game round configuration and state
  */
@@ -19,6 +29,7 @@ export interface Round {
   createdBy: string; // User ID
   drawnNumbers: number[];
   cardBunchId?: string; // Optional reference to pre-generated card bunch
+  cardDelivery?: CardDeliveryConfig; // Card delivery configuration for player join phase
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +49,7 @@ export interface CreateRoundData {
   autoStartDelay?: number;
   createdBy: string;
   cardBunchId?: string;
+  cardDelivery?: CardDeliveryConfig;
 }
 
 /**
@@ -54,4 +66,5 @@ export interface UpdateRoundData {
   startMode?: StartMode;
   autoStartDelay?: number;
   cardBunchId?: string;
+  cardDelivery?: CardDeliveryConfig;
 }

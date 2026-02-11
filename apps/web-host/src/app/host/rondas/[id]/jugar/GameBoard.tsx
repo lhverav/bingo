@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { RoundPlayer } from "@bingo/domain";
 
 interface GameBoardProps {
   roundId: string;
@@ -9,6 +10,7 @@ interface GameBoardProps {
   drawnNumbers: number[];
   isFinished: boolean;
   maxNumber: number;
+  initialPlayers: RoundPlayer[];
 }
 
 export default function GameBoard({
@@ -17,6 +19,7 @@ export default function GameBoard({
   drawnNumbers: initialDrawnNumbers,
   isFinished: initialIsFinished,
   maxNumber,
+  initialPlayers,
 }: GameBoardProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -26,6 +29,30 @@ export default function GameBoard({
   );
   const [isFinished, setIsFinished] = useState(initialIsFinished);
   const [error, setError] = useState<string | null>(null);
+  const [players, setPlayers] = useState<RoundPlayer[]>(initialPlayers);
+
+  // Poll for players updates every 3 seconds
+  useEffect(() => {
+    if (isFinished) return;
+
+    const fetchPlayers = async () => {
+      try {
+        const response = await fetch(`/api/round/${roundId}/players`);
+        if (response.ok) {
+          const data = await response.json();
+          setPlayers(data.players);
+        }
+      } catch (err) {
+        console.error("Error fetching players:", err);
+      }
+    };
+
+    const interval = setInterval(fetchPlayers, 3000);
+    return () => clearInterval(interval);
+  }, [roundId, isFinished]);
+
+  const playersSelecting = players.filter(p => p.status === "selecting").length;
+  const playersReady = players.filter(p => p.status === "ready").length;
 
   const availableNumbers = allNumbers.filter((n) => !drawnNumbers.includes(n));
 
@@ -108,6 +135,34 @@ export default function GameBoard({
       <div className="game-stats">
         <span>Sacados: {drawnNumbers.length}</span>
         <span>Restantes: {availableNumbers.length}</span>
+      </div>
+
+      {/* Players Section */}
+      <div className="players-section">
+        <h3>Jugadores ({players.length})</h3>
+        <div className="players-stats">
+          <span className="stat-selecting">Seleccionando: {playersSelecting}</span>
+          <span className="stat-ready">Listos: {playersReady}</span>
+        </div>
+        {players.length === 0 ? (
+          <p className="no-players">No hay jugadores conectados</p>
+        ) : (
+          <div className="players-list">
+            {players.map((player) => (
+              <div
+                key={player.id}
+                className={`player-card ${player.status === "ready" ? "ready" : "selecting"}`}
+              >
+                <span className="player-code">{player.playerCode}</span>
+                <span className="player-status">
+                  {player.status === "ready"
+                    ? `✓ ${player.selectedCardIds.length} cartones`
+                    : "Seleccionando..."}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="numbers-board">
