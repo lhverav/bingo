@@ -1,0 +1,296 @@
+{
+  "name": "Auth Flow",
+  "version": "2.1",
+  "_schema": {
+    "screenRef": "Reference to a shared screen defined elsewhere in the flow",
+    "navigateTo": "Special navigation (BACK, APP_HOME)"
+  },
+  "_sharedScreens": [
+    "Cual es tu fecha de nacimiento",
+    "Cual es tu genero",
+    "Como te llamas",
+    "Activar las notificaciones",
+    "Ingresa tu contrasena",
+    "Ingresa tu numero de telefono",
+    "Seleccionar cuenta de Google",
+    "Registrate para empezar a jugar"
+  ],
+  "root": {
+    "screen": "Bingote de Oro",
+    "elements": [
+      {
+        "type": "button",
+        "label": "Registrarme gratis",
+        "screen": {
+          "name": "Registrate para empezar a jugar",
+          "elements": [
+            {
+              "type": "button",
+              "label": "Continuar con tu email",
+              "screen": {
+                "name": "Cual es tu email",
+                "elements": [
+                  {
+                    "type": "input",
+                    "label": "Email"
+                  },
+                  {
+                    "type": "button",
+                    "label": "Siguiente",
+                    "screen": {
+                      "name": "Crea una contrasena",
+                      "elements": [
+                        {
+                          "type": "input",
+                          "label": "Contrasena"
+                        },
+                        {
+                          "type": "button",
+                          "label": "Siguiente",
+                          "screen": {
+                            "name": "Cual es tu fecha de nacimiento",
+                            "elements": [
+                              {
+                                "type": "input",
+                                "inputType": "date",
+                                "label": "Fecha de nacimiento"
+                              },
+                              {
+                                "type": "button",
+                                "label": "Siguiente",
+                                "screen": {
+                                  "name": "Cual es tu genero",
+                                  "elements": [
+                                {
+                                  "type": "radio",
+                                  "label": "Femenino"
+                                },
+                                {
+                                  "type": "radio",
+                                  "label": "Masculino"
+                                },
+                                {
+                                  "type": "radio",
+                                  "label": "No binario"
+                                },
+                                {
+                                  "type": "radio",
+                                  "label": "Otro"
+                                },
+                                {
+                                  "type": "radio",
+                                  "label": "Prefiero no compartirlo"
+                                },
+                                {
+                                  "type": "button",
+                                  "label": "Siguiente",
+                                  "screen": {
+                                    "name": "Como te llamas",
+                                    "elements": [
+                                      {
+                                        "type": "input",
+                                        "label": "Nombre"
+                                      },
+                                      {
+                                        "type": "link",
+                                        "label": "Terminos de uso"
+                                      },
+                                      {
+                                        "type": "link",
+                                        "label": "Politica de privacidad"
+                                      },
+                                      {
+                                        "type": "checkbox",
+                                        "label": "Prefiero no recibir publicidad de {{nombre_empresa}}",
+                                        "params": {
+                                          "nombre_empresa": "Bingote de Oro"
+                                        }
+                                      },
+                                      {
+                                        "type": "checkbox",
+                                        "label": "Acepto compartir mis datos con terceros"
+                                      },
+                                      {
+                                        "type": "button",
+                                        "label": "Crear cuenta",
+                                        "screen": {
+                                          "name": "Activar las notificaciones",
+                                          "elements": [
+                                            {
+                                              "type": "button",
+                                              "label": "Activar las notificaciones",
+                                              "navigateTo": "APP_HOME"
+                                            },
+                                            {
+                                              "type": "button",
+                                              "label": "Ahora no",
+                                              "navigateTo": "APP_HOME"
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "button",
+              "label": "Continuar con numero de telefono",
+              "screen": {
+                "name": "Ingresa tu numero de telefono",
+                "elements": [
+                  {
+                    "type": "input",
+                    "label": "Numero de telefono"
+                  },
+                  {
+                    "type": "button",
+                    "label": "Siguiente",
+                    "screen": {
+                      "name": "Ingresa el codigo de verificacion",
+                      "elements": [
+                        {
+                          "type": "input",
+                          "label": "Codigo de verificacion"
+                        },
+                        {
+                          "type": "button",
+                          "label": "Verificar",
+                          "screenRef": "Cual es tu fecha de nacimiento"
+                        },
+                        {
+                          "type": "link",
+                          "label": "Reenviar el codigo"
+                        },
+                        {
+                          "type": "link",
+                          "label": "Editar numero de telefono",
+                          "navigateTo": "BACK"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "button",
+              "label": "Continuar con Google",
+              "screen": {
+                "name": "Seleccionar cuenta de Google",
+                "elements": [
+                  {
+                    "type": "list",
+                    "label": "Cuentas de Google previas",
+                    "items": "dynamic",
+                    "onSelect": "APP_HOME"
+                  },
+                  {
+                    "type": "link",
+                    "label": "Agregar nuevo",
+                    "action": "GOOGLE_OAUTH",
+                    "onComplete": {
+                      "condition": "email_exists_as_email_account",
+                      "true": {
+                        "screenRef": "Ingresa tu contrasena"
+                      },
+                      "false": {
+                        "screenRef": "Cual es tu fecha de nacimiento"
+                      }
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "label": "Ya tienes una cuenta?"
+                  },
+                  {
+                    "type": "link",
+                    "label": "Iniciar Sesion",
+                    "screenRef": "Iniciar sesion en {{nombre_empresa}}"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "label": "Ya tienes cuenta?"
+            },
+            {
+              "type": "button",
+              "label": "Iniciar sesion",
+              "screenRef": "Iniciar sesion en {{nombre_empresa}}"
+            }
+          ]
+        }
+      },
+      {
+        "type": "button",
+        "label": "Iniciar sesion",
+        "screen": {
+          "name": "Iniciar sesion en {{nombre_empresa}}",
+          "params": {
+            "nombre_empresa": "Bingote de Oro"
+          },
+          "elements": [
+            {
+              "type": "button",
+              "label": "Continuar con tu email",
+              "screen": {
+                "name": "",
+                "elements": [
+                  {
+                    "type": "input",
+                    "label": "Email"
+                  },
+                  {
+                    "type": "input",
+                    "inputType": "password",
+                    "label": "Contrasena"
+                  },
+                  {
+                    "type": "button",
+                    "label": "Iniciar sesion",
+                    "navigateTo": "APP_HOME"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "button",
+              "label": "Continuar con numero de telefono",
+              "screenRef": "Ingresa tu numero de telefono"
+            },
+            {
+              "type": "button",
+              "label": "Continuar con Google",
+              "screenRef": "Seleccionar cuenta de Google"
+            },
+            {
+              "type": "button",
+              "label": "Continuar con Facebook",
+              "screen": null
+            },
+            {
+              "type": "text",
+              "label": "No tienes una cuenta?"
+            },
+            {
+              "type": "link",
+              "label": "Registrate",
+              "screenRef": "Registrate para empezar a jugar"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
