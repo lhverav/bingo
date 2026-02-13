@@ -252,11 +252,12 @@
               "label": "Continuar con tu email",
               "screen": {
                 "name": "Ingresa tu contrasena",
+                "receivesParams": ["email"],
                 "elements": [
                   {
                     "type": "input",
                     "label": "Email",
-                    "_note": "Pre-filled when coming from Google OAuth with existing email"
+                    "value": "$params.email"
                   },
                   {
                     "type": "input",
