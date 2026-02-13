@@ -11,7 +11,7 @@ import { io } from "socket.io-client";
 import { router } from "expo-router";
 import YoutubePlayer from "react-native-youtube-iframe";
 
-const SERVER_URL = "http://10.0.0.40:3001";
+const SERVER_URL = "http://10.0.0.10:3001";
 const YOUTUBE_VIDEO_ID =
   process.env.EXPO_PUBLIC_YOUTUBE_VIDEO_ID || "dQw4w9WgXcQ";
 
@@ -77,6 +77,14 @@ export default function HomeScreen() {
       <Text style={{ color: connected ? "green" : "red", marginBottom: 16 }}>
         {connected ? "● Connected" : "○   Disconnected"}
       </Text>
+
+      {/* Auth Button */}
+      <TouchableOpacity
+        style={styles.authButton}
+        onPress={() => router.push("/(auth)")}
+      >
+        <Text style={styles.authButtonText}>Iniciar Sesión / Registrarse</Text>
+      </TouchableOpacity>
 
       {/* Notification Popup Modal */}
       <Modal
@@ -203,5 +211,17 @@ const styles = StyleSheet.create({
     color: "#666",
     fontSize: 18,
     fontWeight: "600",
+  },
+  authButton: {
+    backgroundColor: "#1a1a2e",
+    paddingHorizontal: 30,
+    paddingVertical: 14,
+    borderRadius: 25,
+    marginTop: 20,
+  },
+  authButtonText: {
+    color: "#FFD700",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
