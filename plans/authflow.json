@@ -3,7 +3,10 @@
   "version": "2.1",
   "_schema": {
     "screenRef": "Reference to a shared screen defined elsewhere in the flow",
-    "navigateTo": "Special navigation (BACK, APP_HOME)"
+    "navigateTo": "Special navigation (BACK, APP_HOME)",
+    "passParams": "Dynamic parameters passed during navigation",
+    "receivesParams": "Parameters the screen expects to receive",
+    "$context": "Variable from current context (e.g., $oauth_email)"
   },
   "_sharedScreens": [
     "Cual es tu fecha de nacimiento",
@@ -201,7 +204,10 @@
                     "onComplete": {
                       "condition": "email_exists_as_email_account",
                       "true": {
-                        "screenRef": "Ingresa tu contrasena"
+                        "screenRef": "Ingresa tu contrasena",
+                        "passParams": {
+                          "email": "$oauth_email"
+                        }
                       },
                       "false": {
                         "screenRef": "Cual es tu fecha de nacimiento"
