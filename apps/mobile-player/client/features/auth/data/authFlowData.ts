@@ -1,4 +1,6 @@
-{
+import { AuthFlow } from '../types/authflow.types';
+
+export const authFlowData: AuthFlow = {
   "name": "Auth Flow",
   "version": "2.1",
   "_schema": {
@@ -138,6 +140,8 @@
                                   ]
                                 }
                               }
+                            ]
+                          }
                         }
                       ]
                     }
@@ -301,4 +305,4 @@
       }
     ]
   }
-}
+};

@@ -6,6 +6,8 @@
       "ES2022"
     ],
     "baseUrl": ".",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
     "paths": {
       "@/*": [
         "./src/*"
@@ -20,6 +22,7 @@
     "**/*.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "features/auth/data"
   ]
 }

@@ -13,9 +13,13 @@
   },
   "dependencies": {
     "@bingo/shared": "workspace:*",
+    "@react-native-community/datetimepicker": "^8.0.0",
     "expo": "~54.0.31",
+    "expo-auth-session": "~6.0.3",
+    "expo-crypto": "~14.1.0",
     "expo-router": "~6.0.21",
     "expo-status-bar": "~3.0.9",
+    "expo-web-browser": "~14.0.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",

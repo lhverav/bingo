@@ -13,6 +13,13 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
+          name="auth/index"
+          options={{
+            title: 'Autenticacion',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
           name="join-round"
           options={{
             title: 'Unirse a Ronda',

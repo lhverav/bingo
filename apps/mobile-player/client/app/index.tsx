@@ -11,7 +11,7 @@ import { io } from "socket.io-client";
 import { router } from "expo-router";
 import YoutubePlayer from "react-native-youtube-iframe";
 
-const SERVER_URL = "http://10.0.0.40:3001";
+const SERVER_URL = "http://10.0.0.36:3001";
 const YOUTUBE_VIDEO_ID =
   process.env.EXPO_PUBLIC_YOUTUBE_VIDEO_ID || "dQw4w9WgXcQ";
 
@@ -77,6 +77,22 @@ export default function HomeScreen() {
       <Text style={{ color: connected ? "green" : "red", marginBottom: 16 }}>
         {connected ? "● Connected" : "○   Disconnected"}
       </Text>
+
+      {/* Auth Buttons */}
+      <View style={styles.authButtons}>
+        <TouchableOpacity
+          style={styles.buttonRegistrar}
+          onPress={() => router.push("/auth")}
+        >
+          <Text style={styles.buttonRegistrarText}>Registrarme gratis</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.buttonIniciar}
+          onPress={() => router.push("/auth")}
+        >
+          <Text style={styles.buttonIniciarText}>Iniciar sesion</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Notification Popup Modal */}
       <Modal
@@ -200,6 +216,42 @@ const styles = StyleSheet.create({
     borderColor: "#ccc",
   },
   buttonIgnorarText: {
+    color: "#666",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  authButtons: {
+    width: "100%",
+    gap: 12,
+    marginTop: 20,
+  },
+  buttonRegistrar: {
+    backgroundColor: "#FFD700",
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+    alignItems: "center",
+    shadowColor: "#FFA500",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  buttonRegistrarText: {
+    color: "#333",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  buttonIniciar: {
+    backgroundColor: "#f0f0f0",
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ccc",
+  },
+  buttonIniciarText: {
     color: "#666",
     fontSize: 18,
     fontWeight: "600",
