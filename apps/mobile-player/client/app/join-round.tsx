@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { io, Socket } from "socket.io-client";
 
-const SERVER_URL = "http://10.0.0.40:3001";
+const SERVER_URL = "http://10.0.0.35:3001";
 
 interface Card {
   id: string;

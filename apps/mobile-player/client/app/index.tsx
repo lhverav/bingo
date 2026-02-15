@@ -10,12 +10,14 @@ import { useState, useEffect, useCallback } from "react";
 import { io } from "socket.io-client";
 import { router } from "expo-router";
 import YoutubePlayer from "react-native-youtube-iframe";
+import { useAuth } from "@/contexts/AuthContext";
 
-const SERVER_URL = "http://10.0.0.40:3001";
+const SERVER_URL = "http://10.0.0.35:3001";
 const YOUTUBE_VIDEO_ID =
   process.env.EXPO_PUBLIC_YOUTUBE_VIDEO_ID || "dQw4w9WgXcQ";
 
 export default function HomeScreen() {
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [connected, setConnected] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -24,11 +26,32 @@ export default function HomeScreen() {
   );
   const [currentRoundId, setCurrentRoundId] = useState<string | null>(null);
 
+  // Redirect to auth if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.replace("/(auth)");
+    }
+  }, [isAuthenticated, authLoading]);
+
   const onStateChange = useCallback((state: string) => {
     if (state === "ended") {
       setPlaying(false);
     }
   }, []);
+
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: "center" }]}>
+        <Text>Cargando...</Text>
+      </View>
+    );
+  }
+
+  // Don't render home content if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
 
   useEffect(() => {
     const socket = io(SERVER_URL);
