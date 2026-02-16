@@ -7,8 +7,9 @@
     ],
     "baseUrl": ".",
     "paths": {
+      // DO NOT CHANGE: Project has no src/ directory, files are in root
       "@/*": [
-        "./src/*"
+        "./*"
       ],
       "@bingo/shared": [
         "../../packages/shared/src"

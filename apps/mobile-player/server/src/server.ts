@@ -6,6 +6,7 @@ import { Server } from "socket.io";
 import { getRoundById } from "@bingo/game-core";
 import { registerRoundEvents } from "./events/roundEvents";
 import { registerGameEvents } from "./events/gameEvents";
+import authRoutes from "./routes/auth.routes";
 
 // Load environment variables from .env file
 
@@ -45,8 +46,10 @@ app.get("/rounds/:id", async (req, res) => {
   }
 });
 
-// TODO: Add routes
-// - Auth routes
+// Auth routes (OAuth2)
+app.use("/auth", authRoutes);
+
+// TODO: Add more routes
 // - Game routes
 // - Player routes
 

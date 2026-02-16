@@ -1,15 +1,23 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { AuthProvider } from '../contexts/AuthContext';
 
 export default function RootLayout() {
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="auto" />
       <Stack>
         <Stack.Screen
           name="index"
           options={{
             title: 'Bingote de Oro',
+          }}
+        />
+        <Stack.Screen
+          name="oauth-callback"
+          options={{
+            title: 'Autenticando...',
+            headerShown: false,
           }}
         />
         <Stack.Screen
@@ -34,6 +42,6 @@ export default function RootLayout() {
           }}
         />
       </Stack>
-    </>
+    </AuthProvider>
   );
 }
