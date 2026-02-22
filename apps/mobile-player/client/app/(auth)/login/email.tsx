@@ -39,7 +39,7 @@ export default function EmailLoginScreen() {
       console.log('Logging in with:', { email, password });
 
       // Navigate to app home
-      router.replace('/');
+      router.replace('/home');
     } catch (err) {
       setPasswordError('Email o contraseña incorrectos');
     } finally {

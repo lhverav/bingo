@@ -6,6 +6,7 @@ import { Server } from "socket.io";
 import { getRoundById } from "@bingo/game-core";
 import { registerRoundEvents } from "./events/roundEvents";
 import { registerGameEvents } from "./events/gameEvents";
+import authRoutes from "./routes/auth.routes";
 
 // Load environment variables from .env file
 
@@ -26,6 +27,9 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Routes
+app.use("/auth", authRoutes);
 
 // Health check
 app.get("/health", (req, res) => {

@@ -4,7 +4,9 @@
  * API functions for authentication operations.
  */
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api';
+import { serverConfig } from "@/config/server";
+
+const API_URL = serverConfig.apiUrl;
 
 // =============================================================================
 // TYPES

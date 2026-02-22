@@ -5,9 +5,11 @@ import { formStyles, entryStyles, spacing, colors } from '@/constants/authStyles
 import AuthButton from '@/components/auth/AuthButton';
 import ProgressBar from '@/components/auth/ProgressBar';
 import { useRegistration } from '@/contexts/RegistrationContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function TermsScreen() {
   const { data, updateData } = useRegistration();
+  const { login } = useAuth();
   const [noAds, setNoAds] = useState(false);
   const [shareData, setShareData] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,8 +20,8 @@ export default function TermsScreen() {
 
     setLoading(true);
     try {
-      // TODO: Create account with all data from context
-      // await registerUser({
+      // TODO: Create account with all data from context via API
+      // const response = await registerUser({
       //   email: data.email,
       //   password: data.password,
       //   phone: data.phone,
@@ -38,6 +40,23 @@ export default function TermsScreen() {
         noAds,
         shareData,
       });
+
+      // Create user object from registration data
+      const user = {
+        id: data.oauthId || `temp-${Date.now()}`,
+        email: data.oauthEmail || data.email,
+        name: data.name || data.suggestedName || '',
+        birthdate: data.birthdate || '',
+        gender: data.gender || '',
+        createdAt: new Date().toISOString(),
+      };
+
+      // TODO: Get real token from backend response
+      const mockToken = `mock-token-${Date.now()}`;
+
+      // Log the user in
+      await login(user, mockToken);
+      console.log('✅ User logged in after registration');
 
       // Navigate to notifications screen
       router.push('/(auth)/profile/notifications');

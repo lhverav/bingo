@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { entryStyles } from '@/constants/authStyles';
 
 export default function AuthEntryScreen() {
+  console.log("🔐 AuthEntryScreen ((auth)/index.tsx) MOUNTED");
   return (
     <View style={entryStyles.container}>
       {/* Logo Header */}

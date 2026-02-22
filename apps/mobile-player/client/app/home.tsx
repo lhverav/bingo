@@ -11,13 +11,14 @@ import { io } from "socket.io-client";
 import { router } from "expo-router";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { useAuth } from "@/contexts/AuthContext";
-
-const SERVER_URL = "http://10.0.0.35:3001";
+import { serverConfig } from "@/config/server";
 const YOUTUBE_VIDEO_ID =
   process.env.EXPO_PUBLIC_YOUTUBE_VIDEO_ID || "dQw4w9WgXcQ";
 
 export default function HomeScreen() {
+  console.log("🏠 HomeScreen (index.tsx) MOUNTED");
   const { isAuthenticated, loading: authLoading } = useAuth();
+  console.log("🏠 Auth state:", { isAuthenticated, authLoading });
   const [connected, setConnected] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -29,7 +30,7 @@ export default function HomeScreen() {
   // Redirect to auth if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.replace("/(auth)");
+    //  router.replace("/(auth)");
     }
   }, [isAuthenticated, authLoading]);
 
@@ -50,11 +51,11 @@ export default function HomeScreen() {
 
   // Don't render home content if not authenticated
   if (!isAuthenticated) {
-    return null;
+   // return null;
   }
 
   useEffect(() => {
-    const socket = io(SERVER_URL);
+    const socket = io(serverConfig.baseUrl);
 
     socket.on("connect", () => {
       console.log("Connected to server");

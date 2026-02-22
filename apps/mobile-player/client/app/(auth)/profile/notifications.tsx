@@ -9,23 +9,29 @@ export default function NotificationsScreen() {
   const { clearData } = useRegistration();
 
   const handleActivate = async () => {
+    console.log("📱 handleActivate called");
     // TODO: Request notification permissions
     // import * as Notifications from 'expo-notifications';
     // await Notifications.requestPermissionsAsync();
 
     // Clear registration context
     clearData();
+    console.log("📱 clearData done, navigating to home");
 
     // Navigate to app home
-    router.replace('/');
+    router.replace('/home');
+    console.log("📱 Navigation to /home executed");
   };
 
   const handleSkip = () => {
+    console.log("📱 handleSkip called");
     // Clear registration context
     clearData();
+    console.log("📱 clearData done, navigating to home");
 
     // Navigate to app home
-    router.replace('/');
+    router.replace('/home');
+    console.log("📱 Navigation to /home executed");
   };
 
   return (

@@ -1,0 +1,156 @@
+/**
+ * OAuth Callback Screen
+ *
+ * This screen is opened when the deep link bingo-player://oauth-callback is triggered
+ * after successful Google OAuth authentication.
+ *
+ * Integration with auth flow:
+ * - For NEW users: Store OAuth data in RegistrationContext and continue to profile flow
+ * - For RETURNING users: Log them in directly with AuthContext
+ */
+
+import { useEffect } from "react";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { useLocalSearchParams, router } from "expo-router";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRegistration } from "@/contexts/RegistrationContext";
+
+export default function OAuthCallbackScreen() {
+  const { email, name, googleId, error } = useLocalSearchParams();
+  const { login } = useAuth();
+  const { updateData } = useRegistration();
+
+  useEffect(() => {
+    console.log("🎯 OAuth Callback Screen Mounted");
+    console.log("Parameters:", { email, name, googleId, error });
+
+    if (error) {
+      console.error("OAuth Error:", error);
+      setTimeout(() => {
+        router.replace("/(auth)/register/hub");
+      }, 3000);
+      return;
+    }
+
+    if (email && name && googleId) {
+      console.log("✅ OAuth Success - User data received");
+
+      handleOAuthSuccess(
+        String(email),
+        String(name),
+        String(googleId)
+      );
+    } else {
+      console.warn("Missing OAuth parameters");
+      setTimeout(() => {
+        router.replace("/(auth)/register/hub");
+      }, 3000);
+    }
+  }, [email, name, googleId, error]);
+
+  const handleOAuthSuccess = async (
+    email: string,
+    name: string,
+    googleId: string
+  ) => {
+    // TODO: Check if user exists in backend
+    // const userExists = await checkUserExists(email);
+    const userExists = false; // Placeholder
+
+    if (userExists) {
+      // Returning user - log them in directly
+      const user = {
+        id: googleId,
+        email: email,
+        name: name,
+        birthdate: "", // Would come from backend
+        gender: "",
+        createdAt: new Date().toISOString(),
+      };
+
+      const mockToken = "mock-jwt-token"; // Should come from backend
+
+      login(user, mockToken)
+        .then(() => {
+          console.log("✅ User logged in with OAuth");
+          setTimeout(() => {
+            router.replace("/home");
+          }, 2000);
+        })
+        .catch((err) => {
+          console.error("Failed to login:", err);
+        });
+    } else {
+      // New user - continue to profile completion flow
+      updateData({
+        oauthEmail: email,
+        oauthProvider: "google",
+        oauthId: googleId,
+        suggestedName: name,
+      });
+
+      console.log("📝 New user - redirecting to profile completion");
+      setTimeout(() => {
+        router.replace("/(auth)/profile/birthdate");
+      }, 2000);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      {error ? (
+        <>
+          <Text style={styles.errorIcon}>❌</Text>
+          <Text style={styles.title}>Error de Autenticación</Text>
+          <Text style={styles.message}>{String(error)}</Text>
+          <Text style={styles.subtext}>Redirigiendo...</Text>
+        </>
+      ) : (
+        <>
+          <ActivityIndicator size="large" color="#4285F4" />
+          <Text style={styles.title}>¡Autenticación Exitosa!</Text>
+          <Text style={styles.message}>Bienvenido, {name}</Text>
+          <Text style={styles.email}>{email}</Text>
+          <Text style={styles.subtext}>Procesando...</Text>
+        </>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#1a1a2e",
+    padding: 20,
+  },
+  errorIcon: {
+    fontSize: 60,
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#fff",
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  message: {
+    fontSize: 18,
+    color: "#FFD700",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  email: {
+    fontSize: 14,
+    color: "#ccc",
+    marginBottom: 20,
+  },
+  subtext: {
+    fontSize: 14,
+    color: "#888",
+    marginTop: 20,
+  },
+});

@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { formStyles, spacing } from '@/constants/authStyles';
 import AuthButton from '@/components/auth/AuthButton';
 import { useRegistration } from '@/contexts/RegistrationContext';
-import { performGoogleOAuth } from '@/utils/oauthHandler';
+import { initiateGoogleLogin } from '@/utils/googleOAuth';
 
 export default function GoogleAccountSelectorScreen() {
   const { updateData } = useRegistration();
@@ -16,33 +16,12 @@ export default function GoogleAccountSelectorScreen() {
     setError('');
 
     try {
-      // Perform Google OAuth
-      const oauthResult = await performGoogleOAuth();
-
-      // Store OAuth data in context
-      updateData({
-        oauthEmail: oauthResult.email,
-        oauthProvider: oauthResult.provider,
-        oauthId: oauthResult.oauthId,
-        suggestedName: oauthResult.name,
-      });
-
-      // TODO: Check if email exists as email/password account
-      // const emailExists = await checkEmailExists(oauthResult.email);
-
-      const emailExists = false; // Placeholder
-
-      if (emailExists) {
-        // OAuth collision - redirect to email login with prefilled email
-        updateData({ email: oauthResult.email });
-        router.push('/(auth)/login/email');
-      } else {
-        // New user - go to profile completion
-        router.push('/(auth)/profile/birthdate');
-      }
+      // Initiate Google OAuth - opens browser
+      await initiateGoogleLogin();
+      // Note: The oauth-callback screen will handle the result
+      // and either complete registration or continue to profile flow
     } catch (err: any) {
       setError(err.message || 'Error al conectar con Google');
-    } finally {
       setLoading(false);
     }
   };

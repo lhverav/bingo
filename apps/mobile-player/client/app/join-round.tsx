@@ -2,8 +2,7 @@ import { StyleSheet, Text, View, ActivityIndicator } from "react-native";
 import { useState, useEffect } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { io, Socket } from "socket.io-client";
-
-const SERVER_URL = "http://10.0.0.35:3001";
+import { serverConfig } from "@/config/server";
 
 interface Card {
   id: string;
@@ -32,7 +31,7 @@ export default function JoinRoundScreen() {
       return;
     }
 
-    const newSocket = io(SERVER_URL);
+    const newSocket = io(serverConfig.baseUrl);
     setSocket(newSocket);
 
     newSocket.on("connect", () => {

@@ -10,8 +10,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { io, Socket } from "socket.io-client";
 import BingoCard from "../components/BingoCard";
-
-const SERVER_URL = "http://10.0.0.35:3001";
+import { serverConfig } from "@/config/server";
 
 interface Card {
   id: string;
@@ -33,7 +32,7 @@ export default function GameScreen() {
   const [gameStatus, setGameStatus] = useState<"waiting" | "playing" | "ended">("waiting");
 
   useEffect(() => {
-    const newSocket = io(SERVER_URL);
+    const newSocket = io(serverConfig.baseUrl);
     setSocket(newSocket);
 
     newSocket.on("connect", () => {
@@ -197,7 +196,7 @@ export default function GameScreen() {
       {gameStatus === "ended" && (
         <TouchableOpacity
           style={styles.homeButton}
-          onPress={() => router.replace("/")}
+          onPress={() => router.replace("/home")}
         >
           <Text style={styles.homeButtonText}>Volver al inicio</Text>
         </TouchableOpacity>
