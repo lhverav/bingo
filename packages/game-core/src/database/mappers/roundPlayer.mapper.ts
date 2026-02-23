@@ -13,6 +13,7 @@ export class RoundPlayerMapper {
     return {
       id: doc._id.toString(),
       roundId: doc.roundId.toString(),
+      mobileUserId: doc.mobileUserId?.toString(),
       playerCode: doc.playerCode,
       status: doc.status,
       lockedCardIds: doc.lockedCardIds.map((id) => id.toString()),
@@ -29,6 +30,7 @@ export class RoundPlayerMapper {
   static toDatabase(data: CreateRoundPlayerData): Record<string, unknown> {
     return {
       roundId: data.roundId,
+      mobileUserId: data.mobileUserId,
       playerCode: data.playerCode,
       status: 'selecting',
       lockedCardIds: data.lockedCardIds,

@@ -47,3 +47,15 @@ export {
 } from './roundPlayerService';
 
 export type { JoinRoundInput, JoinRoundResult, SelectCardsInput } from './roundPlayerService';
+
+// MobileUser services
+export {
+  register,
+  loginWithEmail,
+  loginWithOAuth,
+  verifyToken,
+  getMobileUserById,
+  updateProfile,
+  checkEmailExists,
+  checkPhoneExists,
+} from './mobileUserService';

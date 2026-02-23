@@ -14,6 +14,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRegistration } from "@/contexts/RegistrationContext";
+import { checkOAuthUser } from "@/api/auth";
 
 export default function OAuthCallbackScreen() {
   const { email, name, googleId, error } = useLocalSearchParams();
@@ -53,45 +54,35 @@ export default function OAuthCallbackScreen() {
     name: string,
     googleId: string
   ) => {
-    // TODO: Check if user exists in backend
-    // const userExists = await checkUserExists(email);
-    const userExists = false; // Placeholder
+    try {
+      // Check if user exists in backend
+      const result = await checkOAuthUser('google', googleId, email, name);
 
-    if (userExists) {
-      // Returning user - log them in directly
-      const user = {
-        id: googleId,
-        email: email,
-        name: name,
-        birthdate: "", // Would come from backend
-        gender: "",
-        createdAt: new Date().toISOString(),
-      };
-
-      const mockToken = "mock-jwt-token"; // Should come from backend
-
-      login(user, mockToken)
-        .then(() => {
-          console.log("✅ User logged in with OAuth");
-          setTimeout(() => {
-            router.replace("/home");
-          }, 2000);
-        })
-        .catch((err) => {
-          console.error("Failed to login:", err);
+      if (result.user) {
+        // Returning user - log them in directly
+        await login(result.user.user, result.user.token, result.user.expiresAt);
+        console.log("✅ User logged in with OAuth");
+        setTimeout(() => {
+          router.replace("/home");
+        }, 1500);
+      } else if (result.isNewUser) {
+        // New user - continue to profile completion flow
+        updateData({
+          oauthEmail: email,
+          oauthProvider: "google",
+          oauthId: googleId,
+          suggestedName: name,
         });
-    } else {
-      // New user - continue to profile completion flow
-      updateData({
-        oauthEmail: email,
-        oauthProvider: "google",
-        oauthId: googleId,
-        suggestedName: name,
-      });
 
-      console.log("📝 New user - redirecting to profile completion");
+        console.log("📝 New user - redirecting to profile completion");
+        setTimeout(() => {
+          router.replace("/(auth)/profile/birthdate");
+        }, 1500);
+      }
+    } catch (err) {
+      console.error("OAuth check failed:", err);
       setTimeout(() => {
-        router.replace("/(auth)/profile/birthdate");
+        router.replace("/(auth)/register/hub");
       }, 2000);
     }
   };

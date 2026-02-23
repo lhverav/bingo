@@ -6,7 +6,7 @@
 
 import { serverConfig } from "@/config/server";
 
-const API_URL = serverConfig.apiUrl;
+const AUTH_URL = `${serverConfig.baseUrl}/auth`;
 
 // =============================================================================
 // TYPES
@@ -17,19 +17,19 @@ export interface RegisterUserData {
   email?: string;
   password?: string;
   phone?: string;
-  phoneVerified?: boolean;
   oauthEmail?: string;
-  oauthId?: string;
-  oauthProvider?: string;
+  oauthProviderId?: string;
+  oauthProvider?: 'google' | 'facebook' | 'apple';
 
   // Profile
   birthdate: string;
-  gender: string;
+  gender: 'masculino' | 'femenino' | 'otro' | 'prefiero_no_decir';
   name: string;
 
   // Preferences
-  noAds: boolean;
-  shareData: boolean;
+  noAds?: boolean;
+  shareData?: boolean;
+  notificationsEnabled?: boolean;
 }
 
 export interface User {
@@ -39,12 +39,29 @@ export interface User {
   name: string;
   birthdate: string;
   gender: string;
+  noAds: boolean;
+  shareData: boolean;
+  notificationsEnabled: boolean;
   createdAt: string;
+  updatedAt: string;
+  lastLoginAt?: string;
 }
 
 export interface LoginResponse {
   user: User;
   token: string;
+  expiresAt: string;
+}
+
+export interface OAuthCheckResponse {
+  user?: LoginResponse;
+  isNewUser?: boolean;
+  oauthData?: {
+    provider: string;
+    providerId: string;
+    email?: string;
+    suggestedName?: string;
+  };
 }
 
 // =============================================================================
@@ -56,7 +73,7 @@ export interface LoginResponse {
  */
 export async function checkEmailExists(email: string): Promise<boolean> {
   try {
-    const response = await fetch(`${API_URL}/auth/check-email`, {
+    const response = await fetch(`${AUTH_URL}/check-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
@@ -79,7 +96,7 @@ export async function checkEmailExists(email: string): Promise<boolean> {
  */
 export async function registerUser(userData: RegisterUserData): Promise<LoginResponse> {
   try {
-    const response = await fetch(`${API_URL}/auth/register`, {
+    const response = await fetch(`${AUTH_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData),
@@ -103,7 +120,7 @@ export async function registerUser(userData: RegisterUserData): Promise<LoginRes
  */
 export async function loginUser(email: string, password: string): Promise<LoginResponse> {
   try {
-    const response = await fetch(`${API_URL}/auth/login`, {
+    const response = await fetch(`${AUTH_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -127,7 +144,7 @@ export async function loginUser(email: string, password: string): Promise<LoginR
  */
 export async function sendSmsCode(phone: string): Promise<void> {
   try {
-    const response = await fetch(`${API_URL}/auth/send-sms`, {
+    const response = await fetch(`${AUTH_URL}/send-sms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone }),
@@ -148,7 +165,7 @@ export async function sendSmsCode(phone: string): Promise<void> {
  */
 export async function verifySmsCode(phone: string, code: string): Promise<boolean> {
   try {
-    const response = await fetch(`${API_URL}/auth/verify-sms`, {
+    const response = await fetch(`${AUTH_URL}/verify-sms`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, code }),
@@ -163,6 +180,34 @@ export async function verifySmsCode(phone: string, code: string): Promise<boolea
     return data.verified;
   } catch (error) {
     console.error('Error verifying SMS:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check OAuth user (returns existing user or isNewUser flag)
+ */
+export async function checkOAuthUser(
+  provider: 'google',
+  providerId: string,
+  email?: string,
+  suggestedName?: string
+): Promise<OAuthCheckResponse> {
+  try {
+    const response = await fetch(`${AUTH_URL}/oauth/${provider}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ providerId, email, suggestedName }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'OAuth check failed');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error checking OAuth user:', error);
     throw error;
   }
 }

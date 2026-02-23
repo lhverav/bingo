@@ -36,6 +36,11 @@ export const colors = {
 
   // Utility
   transparent: 'transparent',
+
+  // Aliases (for backward compatibility)
+  inputBg: '#2a2a4e',       // Same as backgroundSecondary
+  inputBorder: '#3a3a5e',   // Same as border
+  textMuted: '#888',        // Same as textSecondary
 };
 
 // =============================================================================

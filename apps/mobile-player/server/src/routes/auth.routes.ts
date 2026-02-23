@@ -6,7 +6,14 @@
  */
 
 import { Router } from "express";
-import { googleAuth, googleCallback } from "../controllers/auth.controller";
+import {
+  googleAuth,
+  googleCallback,
+  registerUser,
+  login,
+  oauthGoogleLogin,
+  checkEmail,
+} from "../controllers/auth.controller";
 
 const router = Router();
 
@@ -21,5 +28,29 @@ router.get("/google", googleAuth);
  * GET /auth/google/callback?code=...
  */
 router.get("/google/callback", googleCallback);
+
+/**
+ * Register a new mobile user
+ * POST /auth/register
+ */
+router.post("/register", registerUser);
+
+/**
+ * Login with email and password
+ * POST /auth/login
+ */
+router.post("/login", login);
+
+/**
+ * Login or check OAuth user (returns isNewUser or user data)
+ * POST /auth/oauth/google
+ */
+router.post("/oauth/google", oauthGoogleLogin);
+
+/**
+ * Check if email exists
+ * POST /auth/check-email
+ */
+router.post("/check-email", checkEmail);
 
 export default router;

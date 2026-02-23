@@ -8,3 +8,5 @@ export { BunchCardSchema, BunchCardModel } from './bunchCard.schema';
 export type { BunchCardDocument } from './bunchCard.schema';
 export { RoundPlayerSchema, RoundPlayerModel } from './roundPlayer.schema';
 export type { RoundPlayerDocument } from './roundPlayer.schema';
+export { MobileUserSchema, MobileUserModel } from './mobileUser.schema';
+export type { MobileUserDocument } from './mobileUser.schema';

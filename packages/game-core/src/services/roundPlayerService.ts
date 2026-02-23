@@ -85,6 +85,7 @@ async function getAvailableCards(
  */
 export interface JoinRoundInput {
   roundId: string;
+  mobileUserId?: string;  // Link to authenticated user
 }
 
 /**
@@ -135,6 +136,7 @@ export async function joinRound(input: JoinRoundInput): Promise<JoinRoundResult>
   // Create the player with locked cards
   const createData: CreateRoundPlayerData = {
     roundId: input.roundId,
+    mobileUserId: input.mobileUserId,
     playerCode,
     lockedCardIds: cards.map(c => c.id),  // Temporarily locked
     selectionDeadline,

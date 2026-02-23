@@ -6,6 +6,7 @@ import AuthButton from '@/components/auth/AuthButton';
 import ProgressBar from '@/components/auth/ProgressBar';
 import { useRegistration } from '@/contexts/RegistrationContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { registerUser } from '@/api/auth';
 
 export default function TermsScreen() {
   const { data, updateData } = useRegistration();
@@ -13,56 +14,40 @@ export default function TermsScreen() {
   const [noAds, setNoAds] = useState(false);
   const [shareData, setShareData] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleCreateAccount = async () => {
     // Store preferences in context
     updateData({ noAds, shareData });
+    setError(null);
 
     setLoading(true);
     try {
-      // TODO: Create account with all data from context via API
-      // const response = await registerUser({
-      //   email: data.email,
-      //   password: data.password,
-      //   phone: data.phone,
-      //   oauthEmail: data.oauthEmail,
-      //   oauthId: data.oauthId,
-      //   oauthProvider: data.oauthProvider,
-      //   birthdate: data.birthdate,
-      //   gender: data.gender,
-      //   name: data.name,
-      //   noAds,
-      //   shareData,
-      // });
-
-      console.log('Creating account with data:', {
-        ...data,
+      // Call the real registration API
+      const response = await registerUser({
+        email: data.oauthEmail || data.email,
+        password: data.password,
+        phone: data.phone,
+        oauthEmail: data.oauthEmail,
+        oauthProviderId: data.oauthId,
+        oauthProvider: data.oauthProvider as 'google' | 'facebook' | 'apple' | undefined,
+        birthdate: data.birthdate || '',
+        gender: (data.gender as 'masculino' | 'femenino' | 'otro' | 'prefiero_no_decir') || 'prefiero_no_decir',
+        name: data.name || data.suggestedName || '',
         noAds,
         shareData,
       });
 
-      // Create user object from registration data
-      const user = {
-        id: data.oauthId || `temp-${Date.now()}`,
-        email: data.oauthEmail || data.email,
-        name: data.name || data.suggestedName || '',
-        birthdate: data.birthdate || '',
-        gender: data.gender || '',
-        createdAt: new Date().toISOString(),
-      };
-
-      // TODO: Get real token from backend response
-      const mockToken = `mock-token-${Date.now()}`;
-
-      // Log the user in
-      await login(user, mockToken);
+      // Log the user in with real data from server
+      await login(response.user, response.token, response.expiresAt);
       console.log('✅ User logged in after registration');
 
       // Navigate to notifications screen
       router.push('/(auth)/profile/notifications');
     } catch (err) {
-      console.error('Error creating account:', err);
-      // TODO: Show error message
+      const errorMessage = err instanceof Error ? err.message : 'Error al crear la cuenta';
+      console.error('Error creating account:', errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -76,6 +61,12 @@ export default function TermsScreen() {
         <Text style={formStyles.subtitle}>
           Revisa y acepta nuestros términos para continuar.
         </Text>
+
+        {error && (
+          <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: '#ffebee', borderRadius: 8 }}>
+            <Text style={{ color: '#c62828' }}>{error}</Text>
+          </View>
+        )}
 
         {/* Terms Links */}
         <View style={{ marginTop: spacing.xl, gap: spacing.md }}>

@@ -3,6 +3,7 @@ import { mongoose } from '../connection';
 
 export interface RoundPlayerDocument extends Document {
   roundId: Types.ObjectId;
+  mobileUserId?: Types.ObjectId;
   playerCode: string;
   status: 'selecting' | 'ready';
   lockedCardIds: Types.ObjectId[];
@@ -17,6 +18,11 @@ const RoundPlayerSchema = new Schema<RoundPlayerDocument>(
       type: Schema.Types.ObjectId,
       ref: 'Round',
       required: [true, 'El ID de la ronda es requerido'],
+      index: true,
+    },
+    mobileUserId: {
+      type: Schema.Types.ObjectId,
+      ref: 'MobileUser',
       index: true,
     },
     playerCode: {

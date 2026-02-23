@@ -153,7 +153,7 @@ export async function startRoundAction(formData: FormData) {
     await startRound(id);
 
     try {
-      await fetch("http://localhost:3001/notify", {
+      await fetch(`${process.env.MOBILE_SERVER_URL || 'http://localhost:3001'}/notify`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

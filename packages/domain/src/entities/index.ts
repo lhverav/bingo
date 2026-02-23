@@ -5,3 +5,4 @@ export * from './player';
 export * from './cardBunch';
 export * from './bunchCard';
 export * from './roundPlayer';
+export * from './mobileUser';

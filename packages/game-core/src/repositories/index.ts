@@ -3,3 +3,4 @@ export { RoundRepository, roundRepository } from './round.repository';
 export { CardBunchRepository, cardBunchRepository } from './cardBunch.repository';
 export { BunchCardRepository, bunchCardRepository } from './bunchCard.repository';
 export { RoundPlayerRepository, roundPlayerRepository } from './roundPlayer.repository';
+export { MobileUserRepository, mobileUserRepository } from './mobileUser.repository';

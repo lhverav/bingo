@@ -10,7 +10,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   user: User | null;
   token: string | null;
-  login: (user: User, token: string) => Promise<void>;
+  login: (user: User, token: string, expiresAt?: string) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -27,6 +27,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const AUTH_TOKEN_KEY = '@bingo_auth_token';
 const AUTH_USER_KEY = '@bingo_auth_user';
+const AUTH_EXPIRES_KEY = '@bingo_auth_expires';
 
 interface AuthProviderProps {
   children: ReactNode;
@@ -44,12 +45,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const loadAuthState = async () => {
     try {
-      const [storedToken, storedUser] = await Promise.all([
+      const [storedToken, storedUser, storedExpires] = await Promise.all([
         AsyncStorage.getItem(AUTH_TOKEN_KEY),
         AsyncStorage.getItem(AUTH_USER_KEY),
+        AsyncStorage.getItem(AUTH_EXPIRES_KEY),
       ]);
 
       if (storedToken && storedUser) {
+        // Check if token is expired
+        if (storedExpires) {
+          const expiresAt = new Date(storedExpires);
+          if (expiresAt < new Date()) {
+            console.log('🔒 Token expired, clearing auth state');
+            await Promise.all([
+              AsyncStorage.removeItem(AUTH_TOKEN_KEY),
+              AsyncStorage.removeItem(AUTH_USER_KEY),
+              AsyncStorage.removeItem(AUTH_EXPIRES_KEY),
+            ]);
+            return;
+          }
+        }
+
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
       }
@@ -60,12 +76,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const login = async (newUser: User, newToken: string) => {
+  const login = async (newUser: User, newToken: string, expiresAt?: string) => {
     try {
-      await Promise.all([
+      const storageOps = [
         AsyncStorage.setItem(AUTH_TOKEN_KEY, newToken),
         AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(newUser)),
-      ]);
+      ];
+
+      if (expiresAt) {
+        storageOps.push(AsyncStorage.setItem(AUTH_EXPIRES_KEY, expiresAt));
+      }
+
+      await Promise.all(storageOps);
 
       setUser(newUser);
       setToken(newToken);
@@ -80,6 +102,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       await Promise.all([
         AsyncStorage.removeItem(AUTH_TOKEN_KEY),
         AsyncStorage.removeItem(AUTH_USER_KEY),
+        AsyncStorage.removeItem(AUTH_EXPIRES_KEY),
       ]);
 
       setUser(null);

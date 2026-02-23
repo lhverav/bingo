@@ -5,10 +5,13 @@ import { formStyles } from '@/constants/authStyles';
 import AuthInput from '@/components/auth/AuthInput';
 import AuthButton from '@/components/auth/AuthButton';
 import { useRegistration } from '@/contexts/RegistrationContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { validate } from '@/utils/validation';
+import { loginUser } from '@/api/auth';
 
 export default function EmailLoginScreen() {
   const { data } = useRegistration();
+  const { login } = useAuth();
   // Can prefill email from context (OAuth collision case)
   const [email, setEmail] = useState(data.email || '');
   const [password, setPassword] = useState('');
@@ -33,15 +36,18 @@ export default function EmailLoginScreen() {
 
     setLoading(true);
     try {
-      // TODO: Call login API
-      // await loginUser(email, password);
+      // Call the real login API
+      const response = await loginUser(email, password);
 
-      console.log('Logging in with:', { email, password });
+      // Store user and token in AuthContext
+      await login(response.user, response.token, response.expiresAt);
+      console.log('✅ User logged in successfully');
 
       // Navigate to app home
       router.replace('/home');
     } catch (err) {
-      setPasswordError('Email o contraseña incorrectos');
+      const errorMessage = err instanceof Error ? err.message : 'Email o contraseña incorrectos';
+      setPasswordError(errorMessage);
     } finally {
       setLoading(false);
     }

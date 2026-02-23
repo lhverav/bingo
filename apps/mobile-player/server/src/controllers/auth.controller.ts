@@ -10,6 +10,12 @@ import {
   getGoogleAuthUrl,
   exchangeCodeForUser,
 } from "../services/googleOAuth.service";
+import {
+  register,
+  loginWithEmail,
+  loginWithOAuth,
+  checkEmailExists,
+} from "@bingo/game-core";
 
 // Deep link base URL for mobile app
 // For Expo Go: exp://YOUR_IP:8081/--/
@@ -63,5 +69,193 @@ export async function googleCallback(req: Request, res: Response) {
     const error = err as Error;
     console.error("TOKEN ERROR:", error.message);
     res.status(500).json({ error: "Token exchange failed" });
+  }
+}
+
+/**
+ * Register a new mobile user
+ * POST /auth/register
+ */
+export async function registerUser(req: Request, res: Response) {
+  try {
+    const {
+      email,
+      password,
+      phone,
+      oauthProvider,
+      oauthProviderId,
+      oauthEmail,
+      name,
+      birthdate,
+      gender,
+      noAds,
+      shareData,
+      notificationsEnabled,
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !birthdate || !gender) {
+      return res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Nombre, fecha de nacimiento y género son requeridos',
+      });
+    }
+
+    // Validate at least one auth method
+    if (!email && !phone && !oauthProvider) {
+      return res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Se requiere email, teléfono o cuenta de Google',
+      });
+    }
+
+    // If email auth, password is required
+    if (email && !oauthProvider && !password) {
+      return res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'La contraseña es requerida',
+      });
+    }
+
+    const result = await register({
+      email: email || oauthEmail,
+      password,
+      phone,
+      oauthProvider,
+      oauthProviderId,
+      oauthEmail,
+      name,
+      birthdate,
+      gender,
+      noAds,
+      shareData,
+      notificationsEnabled,
+    });
+
+    return res.status(201).json(result);
+  } catch (err) {
+    const error = err as Error;
+
+    if (error.message === 'EMAIL_EXISTS') {
+      return res.status(409).json({
+        error: 'EMAIL_EXISTS',
+        message: 'Este email ya está registrado',
+      });
+    }
+
+    if (error.message === 'PHONE_EXISTS') {
+      return res.status(409).json({
+        error: 'PHONE_EXISTS',
+        message: 'Este teléfono ya está registrado',
+      });
+    }
+
+    if (error.message === 'OAUTH_EXISTS') {
+      return res.status(409).json({
+        error: 'OAUTH_EXISTS',
+        message: 'Esta cuenta de Google ya está registrada',
+      });
+    }
+
+    console.error('Register error:', error.message);
+    return res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Error al crear la cuenta',
+    });
+  }
+}
+
+/**
+ * Login with email and password
+ * POST /auth/login
+ */
+export async function login(req: Request, res: Response) {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Email y contraseña son requeridos',
+      });
+    }
+
+    const result = await loginWithEmail({ email, password });
+
+    if (!result) {
+      return res.status(401).json({
+        error: 'INVALID_CREDENTIALS',
+        message: 'Email o contraseña incorrectos',
+      });
+    }
+
+    return res.json(result);
+  } catch (err) {
+    const error = err as Error;
+    console.error('Login error:', error.message);
+    return res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Error al iniciar sesión',
+    });
+  }
+}
+
+/**
+ * Login or check OAuth user
+ * POST /auth/oauth/google
+ */
+export async function oauthGoogleLogin(req: Request, res: Response) {
+  try {
+    const { providerId, email, suggestedName } = req.body;
+
+    if (!providerId) {
+      return res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Provider ID es requerido',
+      });
+    }
+
+    const result = await loginWithOAuth({
+      provider: 'google',
+      providerId,
+      email,
+      suggestedName,
+    });
+
+    return res.json(result);
+  } catch (err) {
+    const error = err as Error;
+    console.error('OAuth login error:', error.message);
+    return res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Error al iniciar sesión con Google',
+    });
+  }
+}
+
+/**
+ * Check if email exists
+ * POST /auth/check-email
+ */
+export async function checkEmail(req: Request, res: Response) {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Email es requerido',
+      });
+    }
+
+    const exists = await checkEmailExists(email);
+    return res.json({ exists });
+  } catch (err) {
+    const error = err as Error;
+    console.error('Check email error:', error.message);
+    return res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Error al verificar email',
+    });
   }
 }
