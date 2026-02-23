@@ -115,7 +115,7 @@ export default function CardSelectionScreen() {
     }
 
     setSubmitting(true);
-    socket?.emit("cards:selected", { selectedCardIds: selectedIds });
+    socket?.emit("cards:selected", { selectedCardIds: selectedIds, playerId: params.playerId });
   };
 
   return (

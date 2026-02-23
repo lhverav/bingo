@@ -83,9 +83,9 @@ export function registerRoundEvents(io: Server, socket: Socket) {
    * Input: { selectedCardIds: string[] }
    * Output: { player } or { error }
    */
-  socket.on("cards:selected", async (data: { selectedCardIds: string[] }) => {
+  socket.on("cards:selected", async (data: { selectedCardIds: string[]; playerId?: string }) => {
     try {
-      const playerId = (socket as any).playerId;
+      const playerId = data.playerId || (socket as any).playerId;
       const roundId = (socket as any).roundId;
 
       if (!playerId) {
