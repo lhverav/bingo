@@ -5,67 +5,73 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
 import { useLocalSearchParams, router } from "expo-router";
-import { io, Socket } from "socket.io-client";
+import { useSocket, useGame } from "@/contexts";
 import BingoCard from "../components/BingoCard";
 import CountdownTimer from "../components/CountdownTimer";
-import { serverConfig } from "@/config/server";
 
 interface Card {
   id: string;
   cells: number[][];
 }
 
-export default function CardSelectionScreen() {
-  const params = useLocalSearchParams<{
-    roundId: string;
+interface CardsDeliveredData {
+  player: {
+    id: string;
     playerCode: string;
-    playerId: string;
-    cards: string;
-    deadline: string;
-  }>();
+    status: string;
+  };
+  cards: Card[];
+  deadline: string;
+}
 
-  const [cards, setCards] = useState<Card[]>([]);
+export default function CardSelectionScreen() {
+  const { roundId } = useLocalSearchParams<{ roundId: string }>();
+  const { socket } = useSocket();
+  const { playerId, playerCode, cards, deadline, setCards, setSelectedCards } = useGame();
+
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [maxSelectable] = useState(2); // TODO: Get from round config
 
+  // Request cards on mount
   useEffect(() => {
-    if (params.cards) {
-      try {
-        const parsedCards = JSON.parse(params.cards);
-        setCards(parsedCards);
-      } catch (e) {
-        console.error("Error parsing cards:", e);
-      }
+    if (!socket || !playerId) return;
+
+    // If we already have cards (from reconnect), don't request again
+    if (cards.length > 0) {
+      setLoading(false);
+      return;
     }
 
-    const newSocket = io(serverConfig.baseUrl);
-    setSocket(newSocket);
+    console.log("Requesting cards for player:", playerId);
+    socket.emit("cards:request", { playerId });
 
-    newSocket.on("connect", () => {
-      console.log("Connected for card selection");
-      // Re-join the round room
-      newSocket.emit("player:join", { roundId: params.roundId });
-    });
+    // Handle cards delivered
+    const handleCardsDelivered = (data: CardsDeliveredData) => {
+      console.log("Cards delivered:", data);
+      setCards(data.cards, new Date(data.deadline));
+      setLoading(false);
+    };
 
-    newSocket.on("cards:confirmed", (data) => {
+    // Handle cards confirmed (after selection)
+    const handleCardsConfirmed = (data: { selectedCardIds: string[] }) => {
       console.log("Cards confirmed:", data);
+      setSelectedCards(data.selectedCardIds);
       router.replace({
         pathname: "/game",
-        params: {
-          roundId: params.roundId,
-          playerCode: params.playerCode,
-          selectedCardIds: JSON.stringify(data.selectedCardIds),
-        },
+        params: { roundId },
       });
-    });
+    };
 
-    newSocket.on("cards:autoAssigned", (data) => {
+    // Handle auto-assignment on timeout
+    const handleAutoAssigned = (data: { selectedCardIds: string[] }) => {
       console.log("Cards auto-assigned:", data);
+      setSelectedCards(data.selectedCardIds);
       Alert.alert(
         "Tiempo agotado",
         "Se te asignaron cartones automáticamente.",
@@ -73,23 +79,29 @@ export default function CardSelectionScreen() {
       );
       router.replace({
         pathname: "/game",
-        params: {
-          roundId: params.roundId,
-          playerCode: params.playerCode,
-          selectedCardIds: JSON.stringify(data.selectedCardIds),
-        },
+        params: { roundId },
       });
-    });
+    };
 
-    newSocket.on("error", (data: { message: string }) => {
+    // Handle errors
+    const handleError = (data: { message: string }) => {
       console.error("Server error:", data.message);
       Alert.alert("Error", data.message);
-    });
+      setLoading(false);
+    };
+
+    socket.on("cards:delivered", handleCardsDelivered);
+    socket.on("cards:confirmed", handleCardsConfirmed);
+    socket.on("cards:autoAssigned", handleAutoAssigned);
+    socket.on("error", handleError);
 
     return () => {
-      newSocket.disconnect();
+      socket.off("cards:delivered", handleCardsDelivered);
+      socket.off("cards:confirmed", handleCardsConfirmed);
+      socket.off("cards:autoAssigned", handleAutoAssigned);
+      socket.off("error", handleError);
     };
-  }, [params.cards, params.roundId, params.playerCode]);
+  }, [socket, playerId, cards.length, setCards, setSelectedCards, roundId]);
 
   const handleSelectCard = useCallback((cardId: string) => {
     setSelectedIds((prev) => {
@@ -115,20 +127,31 @@ export default function CardSelectionScreen() {
     }
 
     setSubmitting(true);
-    socket?.emit("cards:selected", { selectedCardIds: selectedIds, playerId: params.playerId });
+    socket?.emit("cards:selected", { selectedCardIds: selectedIds, playerId });
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#FFD700" />
+        <Text style={styles.loadingText}>Cargando cartones...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Selecciona tus Cartones</Text>
-        <Text style={styles.playerCode}>Código: {params.playerCode}</Text>
+        <Text style={styles.playerCode}>Código: {playerCode}</Text>
       </View>
 
-      <CountdownTimer
-        deadline={new Date(params.deadline || Date.now() + 60000)}
-        onTimeout={handleTimeout}
-      />
+      {deadline && (
+        <CountdownTimer
+          deadline={deadline}
+          onTimeout={handleTimeout}
+        />
+      )}
 
       <Text style={styles.instructions}>
         Selecciona {maxSelectable} cartones ({selectedIds.length}/{maxSelectable})
@@ -173,6 +196,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#fafafa",
     padding: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#fafafa",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    fontSize: 18,
+    color: "#333",
+    marginTop: 20,
   },
   header: {
     alignItems: "center",

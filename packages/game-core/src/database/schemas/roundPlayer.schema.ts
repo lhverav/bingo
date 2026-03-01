@@ -5,7 +5,7 @@ export interface RoundPlayerDocument extends Document {
   roundId: Types.ObjectId;
   mobileUserId?: Types.ObjectId;
   playerCode: string;
-  status: 'selecting' | 'ready';
+  status: 'joined' | 'selecting' | 'ready';
   lockedCardIds: Types.ObjectId[];
   selectedCardIds: Types.ObjectId[];
   selectionDeadline: Date;
@@ -33,8 +33,8 @@ const RoundPlayerSchema = new Schema<RoundPlayerDocument>(
     },
     status: {
       type: String,
-      enum: ['selecting', 'ready'],
-      default: 'selecting',
+      enum: ['joined', 'selecting', 'ready'],
+      default: 'joined',
     },
     lockedCardIds: {
       type: [Schema.Types.ObjectId],
@@ -48,7 +48,6 @@ const RoundPlayerSchema = new Schema<RoundPlayerDocument>(
     },
     selectionDeadline: {
       type: Date,
-      required: [true, 'La fecha limite de seleccion es requerida'],
     },
     joinedAt: {
       type: Date,

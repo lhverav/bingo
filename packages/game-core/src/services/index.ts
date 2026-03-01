@@ -37,6 +37,7 @@ export type { CreateCardBunchInput, SaveCardBunchInput, GenerateAndSaveInput } f
 // RoundPlayer services
 export {
   joinRound,
+  requestCards,
   selectCards,
   handleTimeout,
   getPlayersByRound,
@@ -46,7 +47,7 @@ export {
   getPlayerCards,
 } from './roundPlayerService';
 
-export type { JoinRoundInput, JoinRoundResult, SelectCardsInput } from './roundPlayerService';
+export type { JoinRoundInput, JoinRoundResult, RequestCardsInput, RequestCardsResult, SelectCardsInput } from './roundPlayerService';
 
 // MobileUser services
 export {

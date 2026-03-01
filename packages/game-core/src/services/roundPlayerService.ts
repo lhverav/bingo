@@ -93,11 +93,12 @@ export interface JoinRoundInput {
  */
 export interface JoinRoundResult {
   player: RoundPlayer;
-  cards: BunchCard[];
+  isReconnect: boolean;  // True if returning existing player
 }
 
 /**
- * Join a round - creates player, temporarily locks cards, sets deadline
+ * Join a round - creates player record only (no cards yet)
+ * Returns existing player if mobileUserId already joined this round
  */
 export async function joinRound(input: JoinRoundInput): Promise<JoinRoundResult> {
   const round = await roundRepository.findById(input.roundId);
@@ -109,42 +110,34 @@ export async function joinRound(input: JoinRoundInput): Promise<JoinRoundResult>
     throw new Error('La ronda no esta disponible para unirse');
   }
 
-  if (!round.cardBunchId) {
-    throw new Error('La ronda no tiene un lote de cartones asignado');
-  }
+  // Check if this user already joined this round (upsert protection)
+  if (input.mobileUserId) {
+    const existingPlayer = await roundPlayerRepository.findByRoundAndMobileUser(
+      input.roundId,
+      input.mobileUserId
+    );
 
-  if (!round.cardDelivery) {
-    throw new Error('La ronda no tiene configuracion de entrega de cartones');
+    if (existingPlayer) {
+      // Return existing player (reconnection scenario)
+      return { player: existingPlayer, isReconnect: true };
+    }
   }
 
   // Generate unique player code
   const playerCode = await generateUniquePlayerCode(input.roundId);
 
-  // Get available cards from the bunch (temporarily lock them)
-  const cards = await getAvailableCards(
-    round.cardBunchId,
-    input.roundId,
-    round.cardDelivery.freeCardsDelivered
-  );
-
-  // Calculate selection deadline
-  const selectionDeadline = new Date();
-  selectionDeadline.setSeconds(
-    selectionDeadline.getSeconds() + round.cardDelivery.selectionTimeSeconds
-  );
-
-  // Create the player with locked cards
+  // Create the player (no cards yet, status: 'joined')
   const createData: CreateRoundPlayerData = {
     roundId: input.roundId,
     mobileUserId: input.mobileUserId,
     playerCode,
-    lockedCardIds: cards.map(c => c.id),  // Temporarily locked
-    selectionDeadline,
+    // No lockedCardIds - cards come later via requestCards()
+    // No selectionDeadline - set when cards are requested
   };
 
   const player = await roundPlayerRepository.create(createData);
 
-  return { player, cards };
+  return { player, isReconnect: false };
 }
 
 /**
@@ -170,7 +163,7 @@ export async function selectCards(input: SelectCardsInput): Promise<RoundPlayer>
   }
 
   // Check if selection deadline has passed
-  if (new Date() > player.selectionDeadline) {
+  if (player.selectionDeadline && new Date() > player.selectionDeadline) {
     throw new Error('El tiempo de seleccion ha expirado');
   }
 
@@ -206,6 +199,128 @@ export async function selectCards(input: SelectCardsInput): Promise<RoundPlayer>
   }
 
   return updated;
+}
+
+/**
+ * Input for requesting cards
+ */
+export interface RequestCardsInput {
+  playerId: string;
+}
+
+/**
+ * Result of requesting cards
+ */
+export interface RequestCardsResult {
+  player: RoundPlayer;
+  cards: BunchCard[];
+  deadline: Date;
+}
+
+/**
+ * Request cards for a player - locks cards, sets deadline, starts timer
+ * Called when player reaches card-selection screen
+ */
+export async function requestCards(input: RequestCardsInput): Promise<RequestCardsResult> {
+  const player = await roundPlayerRepository.findById(input.playerId);
+  if (!player) {
+    throw new Error('Jugador no encontrado');
+  }
+
+  // If player already has cards (selecting), return their current cards
+  if (player.status === 'selecting') {
+    // Handle edge case: player in 'selecting' but no deadline or no cards (stale data)
+    // Reset them to get fresh cards
+    if (!player.selectionDeadline || player.lockedCardIds.length === 0) {
+      const round = await roundRepository.findById(player.roundId);
+      if (!round?.cardDelivery || !round.cardBunchId) {
+        throw new Error('Configuracion de ronda no encontrada');
+      }
+
+      // Get NEW cards from the bunch
+      const cards = await getAvailableCards(
+        round.cardBunchId,
+        player.roundId,
+        round.cardDelivery.freeCardsDelivered
+      );
+
+      const newDeadline = new Date();
+      newDeadline.setSeconds(newDeadline.getSeconds() + round.cardDelivery.selectionTimeSeconds);
+
+      const updatedPlayer = await roundPlayerRepository.updateForCardRequest(
+        input.playerId,
+        cards.map(c => c.id),
+        newDeadline
+      );
+
+      return {
+        player: updatedPlayer || player,
+        cards,
+        deadline: newDeadline,
+      };
+    }
+
+    // Normal case: player has cards and deadline
+    const cards = await getPlayerCards(input.playerId);
+    return {
+      player,
+      cards,
+      deadline: player.selectionDeadline,
+    };
+  }
+
+  if (player.status === 'ready') {
+    throw new Error('El jugador ya ha completado la seleccion de cartones');
+  }
+
+  // Player must be in 'joined' status to request cards
+  if (player.status !== 'joined') {
+    throw new Error('Estado de jugador invalido para solicitar cartones');
+  }
+
+  // Get round configuration
+  const round = await roundRepository.findById(player.roundId);
+  if (!round) {
+    throw new Error('Ronda no encontrada');
+  }
+
+  if (!round.cardBunchId) {
+    throw new Error('La ronda no tiene un lote de cartones asignado');
+  }
+
+  if (!round.cardDelivery) {
+    throw new Error('La ronda no tiene configuracion de entrega de cartones');
+  }
+
+  // Get available cards from the bunch (temporarily lock them)
+  const cards = await getAvailableCards(
+    round.cardBunchId,
+    player.roundId,
+    round.cardDelivery.freeCardsDelivered
+  );
+
+  // Calculate selection deadline (starts NOW)
+  const selectionDeadline = new Date();
+  selectionDeadline.setSeconds(
+    selectionDeadline.getSeconds() + round.cardDelivery.selectionTimeSeconds
+  );
+
+  // Update player: lock cards, set deadline, change status to 'selecting'
+  const updatedPlayer = await roundPlayerRepository.updateForCardRequest(
+    input.playerId,
+    cards.map(c => c.id),
+    selectionDeadline
+  );
+
+  if (!updatedPlayer) {
+    throw new Error('Error al asignar cartones al jugador');
+  }
+
+  return {
+    player: updatedPlayer,
+    cards,
+    deadline: selectionDeadline,
+  };
 }
 
 /**

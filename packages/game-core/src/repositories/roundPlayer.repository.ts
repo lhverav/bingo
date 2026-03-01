@@ -27,6 +27,16 @@ export class RoundPlayerRepository {
   }
 
   /**
+   * Find a round player by round ID and mobile user ID
+   * Used to prevent duplicate players for the same user in a round
+   */
+  async findByRoundAndMobileUser(roundId: string, mobileUserId: string): Promise<RoundPlayer | null> {
+    await connectToDatabase();
+    const doc = await RoundPlayerModel.findOne({ roundId, mobileUserId });
+    return doc ? RoundPlayerMapper.toDomain(doc) : null;
+  }
+
+  /**
    * Find all players in a round
    */
   async findByRoundId(roundId: string): Promise<RoundPlayer[]> {
@@ -61,11 +71,32 @@ export class RoundPlayerRepository {
   /**
    * Update player status
    */
-  async updateStatus(id: string, status: 'selecting' | 'ready'): Promise<RoundPlayer | null> {
+  async updateStatus(id: string, status: 'joined' | 'selecting' | 'ready'): Promise<RoundPlayer | null> {
     await connectToDatabase();
     const doc = await RoundPlayerModel.findByIdAndUpdate(
       id,
       { status },
+      { new: true }
+    );
+    return doc ? RoundPlayerMapper.toDomain(doc) : null;
+  }
+
+  /**
+   * Update player for card request - sets locked cards, deadline, and status
+   */
+  async updateForCardRequest(
+    id: string,
+    lockedCardIds: string[],
+    selectionDeadline: Date
+  ): Promise<RoundPlayer | null> {
+    await connectToDatabase();
+    const doc = await RoundPlayerModel.findByIdAndUpdate(
+      id,
+      {
+        lockedCardIds,
+        selectionDeadline,
+        status: 'selecting'
+      },
       { new: true }
     );
     return doc ? RoundPlayerMapper.toDomain(doc) : null;

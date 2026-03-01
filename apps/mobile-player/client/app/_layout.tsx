@@ -1,14 +1,15 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { RegistrationProvider } from '@/contexts/RegistrationContext';
+import { AuthProvider, RegistrationProvider, SocketProvider, GameProvider } from '@/contexts';
 
 export default function RootLayout() {
   return (
     <AuthProvider>
       <RegistrationProvider>
-        <StatusBar style="auto" />
-        <Stack>
+        <SocketProvider>
+          <GameProvider>
+            <StatusBar style="auto" />
+            <Stack>
         {/* Auth Screens */}
         <Stack.Screen
           name="(auth)"
@@ -54,7 +55,9 @@ export default function RootLayout() {
             headerBackVisible: false,
           }}
         />
-      </Stack>
+          </Stack>
+          </GameProvider>
+        </SocketProvider>
       </RegistrationProvider>
     </AuthProvider>
   );

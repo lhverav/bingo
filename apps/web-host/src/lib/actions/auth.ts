@@ -30,7 +30,7 @@ export async function login(formData: FormData) {
   session.isLoggedIn = true;
   await session.save();
 
-  //TODO: Set session/coocie here
+  //TODO: Set session/coocie here 
   redirect("/host");
 }
 

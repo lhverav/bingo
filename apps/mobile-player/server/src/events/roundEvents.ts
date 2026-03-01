@@ -1,6 +1,7 @@
 import { Server, Socket } from "socket.io";
 import {
   joinRound,
+  requestCards,
   selectCards,
   handleTimeout,
   getPlayerById,
@@ -13,15 +14,15 @@ import {
 export function registerRoundEvents(io: Server, socket: Socket) {
   /**
    * Player joins a round
-   * Input: { roundId: string }
-   * Output: { player, cards, deadline } or { error }
+   * Input: { roundId: string, mobileUserId?: string }
+   * Output: { player, isReconnect } or { error }
    */
-  socket.on("player:join", async (data: { roundId: string }) => {
+  socket.on("player:join", async (data: { roundId: string; mobileUserId?: string }) => {
     try {
-      const { roundId } = data;
+      const { roundId, mobileUserId } = data;
 
-      // Join the round (creates player, locks cards)
-      const result = await joinRound({ roundId });
+      // Join the round (creates player or returns existing)
+      const result = await joinRound({ roundId, mobileUserId });
 
       // Join a socket room for this round
       socket.join(`round:${roundId}`);
@@ -29,33 +30,79 @@ export function registerRoundEvents(io: Server, socket: Socket) {
       // Store player info on socket for later use
       (socket as any).playerId = result.player.id;
       (socket as any).roundId = roundId;
+      (socket as any).playerCode = result.player.playerCode;
+
+      // Send confirmation to the player
+      socket.emit("player:joined", {
+        player: {
+          id: result.player.id,
+          playerCode: result.player.playerCode,
+          status: result.player.status,
+        },
+        isReconnect: result.isReconnect,
+      });
+
+      // Notify others in the round (only for new players, not reconnects)
+      if (!result.isReconnect) {
+        socket.to(`round:${roundId}`).emit("player:new", {
+          playerCode: result.player.playerCode,
+        });
+      }
+
+      console.log(
+        `Player ${result.player.playerCode} ${result.isReconnect ? "reconnected to" : "joined"} round ${roundId}`
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al unirse a la ronda";
+      socket.emit("error", { message });
+      console.error("player:join error:", error);
+    }
+  });
+
+  /**
+   * Player requests cards (on card-selection screen)
+   * Input: { playerId?: string }
+   * Output: { player, cards, deadline } or { error }
+   */
+  socket.on("cards:request", async (data: { playerId?: string }) => {
+    try {
+      const playerId = data.playerId || (socket as any).playerId;
+      const roundId = (socket as any).roundId;
+
+      if (!playerId) {
+        throw new Error("No has ingresado a una ronda");
+      }
+
+      // Request cards (locks cards, sets deadline)
+      const result = await requestCards({ playerId });
 
       // Send cards to the player
       socket.emit("cards:delivered", {
         player: result.player,
         cards: result.cards,
-        deadline: result.player.selectionDeadline,
+        deadline: result.deadline,
       });
 
-      // Notify host that a player joined
-      io.to(`round:${roundId}`).emit("player:joined", {
+      // Notify host that player is now selecting
+      io.to(`round:${roundId}`).emit("player:selecting", {
         playerCode: result.player.playerCode,
-        status: result.player.status,
       });
 
-      console.log(`Player ${result.player.playerCode} joined round ${roundId}`);
+      console.log(`Player ${result.player.playerCode} requested cards, deadline: ${result.deadline}`);
 
       // Set timeout for auto-assignment
-      const round = await getRoundById(roundId);
-      if (round?.cardDelivery) {
-        const timeoutMs = round.cardDelivery.selectionTimeSeconds * 1000;
-
+      if (!result.deadline) {
+        console.error('No deadline returned from requestCards');
+        return;
+      }
+      const timeoutMs = result.deadline.getTime() - Date.now();
+      if (timeoutMs > 0) {
         setTimeout(async () => {
           try {
-            const player = await getPlayerById(result.player.id);
+            const player = await getPlayerById(playerId);
             if (player && player.status === "selecting") {
               // Player didn't select in time, auto-assign
-              const updated = await handleTimeout(result.player.id);
+              const updated = await handleTimeout(playerId);
               socket.emit("cards:autoAssigned", {
                 player: updated,
                 selectedCardIds: updated.selectedCardIds,
@@ -72,9 +119,9 @@ export function registerRoundEvents(io: Server, socket: Socket) {
         }, timeoutMs);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Error al unirse a la ronda";
+      const message = error instanceof Error ? error.message : "Error al solicitar cartones";
       socket.emit("error", { message });
-      console.error("player:join error:", error);
+      console.error("cards:request error:", error);
     }
   });
 

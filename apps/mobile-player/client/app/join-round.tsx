@@ -1,29 +1,27 @@
 import { StyleSheet, Text, View, ActivityIndicator } from "react-native";
 import { useState, useEffect } from "react";
 import { useLocalSearchParams, router } from "expo-router";
-import { io, Socket } from "socket.io-client";
-import { serverConfig } from "@/config/server";
+import { useSocket, useGame, useAuth } from "@/contexts";
 
-interface Card {
-  id: string;
-  cells: number[][];
-}
-
-interface Player {
-  id: string;
-  playerCode: string;
-  status: string;
-  selectionDeadline: string;
+interface PlayerJoinedData {
+  player: {
+    id: string;
+    playerCode: string;
+    status: string;
+  };
+  isReconnect: boolean;
 }
 
 export default function JoinRoundScreen() {
   const { roundId } = useLocalSearchParams<{ roundId: string }>();
-  const [status, setStatus] = useState<"connecting" | "joining" | "error">(
-    "connecting",
-  );
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const { socket, isConnected, connect } = useSocket();
+  const { setRoundInfo } = useGame();
+  const { user } = useAuth();
 
+  const [status, setStatus] = useState<"connecting" | "joining" | "joined" | "error">("connecting");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Connect socket on mount
   useEffect(() => {
     if (!roundId) {
       setStatus("error");
@@ -31,47 +29,53 @@ export default function JoinRoundScreen() {
       return;
     }
 
-    const newSocket = io(serverConfig.baseUrl);
-    setSocket(newSocket);
+    connect();
+  }, [roundId, connect]);
 
-    newSocket.on("connect", () => {
-      console.log("Connected to server, joining round...");
-      setStatus("joining");
-      newSocket.emit("player:join", { roundId });
+  // Join round when connected
+  useEffect(() => {
+    if (!socket || !isConnected || !roundId) return;
+
+    console.log("Connected to server, joining round...");
+    setStatus("joining");
+
+    // Send join with mobileUserId for duplicate protection
+    socket.emit("player:join", {
+      roundId,
+      mobileUserId: user?.id
     });
 
-    newSocket.on(
-      "cards:delivered",
-      (data: { player: Player; cards: Card[]; deadline: string }) => {
-        console.log("Cards delivered:", data);
-        // Navigate to card selection with the data
-        router.replace({
-          pathname: "/card-selection",
-          params: {
-            roundId,
-            playerCode: data.player.playerCode,
-            playerId: data.player.id,
-            cards: JSON.stringify(data.cards),
-            deadline: data.deadline,
-          },
-        });
-      },
-    );
+    // Handle successful join
+    const handlePlayerJoined = (data: PlayerJoinedData) => {
+      console.log("Player joined:", data);
 
-    newSocket.on("error", (data: { message: string }) => {
+      // Store in game context
+      setRoundInfo(roundId, data.player.id, data.player.playerCode);
+
+      setStatus("joined");
+
+      // Navigate to card selection
+      router.replace({
+        pathname: "/card-selection",
+        params: { roundId },
+      });
+    };
+
+    // Handle errors
+    const handleError = (data: { message: string }) => {
       console.error("Server error:", data.message);
       setStatus("error");
       setErrorMessage(data.message);
-    });
+    };
 
-    newSocket.on("disconnect", () => {
-      console.log("Disconnected from server");
-    });
+    socket.on("player:joined", handlePlayerJoined);
+    socket.on("error", handleError);
 
     return () => {
-      newSocket.disconnect();
+      socket.off("player:joined", handlePlayerJoined);
+      socket.off("error", handleError);
     };
-  }, [roundId]);
+  }, [socket, isConnected, roundId, user?.id, setRoundInfo]);
 
   if (status === "error") {
     return (
@@ -90,7 +94,9 @@ export default function JoinRoundScreen() {
     <View style={styles.container}>
       <ActivityIndicator size="large" color="#FFD700" />
       <Text style={styles.statusText}>
-        {status === "connecting" ? "Conectando..." : "Uniéndose a la ronda..."}
+        {status === "connecting" && "Conectando..."}
+        {status === "joining" && "Uniéndose a la ronda..."}
+        {status === "joined" && "Cargando cartones..."}
       </Text>
     </View>
   );

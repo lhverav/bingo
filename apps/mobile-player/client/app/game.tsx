@@ -7,77 +7,69 @@ import {
   Alert,
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
-import { useLocalSearchParams, router } from "expo-router";
-import { io, Socket } from "socket.io-client";
+import { router } from "expo-router";
+import { useSocket, useGame } from "@/contexts";
 import BingoCard from "../components/BingoCard";
-import { serverConfig } from "@/config/server";
-
-interface Card {
-  id: string;
-  cells: number[][];
-}
 
 export default function GameScreen() {
-  const params = useLocalSearchParams<{
-    roundId: string;
-    playerCode: string;
-    selectedCardIds: string;
-  }>();
+  const { socket, disconnect } = useSocket();
+  const { roundId, playerCode, cards, selectedCardIds, clearGame } = useGame();
 
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [cards, setCards] = useState<Card[]>([]);
   const [drawnNumbers, setDrawnNumbers] = useState<number[]>([]);
   const [lastDrawn, setLastDrawn] = useState<number | null>(null);
   const [markedNumbers, setMarkedNumbers] = useState<Record<string, number[]>>({});
   const [gameStatus, setGameStatus] = useState<"waiting" | "playing" | "ended">("waiting");
 
+  // Filter cards to only show selected ones
+  const selectedCards = cards.filter(card => selectedCardIds.includes(card.id));
+
   useEffect(() => {
-    const newSocket = io(serverConfig.baseUrl);
-    setSocket(newSocket);
+    if (!socket) return;
 
-    newSocket.on("connect", () => {
-      console.log("Connected to game");
-      // Join round room to receive updates
-      newSocket.emit("player:rejoin", { roundId: params.roundId });
-    });
-
-    newSocket.on("game:started", (data) => {
+    // Handle game events
+    const handleGameStarted = (data: any) => {
       console.log("Game started:", data);
       setGameStatus("playing");
-    });
+    };
 
-    newSocket.on("ball:announced", (data: { number: number }) => {
+    const handleBallAnnounced = (data: { number: number }) => {
       console.log("Ball announced:", data.number);
       setDrawnNumbers((prev) => [...prev, data.number]);
       setLastDrawn(data.number);
-    });
+    };
 
-    newSocket.on("game:ended", (data) => {
+    const handleGameEnded = (data: any) => {
       console.log("Game ended:", data);
       setGameStatus("ended");
       Alert.alert("Juego terminado", data.message || "El juego ha finalizado.");
-    });
+    };
 
-    newSocket.on("bingo:claimed", (data) => {
+    const handleBingoClaimed = (data: any) => {
       console.log("Bingo claimed:", data);
       Alert.alert(
         "¡BINGO!",
         `El jugador ${data.playerCode} ha cantado bingo.`
       );
-    });
+    };
 
-    newSocket.on("error", (data: { message: string }) => {
+    const handleError = (data: { message: string }) => {
       console.error("Server error:", data.message);
-    });
+    };
 
-    // TODO: Fetch actual card data based on selectedCardIds
-    // For now, we'll need to get the cards from the server
-    // This is a placeholder - in a real implementation, cards would be fetched
+    socket.on("game:started", handleGameStarted);
+    socket.on("ball:announced", handleBallAnnounced);
+    socket.on("game:ended", handleGameEnded);
+    socket.on("bingo:claimed", handleBingoClaimed);
+    socket.on("error", handleError);
 
     return () => {
-      newSocket.disconnect();
+      socket.off("game:started", handleGameStarted);
+      socket.off("ball:announced", handleBallAnnounced);
+      socket.off("game:ended", handleGameEnded);
+      socket.off("bingo:claimed", handleBingoClaimed);
+      socket.off("error", handleError);
     };
-  }, [params.roundId]);
+  }, [socket]);
 
   const handleMarkNumber = useCallback((cardId: string, number: number) => {
     if (!drawnNumbers.includes(number)) {
@@ -112,7 +104,7 @@ export default function GameScreen() {
           text: "¡BINGO!",
           onPress: () => {
             socket?.emit("bingo:claim", {
-              roundId: params.roundId,
+              roundId,
               cardId,
             });
           },
@@ -121,11 +113,18 @@ export default function GameScreen() {
     );
   };
 
+  const handleGoHome = () => {
+    // Clean up game state and disconnect
+    clearGame();
+    disconnect();
+    router.replace("/home");
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Bingote de Oro</Text>
-        <Text style={styles.playerCode}>Código: {params.playerCode}</Text>
+        <Text style={styles.playerCode}>Código: {playerCode}</Text>
         <Text style={styles.status}>
           {gameStatus === "waiting" && "Esperando inicio del juego..."}
           {gameStatus === "playing" && "¡Juego en curso!"}
@@ -165,12 +164,12 @@ export default function GameScreen() {
         style={styles.cardsContainer}
         contentContainerStyle={styles.cardsContent}
       >
-        {cards.length === 0 ? (
+        {selectedCards.length === 0 ? (
           <Text style={styles.noCards}>
             Cargando cartones...
           </Text>
         ) : (
-          cards.map((card) => (
+          selectedCards.map((card) => (
             <View key={card.id} style={styles.cardWrapper}>
               <BingoCard
                 id={card.id}
@@ -196,7 +195,7 @@ export default function GameScreen() {
       {gameStatus === "ended" && (
         <TouchableOpacity
           style={styles.homeButton}
-          onPress={() => router.replace("/home")}
+          onPress={handleGoHome}
         >
           <Text style={styles.homeButtonText}>Volver al inicio</Text>
         </TouchableOpacity>
