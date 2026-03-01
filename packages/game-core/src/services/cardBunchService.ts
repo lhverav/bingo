@@ -201,7 +201,75 @@ export async function generateAndSaveCardsInChunks(
 }
 
 /**
- * Pick N unique random numbers from 1 to max
+ * Standard BINGO column ranges (75-ball bingo)
+ */
+const BINGO_COLUMNS = [
+  { min: 1, max: 15 },   // B: 1-15
+  { min: 16, max: 30 },  // I: 16-30
+  { min: 31, max: 45 },  // N: 31-45 (with free center)
+  { min: 46, max: 60 },  // G: 46-60
+  { min: 61, max: 75 },  // O: 61-75
+];
+
+/**
+ * Pick N unique random numbers from a range
+ */
+function pickFromRange(min: number, max: number, count: number): number[] {
+  const pool: number[] = [];
+  for (let i = min; i <= max; i++) {
+    pool.push(i);
+  }
+
+  // Shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  return pool.slice(0, count);
+}
+
+/**
+ * Generate a standard 5x5 BINGO card with proper column ranges
+ * Each column has numbers from its designated range
+ * Center cell is free space (0)
+ */
+function generateBingoCard(): number[][] {
+  const grid: number[][] = [];
+  const cardSize = 5;
+
+  // Generate numbers for each column
+  const columns: number[][] = [];
+  for (let col = 0; col < cardSize; col++) {
+    const range = BINGO_COLUMNS[col];
+    const count = col === 2 ? 4 : 5; // N column has 4 numbers + free space
+    columns.push(pickFromRange(range.min, range.max, count));
+  }
+
+  // Build grid row by row, but pull from columns
+  for (let row = 0; row < cardSize; row++) {
+    const rowCells: number[] = [];
+    for (let col = 0; col < cardSize; col++) {
+      if (row === 2 && col === 2) {
+        // Center cell is free space
+        rowCells.push(0);
+      } else {
+        // Adjust index for N column (skip center)
+        let idx = row;
+        if (col === 2 && row > 2) {
+          idx = row - 1; // After center, use indices 0,1,2,3 for rows 0,1,3,4
+        }
+        rowCells.push(columns[col][idx]);
+      }
+    }
+    grid.push(rowCells);
+  }
+
+  return grid;
+}
+
+/**
+ * Pick N unique random numbers from 1 to max (legacy - for non-standard cards)
  * If centerIndex is provided, that position gets 0 (free space)
  */
 function pickUniqueNumbers(
@@ -209,7 +277,14 @@ function pickUniqueNumbers(
   count: number,
   centerIndex: number
 ): number[] {
-  // Generate pool of available numbers
+  // For standard 5x5 / 75-ball bingo, use proper column ranges
+  if (count === 25 && max === 75) {
+    // Flatten the bingo card to match expected format
+    const card = generateBingoCard();
+    return card.flat();
+  }
+
+  // Legacy behavior for non-standard configurations
   const pool: number[] = [];
   for (let i = 1; i <= max; i++) {
     pool.push(i);

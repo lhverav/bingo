@@ -58,13 +58,21 @@ export default function BingoCard({
               return (
                 <TouchableOpacity
                   key={`${rowIndex}-${colIndex}`}
-                  style={[styles.cell, isMarked && styles.cellMarked]}
+                  style={[
+                    styles.cell,
+                    isMarked && styles.cellMarked,
+                    number === 0 && styles.cellFree,
+                  ]}
                   onPress={() => handleCellPress(number)}
-                  disabled={!isMarkable || disabled}
-                  activeOpacity={isMarkable ? 0.7 : 1}
+                  disabled={!isMarkable || disabled || number === 0}
+                  activeOpacity={isMarkable && number !== 0 ? 0.7 : 1}
                 >
-                  <Text style={[styles.cellText, isMarked && styles.cellTextMarked]}>
-                    {number}
+                  <Text style={[
+                    styles.cellText,
+                    isMarked && styles.cellTextMarked,
+                    number === 0 && styles.cellTextFree,
+                  ]}>
+                    {number === 0 ? '★' : number}
                   </Text>
                 </TouchableOpacity>
               );
@@ -136,6 +144,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFD700",
     borderColor: "#FFA500",
   },
+  cellFree: {
+    backgroundColor: "#FFD700",
+    borderColor: "#FFA500",
+  },
   cellText: {
     fontSize: 16,
     fontWeight: "600",
@@ -144,5 +156,9 @@ const styles = StyleSheet.create({
   cellTextMarked: {
     color: "#333",
     fontWeight: "bold",
+  },
+  cellTextFree: {
+    fontSize: 20,
+    color: "#333",
   },
 });

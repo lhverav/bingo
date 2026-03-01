@@ -181,11 +181,13 @@ export async function selectCards(input: SelectCardsInput): Promise<RoundPlayer>
     throw new Error('Configuracion de ronda no encontrada');
   }
 
-  // Validate selection count
-  if (input.selectedCardIds.length !== round.cardDelivery.freeCardsToSelect) {
-    throw new Error(
-      `Debe seleccionar exactamente ${round.cardDelivery.freeCardsToSelect} cartones`
-    );
+  // Validate selection count (at least 1, up to max)
+  const maxCards = round.cardDelivery.freeCardsToSelect;
+  if (input.selectedCardIds.length === 0) {
+    throw new Error('Debe seleccionar al menos un carton');
+  }
+  if (input.selectedCardIds.length > maxCards) {
+    throw new Error(`Puede seleccionar maximo ${maxCards} cartones`);
   }
 
   // Update player: move selected to permanent, clear locked (releases unselected)

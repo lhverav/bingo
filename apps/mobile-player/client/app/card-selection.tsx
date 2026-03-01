@@ -38,7 +38,7 @@ export default function CardSelectionScreen() {
   const [loading, setLoading] = useState(true);
   const [maxSelectable] = useState(2); // TODO: Get from round config
 
-  // Request cards on mount
+  // Request cards on mount (only if we don't have cards yet)
   useEffect(() => {
     if (!socket || !playerId) return;
 
@@ -50,6 +50,11 @@ export default function CardSelectionScreen() {
 
     console.log("Requesting cards for player:", playerId);
     socket.emit("cards:request", { playerId });
+  }, [socket, playerId, cards.length]);
+
+  // Register event handlers (always active while on this screen)
+  useEffect(() => {
+    if (!socket) return;
 
     // Handle cards delivered
     const handleCardsDelivered = (data: CardsDeliveredData) => {
@@ -101,7 +106,7 @@ export default function CardSelectionScreen() {
       socket.off("cards:autoAssigned", handleAutoAssigned);
       socket.off("error", handleError);
     };
-  }, [socket, playerId, cards.length, setCards, setSelectedCards, roundId]);
+  }, [socket, setCards, setSelectedCards, roundId]);
 
   const handleSelectCard = useCallback((cardId: string) => {
     setSelectedIds((prev) => {
@@ -154,7 +159,7 @@ export default function CardSelectionScreen() {
       )}
 
       <Text style={styles.instructions}>
-        Selecciona {maxSelectable} cartones ({selectedIds.length}/{maxSelectable})
+        Selecciona hasta {maxSelectable} cartones ({selectedIds.length} seleccionado{selectedIds.length !== 1 ? 's' : ''})
       </Text>
 
       <ScrollView
