@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/actions/auth";
-import { drawNumber } from "@bingo/game-core";
+import { drawNumber, checkForWinners } from "@bingo/game-core";
+
+const MOBILE_SERVER_URL = process.env.MOBILE_SERVER_URL || "http://localhost:3001";
 
 export async function POST(
   request: NextRequest,
@@ -32,7 +34,33 @@ export async function POST(
       );
     }
 
-    return NextResponse.json({ success: true, drawnNumbers: round.drawnNumbers });
+    // Check for winners after drawing the number
+    const winnerResult = await checkForWinners(params.id);
+
+    // Notify mobile server about the drawn number and any winners
+    try {
+      await fetch(`${MOBILE_SERVER_URL}/notify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "NUMBER_DRAWN",
+          data: {
+            roundId: params.id,
+            number,
+            winners: winnerResult.winners,
+          },
+        }),
+      });
+    } catch (notifyError) {
+      // Log but don't fail the request if notification fails
+      console.error("Failed to notify mobile server:", notifyError);
+    }
+
+    return NextResponse.json({
+      success: true,
+      drawnNumbers: round.drawnNumbers,
+      winners: winnerResult.winners,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Error desconocido";
     return NextResponse.json({ error: message }, { status: 400 });

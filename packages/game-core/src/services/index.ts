@@ -60,3 +60,11 @@ export {
   checkEmailExists,
   checkPhoneExists,
 } from './mobileUserService';
+
+// Pattern services
+export { checkPattern, getPatternMask } from './patternService';
+
+// Winner services
+export { checkForWinners, verifyWinner, getGameSummary } from './winnerService';
+
+export type { WinnerInfo, WinnerCheckResult, GameSummary } from './winnerService';

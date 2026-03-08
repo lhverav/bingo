@@ -7,7 +7,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useSocket, useGame } from "@/contexts";
 import BingoCard from "../components/BingoCard";
@@ -37,6 +37,7 @@ export default function CardSelectionScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [maxSelectable] = useState(2); // TODO: Get from round config
+  const errorHandlerRef = useRef<((data: { message: string }) => void) | null>(null);
 
   // Request cards on mount (only if we don't have cards yet)
   useEffect(() => {
@@ -55,6 +56,11 @@ export default function CardSelectionScreen() {
   // Register event handlers (always active while on this screen)
   useEffect(() => {
     if (!socket) return;
+
+    // AGGRESSIVELY remove ALL listeners for card-specific events to prevent accumulation
+    socket.removeAllListeners("cards:delivered");
+    socket.removeAllListeners("cards:confirmed");
+    socket.removeAllListeners("cards:autoAssigned");
 
     // Handle cards delivered
     const handleCardsDelivered = (data: CardsDeliveredData) => {
@@ -95,16 +101,21 @@ export default function CardSelectionScreen() {
       setLoading(false);
     };
 
+    // Store error handler ref for cleanup
+    errorHandlerRef.current = handleError;
+
     socket.on("cards:delivered", handleCardsDelivered);
     socket.on("cards:confirmed", handleCardsConfirmed);
     socket.on("cards:autoAssigned", handleAutoAssigned);
     socket.on("error", handleError);
 
     return () => {
-      socket.off("cards:delivered", handleCardsDelivered);
-      socket.off("cards:confirmed", handleCardsConfirmed);
-      socket.off("cards:autoAssigned", handleAutoAssigned);
-      socket.off("error", handleError);
+      socket.removeAllListeners("cards:delivered");
+      socket.removeAllListeners("cards:confirmed");
+      socket.removeAllListeners("cards:autoAssigned");
+      if (errorHandlerRef.current) {
+        socket.off("error", errorHandlerRef.current);
+      }
     };
   }, [socket, setCards, setSelectedCards, roundId]);
 

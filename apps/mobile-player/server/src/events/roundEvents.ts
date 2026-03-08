@@ -21,8 +21,23 @@ export function registerRoundEvents(io: Server, socket: Socket) {
     try {
       const { roundId, mobileUserId } = data;
 
+      // ALWAYS clear previous state before joining any round
+      const previousRoundId = (socket as any).roundId;
+      if (previousRoundId) {
+        socket.leave(`round:${previousRoundId}`);
+        console.log(`Socket left previous room: round:${previousRoundId}`);
+      }
+
+      // Clear socket properties BEFORE joining new round
+      (socket as any).playerId = null;
+      (socket as any).roundId = null;
+      (socket as any).playerCode = null;
+
       // Join the round (creates player or returns existing)
       const result = await joinRound({ roundId, mobileUserId });
+
+      // Get round info for pattern
+      const round = await getRoundById(roundId);
 
       // Join a socket room for this round
       socket.join(`round:${roundId}`);
@@ -32,7 +47,7 @@ export function registerRoundEvents(io: Server, socket: Socket) {
       (socket as any).roundId = roundId;
       (socket as any).playerCode = result.player.playerCode;
 
-      // Send confirmation to the player
+      // Send confirmation to the player with round pattern
       socket.emit("player:joined", {
         player: {
           id: result.player.id,
@@ -40,6 +55,7 @@ export function registerRoundEvents(io: Server, socket: Socket) {
           status: result.player.status,
         },
         isReconnect: result.isReconnect,
+        roundPattern: round?.gamePattern || null,
       });
 
       // Notify others in the round (only for new players, not reconnects)
@@ -165,6 +181,28 @@ export function registerRoundEvents(io: Server, socket: Socket) {
   });
 
   /**
+   * Player explicitly leaves the round (going home, etc.)
+   * This allows leaving a round without fully disconnecting
+   */
+  socket.on("player:leave", () => {
+    const playerCode = (socket as any).playerCode;
+    const roundId = (socket as any).roundId;
+
+    if (roundId) {
+      socket.leave(`round:${roundId}`);
+      console.log(`Player ${playerCode || 'unknown'} left round ${roundId}`);
+    }
+
+    // Clean up socket properties
+    (socket as any).playerId = null;
+    (socket as any).roundId = null;
+    (socket as any).playerCode = null;
+
+    // Confirm leave to client
+    socket.emit("player:left");
+  });
+
+  /**
    * Handle disconnect - clean up player data
    */
   socket.on("disconnect", () => {
@@ -173,5 +211,9 @@ export function registerRoundEvents(io: Server, socket: Socket) {
     if (playerCode && roundId) {
       console.log(`Player ${playerCode} disconnected from round ${roundId}`);
     }
+    // Clean up socket properties
+    (socket as any).playerId = null;
+    (socket as any).roundId = null;
+    (socket as any).playerCode = null;
   });
 }

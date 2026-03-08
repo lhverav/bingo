@@ -9,6 +9,18 @@ interface Card {
   cells: number[][];
 }
 
+interface WinnerInfo {
+  playerCode: string;
+  cardId: string;
+}
+
+interface GameSummary {
+  winners: WinnerInfo[];
+  pattern: string;
+  totalPlayers: number;
+  numbersDrawn: number;
+}
+
 interface GameState {
   roundId: string | null;
   playerId: string | null;
@@ -16,6 +28,12 @@ interface GameState {
   cards: Card[];
   deadline: Date | null;
   selectedCardIds: string[];
+  // Winner-related state
+  winningCardIds: string[];
+  isWinner: boolean;
+  gameEnded: boolean;
+  roundPattern: string | null;
+  gameSummary: GameSummary | null;
 }
 
 interface GameContextValue extends GameState {
@@ -23,6 +41,10 @@ interface GameContextValue extends GameState {
   setRoundInfo: (roundId: string, playerId: string, playerCode: string) => void;
   setCards: (cards: Card[], deadline: Date) => void;
   setSelectedCards: (cardIds: string[]) => void;
+  setRoundPattern: (pattern: string) => void;
+  setWinningCards: (cardIds: string[]) => void;
+  setIsWinner: (isWinner: boolean) => void;
+  setGameEnded: (summary: GameSummary) => void;
   clearGame: () => void;
 }
 
@@ -43,6 +65,11 @@ const initialState: GameState = {
   cards: [],
   deadline: null,
   selectedCardIds: [],
+  winningCardIds: [],
+  isWinner: false,
+  gameEnded: false,
+  roundPattern: null,
+  gameSummary: null,
 };
 
 interface GameProviderProps {
@@ -76,6 +103,35 @@ export function GameProvider({ children }: GameProviderProps) {
     }));
   }, []);
 
+  const setRoundPattern = useCallback((pattern: string) => {
+    setState(prev => ({
+      ...prev,
+      roundPattern: pattern,
+    }));
+  }, []);
+
+  const setWinningCards = useCallback((cardIds: string[]) => {
+    setState(prev => ({
+      ...prev,
+      winningCardIds: cardIds,
+    }));
+  }, []);
+
+  const setIsWinner = useCallback((isWinner: boolean) => {
+    setState(prev => ({
+      ...prev,
+      isWinner,
+    }));
+  }, []);
+
+  const setGameEnded = useCallback((summary: GameSummary) => {
+    setState(prev => ({
+      ...prev,
+      gameEnded: true,
+      gameSummary: summary,
+    }));
+  }, []);
+
   const clearGame = useCallback(() => {
     setState(initialState);
   }, []);
@@ -85,6 +141,10 @@ export function GameProvider({ children }: GameProviderProps) {
     setRoundInfo,
     setCards,
     setSelectedCards,
+    setRoundPattern,
+    setWinningCards,
+    setIsWinner,
+    setGameEnded,
     clearGame,
   };
 

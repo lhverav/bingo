@@ -4,27 +4,130 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  Alert,
+  Animated,
+  Modal,
+  Pressable,
 } from "react-native";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
+import { Audio } from "expo-av";
 import { useSocket, useGame } from "@/contexts";
 import BingoCard from "../components/BingoCard";
 
+// Pattern labels for display
+const PATTERN_LABELS: Record<string, string> = {
+  linea: "Linea",
+  columna: "Columna",
+  diagonal: "Diagonal",
+  completo: "Carton Completo",
+  figura_especial: "Figura Especial",
+};
+
 export default function GameScreen() {
   const { socket, disconnect } = useSocket();
-  const { roundId, playerCode, cards, selectedCardIds, clearGame } = useGame();
+  const {
+    roundId,
+    playerCode,
+    cards,
+    selectedCardIds,
+    winningCardIds,
+    isWinner,
+    roundPattern,
+    clearGame,
+    setWinningCards,
+    setIsWinner,
+    setGameEnded,
+  } = useGame();
 
   const [drawnNumbers, setDrawnNumbers] = useState<number[]>([]);
   const [lastDrawn, setLastDrawn] = useState<number | null>(null);
   const [markedNumbers, setMarkedNumbers] = useState<Record<string, number[]>>({});
   const [gameStatus, setGameStatus] = useState<"waiting" | "playing" | "ended">("waiting");
+  const [showPatternPopup, setShowPatternPopup] = useState(false);
+  const [screenFrozen, setScreenFrozen] = useState(false);
+
+  // Animation for BINGO button
+  const bingoButtonScale = useRef(new Animated.Value(1)).current;
+
+  // Sound refs
+  const ballSoundRef = useRef<Audio.Sound | null>(null);
+  const winSoundRef = useRef<Audio.Sound | null>(null);
+
+  // Store error handler ref for cleanup (other events use removeAllListeners)
+  const errorHandlerRef = useRef<((data: { message: string }) => void) | null>(null);
 
   // Filter cards to only show selected ones
-  const selectedCards = cards.filter(card => selectedCardIds.includes(card.id));
+  const selectedCards = cards.filter((card) => selectedCardIds.includes(card.id));
+
+  // Load sounds on mount
+  useEffect(() => {
+    const loadSounds = async () => {
+      try {
+        // Note: Sound files need to be added to assets/sounds/
+        // For now, we'll use system sounds or skip if files don't exist
+      } catch (error) {
+        console.log("Could not load sounds:", error);
+      }
+    };
+    loadSounds();
+
+    return () => {
+      ballSoundRef.current?.unloadAsync();
+      winSoundRef.current?.unloadAsync();
+    };
+  }, []);
+
+  // Play sound and vibration for ball announcement
+  const playBallNotification = useCallback(async () => {
+    try {
+      // Vibration
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Sound would play here if loaded
+    } catch (error) {
+      console.log("Notification feedback error:", error);
+    }
+  }, []);
+
+  // Play win sound
+  const playWinSound = useCallback(async () => {
+    try {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Win sound would play here if loaded
+    } catch (error) {
+      console.log("Win sound error:", error);
+    }
+  }, []);
+
+  // Animate BINGO button press (for false claims)
+  const animateBingoButton = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(bingoButtonScale, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(bingoButtonScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [bingoButtonScale]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      console.log("[game.tsx] No socket available");
+      return;
+    }
+
+    console.log("[game.tsx] Setting up socket listeners, socket connected:", socket.connected);
+
+    // AGGRESSIVELY remove ALL listeners for game-specific events to prevent accumulation
+    socket.removeAllListeners("game:started");
+    socket.removeAllListeners("ball:announced");
+    socket.removeAllListeners("winners:detected");
+    socket.removeAllListeners("game:ending");
 
     // Handle game events
     const handleGameStarted = (data: any) => {
@@ -36,105 +139,170 @@ export default function GameScreen() {
       console.log("Ball announced:", data.number);
       setDrawnNumbers((prev) => [...prev, data.number]);
       setLastDrawn(data.number);
+      setGameStatus("playing");
+      playBallNotification();
     };
 
-    const handleGameEnded = (data: any) => {
-      console.log("Game ended:", data);
+    const handleWinnersDetected = (data: { winningCardIds: string[] }) => {
+      console.log("[game.tsx] Winners detected event received!");
+      console.log("[game.tsx] winningCardIds:", data.winningCardIds);
+      console.log("[game.tsx] Current selectedCardIds:", selectedCardIds);
+      setWinningCards(data.winningCardIds);
+    };
+
+    const handleGameEnding = (data: { summary: any }) => {
+      console.log("Game ending:", data);
       setGameStatus("ended");
-      Alert.alert("Juego terminado", data.message || "El juego ha finalizado.");
-    };
-
-    const handleBingoClaimed = (data: any) => {
-      console.log("Bingo claimed:", data);
-      Alert.alert(
-        "¡BINGO!",
-        `El jugador ${data.playerCode} ha cantado bingo.`
-      );
+      setGameEnded(data.summary);
+      // Navigate to results screen
+      router.replace("/results");
     };
 
     const handleError = (data: { message: string }) => {
       console.error("Server error:", data.message);
     };
 
+    // Store error handler ref for cleanup
+    errorHandlerRef.current = handleError;
+
     socket.on("game:started", handleGameStarted);
     socket.on("ball:announced", handleBallAnnounced);
-    socket.on("game:ended", handleGameEnded);
-    socket.on("bingo:claimed", handleBingoClaimed);
+    socket.on("winners:detected", handleWinnersDetected);
+    socket.on("game:ending", handleGameEnding);
     socket.on("error", handleError);
 
     return () => {
-      socket.off("game:started", handleGameStarted);
-      socket.off("ball:announced", handleBallAnnounced);
-      socket.off("game:ended", handleGameEnded);
-      socket.off("bingo:claimed", handleBingoClaimed);
-      socket.off("error", handleError);
+      socket.removeAllListeners("game:started");
+      socket.removeAllListeners("ball:announced");
+      socket.removeAllListeners("winners:detected");
+      socket.removeAllListeners("game:ending");
+      if (errorHandlerRef.current) {
+        socket.off("error", errorHandlerRef.current);
+      }
     };
-  }, [socket]);
+  }, [socket, playBallNotification, setWinningCards, setGameEnded]);
 
-  const handleMarkNumber = useCallback((cardId: string, number: number) => {
-    if (!drawnNumbers.includes(number)) {
-      Alert.alert("Número no válido", "Este número aún no ha sido sacado.");
-      return;
-    }
+  const handleMarkNumber = useCallback(
+    (cardId: string, number: number) => {
+      // Screen frozen after winning - no more marking
+      if (screenFrozen) return;
 
-    setMarkedNumbers((prev) => {
-      const cardMarks = prev[cardId] || [];
-      if (cardMarks.includes(number)) {
-        // Unmark
+      // Silent fail if number not drawn (no alert)
+      if (!drawnNumbers.includes(number)) {
+        return;
+      }
+
+      // Permanent marking - no toggle (remove un-mark logic)
+      setMarkedNumbers((prev) => {
+        const cardMarks = prev[cardId] || [];
+        // Only add if not already marked
+        if (cardMarks.includes(number)) {
+          return prev; // Already marked, do nothing
+        }
         return {
           ...prev,
-          [cardId]: cardMarks.filter((n) => n !== number),
+          [cardId]: [...cardMarks, number],
         };
-      }
-      // Mark
-      return {
-        ...prev,
-        [cardId]: [...cardMarks, number],
-      };
-    });
-  }, [drawnNumbers]);
+      });
+    },
+    [drawnNumbers, screenFrozen]
+  );
 
-  const handleClaimBingo = (cardId: string) => {
-    Alert.alert(
-      "Confirmar Bingo",
-      "¿Estás seguro de que tienes BINGO?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "¡BINGO!",
-          onPress: () => {
-            socket?.emit("bingo:claim", {
-              roundId,
-              cardId,
-            });
-          },
-        },
-      ]
+  const handleClaimBingo = useCallback(() => {
+    console.log('[BINGO] Button pressed');
+    console.log('[BINGO] selectedCardIds:', selectedCardIds);
+    console.log('[BINGO] winningCardIds:', winningCardIds);
+
+    // Check if any of player's selected cards are in the winning cards
+    const myWinningCard = selectedCardIds.find((cardId) =>
+      winningCardIds.includes(cardId)
     );
-  };
+
+    console.log('[BINGO] myWinningCard:', myWinningCard);
+
+    if (myWinningCard) {
+      // WIN! Show celebration
+      console.log('[BINGO] WIN! Setting isWinner to true');
+      playWinSound();
+      setIsWinner(true);
+      setScreenFrozen(true);
+      // Show winner modal or message handled by UI below
+    } else {
+      // False claim - just animate button, no message
+      console.log('[BINGO] No winning card found, animating button');
+      animateBingoButton();
+    }
+  }, [selectedCardIds, winningCardIds, playWinSound, setIsWinner, animateBingoButton]);
 
   const handleGoHome = () => {
-    // Clean up game state and disconnect
+    // Emit leave event to server before going home
+    socket?.emit("player:leave");
     clearGame();
-    disconnect();
     router.replace("/home");
+  };
+
+  // Get pattern mask for visualization
+  const getPatternMask = (pattern: string, size: number = 5): boolean[][] => {
+    const mask: boolean[][] = Array(size)
+      .fill(null)
+      .map(() => Array(size).fill(false));
+
+    switch (pattern) {
+      case "linea":
+        const middleRow = Math.floor(size / 2);
+        for (let col = 0; col < size; col++) {
+          mask[middleRow][col] = true;
+        }
+        break;
+      case "columna":
+        const middleCol = Math.floor(size / 2);
+        for (let row = 0; row < size; row++) {
+          mask[row][middleCol] = true;
+        }
+        break;
+      case "diagonal":
+        for (let i = 0; i < size; i++) {
+          mask[i][i] = true;
+          mask[i][size - 1 - i] = true;
+        }
+        break;
+      case "completo":
+      case "figura_especial":
+        for (let row = 0; row < size; row++) {
+          for (let col = 0; col < size; col++) {
+            mask[row][col] = true;
+          }
+        }
+        break;
+    }
+    return mask;
   };
 
   return (
     <View style={styles.container}>
+      {/* Winner overlay */}
+      {isWinner && (
+        <View style={styles.winnerOverlay}>
+          <Text style={styles.winnerText}>Ganaste!!</Text>
+          <TouchableOpacity style={styles.homeButton} onPress={handleGoHome}>
+            <Text style={styles.homeButtonText}>Volver al inicio</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <View style={styles.header}>
         <Text style={styles.title}>Bingote de Oro</Text>
-        <Text style={styles.playerCode}>Código: {playerCode}</Text>
+        <Text style={styles.playerCode}>Codigo: {playerCode}</Text>
         <Text style={styles.status}>
           {gameStatus === "waiting" && "Esperando inicio del juego..."}
-          {gameStatus === "playing" && "¡Juego en curso!"}
+          {gameStatus === "playing" && "Juego en curso!"}
           {gameStatus === "ended" && "Juego finalizado"}
         </Text>
       </View>
 
       {/* Last drawn number */}
       <View style={styles.lastDrawnSection}>
-        <Text style={styles.lastDrawnLabel}>Último número</Text>
+        <Text style={styles.lastDrawnLabel}>Ultimo numero</Text>
         <View style={styles.lastDrawnBall}>
           <Text style={styles.lastDrawnNumber}>
             {lastDrawn !== null ? lastDrawn : "-"}
@@ -142,10 +310,55 @@ export default function GameScreen() {
         </View>
       </View>
 
+      {/* Pattern button - above cards */}
+      <TouchableOpacity
+        style={styles.patternButton}
+        onPressIn={() => setShowPatternPopup(true)}
+        onPressOut={() => setShowPatternPopup(false)}
+      >
+        <Text style={styles.patternButtonText}>
+          Patron: {PATTERN_LABELS[roundPattern || "linea"] || roundPattern}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Pattern popup */}
+      <Modal
+        transparent
+        visible={showPatternPopup}
+        animationType="fade"
+        onRequestClose={() => setShowPatternPopup(false)}
+      >
+        <Pressable
+          style={styles.patternPopupOverlay}
+          onPress={() => setShowPatternPopup(false)}
+        >
+          <View style={styles.patternPopup}>
+            <Text style={styles.patternPopupTitle}>
+              {PATTERN_LABELS[roundPattern || "linea"]}
+            </Text>
+            <View style={styles.patternGrid}>
+              {getPatternMask(roundPattern || "linea").map((row, rowIndex) => (
+                <View key={rowIndex} style={styles.patternRow}>
+                  {row.map((isActive, colIndex) => (
+                    <View
+                      key={colIndex}
+                      style={[
+                        styles.patternCell,
+                        isActive && styles.patternCellActive,
+                      ]}
+                    />
+                  ))}
+                </View>
+              ))}
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
       {/* Drawn numbers history */}
       <View style={styles.drawnHistorySection}>
         <Text style={styles.sectionLabel}>
-          Números sacados ({drawnNumbers.length})
+          Numeros sacados ({drawnNumbers.length})
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.drawnNumbersList}>
@@ -165,9 +378,7 @@ export default function GameScreen() {
         contentContainerStyle={styles.cardsContent}
       >
         {selectedCards.length === 0 ? (
-          <Text style={styles.noCards}>
-            Cargando cartones...
-          </Text>
+          <Text style={styles.noCards}>Cargando cartones...</Text>
         ) : (
           selectedCards.map((card) => (
             <View key={card.id} style={styles.cardWrapper}>
@@ -176,30 +387,22 @@ export default function GameScreen() {
                 cells={card.cells}
                 markedNumbers={markedNumbers[card.id] || []}
                 onMarkNumber={(number) => handleMarkNumber(card.id, number)}
-                disabled={gameStatus !== "playing"}
+                disabled={gameStatus !== "playing" || screenFrozen}
               />
-              {gameStatus === "playing" && (
-                <TouchableOpacity
-                  style={styles.bingoButton}
-                  onPress={() => handleClaimBingo(card.id)}
-                >
-                  <Text style={styles.bingoButtonText}>¡BINGO!</Text>
-                </TouchableOpacity>
-              )}
             </View>
           ))
         )}
       </ScrollView>
 
-      {/* Back button */}
-      {gameStatus === "ended" && (
-        <TouchableOpacity
-          style={styles.homeButton}
-          onPress={handleGoHome}
-        >
-          <Text style={styles.homeButtonText}>Volver al inicio</Text>
-        </TouchableOpacity>
+      {/* BINGO button - below all cards */}
+      {gameStatus === "playing" && !screenFrozen && (
+        <Animated.View style={{ transform: [{ scale: bingoButtonScale }] }}>
+          <TouchableOpacity style={styles.bingoButton} onPress={handleClaimBingo}>
+            <Text style={styles.bingoButtonText}>BINGO!!!</Text>
+          </TouchableOpacity>
+        </Animated.View>
       )}
+
     </View>
   );
 }
@@ -212,7 +415,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: 15,
+    marginBottom: 10,
   },
   title: {
     fontSize: 24,
@@ -235,7 +438,7 @@ const styles = StyleSheet.create({
   },
   lastDrawnSection: {
     alignItems: "center",
-    marginBottom: 15,
+    marginBottom: 10,
   },
   lastDrawnLabel: {
     fontSize: 14,
@@ -260,14 +463,66 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
   },
-  drawnHistorySection: {
+  patternButton: {
+    backgroundColor: "#3498db",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignSelf: "center",
+    marginBottom: 10,
+  },
+  patternButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  patternPopupOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  patternPopup: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  patternPopupTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
     marginBottom: 15,
+  },
+  patternGrid: {
+    gap: 4,
+  },
+  patternRow: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  patternCell: {
+    width: 30,
+    height: 30,
+    backgroundColor: "#e0e0e0",
+    borderRadius: 4,
+  },
+  patternCellActive: {
+    backgroundColor: "#FFD700",
+  },
+  drawnHistorySection: {
+    marginBottom: 10,
   },
   sectionLabel: {
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   drawnNumbersList: {
     flexDirection: "row",
@@ -306,15 +561,21 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   bingoButton: {
-    marginTop: 10,
     backgroundColor: "#e74c3c",
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 60,
+    borderRadius: 30,
+    alignSelf: "center",
+    marginVertical: 10,
+    shadowColor: "#c0392b",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 8,
   },
   bingoButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 24,
     fontWeight: "bold",
   },
   homeButton: {
@@ -328,5 +589,24 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  winnerOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 100,
+  },
+  winnerText: {
+    fontSize: 48,
+    fontWeight: "bold",
+    color: "#FFD700",
+    textShadowColor: "#FFA500",
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 4,
   },
 });

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, ActivityIndicator } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useSocket, useGame, useAuth } from "@/contexts";
 
@@ -10,18 +10,21 @@ interface PlayerJoinedData {
     status: string;
   };
   isReconnect: boolean;
+  roundPattern: string | null;
 }
 
 export default function JoinRoundScreen() {
   const { roundId } = useLocalSearchParams<{ roundId: string }>();
-  const { socket, isConnected, connect } = useSocket();
-  const { setRoundInfo } = useGame();
+  const { socket, reconnect } = useSocket();
+  const { setRoundInfo, clearGame, setRoundPattern } = useGame();
   const { user } = useAuth();
 
   const [status, setStatus] = useState<"connecting" | "joining" | "joined" | "error">("connecting");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const joinAttemptedRef = useRef(false);
+  const errorHandlerRef = useRef<((data: { message: string }) => void) | null>(null);
 
-  // Connect socket on mount
+  // Main effect: setup, connect, and join
   useEffect(() => {
     if (!roundId) {
       setStatus("error");
@@ -29,21 +32,35 @@ export default function JoinRoundScreen() {
       return;
     }
 
-    connect();
-  }, [roundId, connect]);
+    // Clear any previous game state before joining new round
+    clearGame();
+    joinAttemptedRef.current = false;
 
-  // Join round when connected
+    // Use reconnect for FRESH socket connection (clears all listeners and state)
+    reconnect();
+  }, [roundId, reconnect, clearGame]);
+
+  // Join effect: handles joining once socket is available
   useEffect(() => {
-    if (!socket || !isConnected || !roundId) return;
+    if (!socket || !roundId) return;
 
-    console.log("Connected to server, joining round...");
-    setStatus("joining");
+    // AGGRESSIVELY remove ALL listeners for these events to prevent accumulation
+    socket.removeAllListeners("player:joined");
+    // Note: Don't removeAllListeners("error") as other parts might use it
+    // Instead, we'll be careful with our error handling
 
-    // Send join with mobileUserId for duplicate protection
-    socket.emit("player:join", {
-      roundId,
-      mobileUserId: user?.id
-    });
+    const performJoin = () => {
+      if (joinAttemptedRef.current) return;
+      joinAttemptedRef.current = true;
+
+      console.log("Joining round:", roundId);
+      setStatus("joining");
+
+      socket.emit("player:join", {
+        roundId,
+        mobileUserId: user?.id
+      });
+    };
 
     // Handle successful join
     const handlePlayerJoined = (data: PlayerJoinedData) => {
@@ -52,13 +69,25 @@ export default function JoinRoundScreen() {
       // Store in game context
       setRoundInfo(roundId, data.player.id, data.player.playerCode);
 
+      // Set the round pattern
+      if (data.roundPattern) {
+        setRoundPattern(data.roundPattern);
+      }
+
       setStatus("joined");
 
-      // Navigate to card selection
-      router.replace({
-        pathname: "/card-selection",
-        params: { roundId },
-      });
+      // Navigate based on player status
+      if (data.player.status === "ready") {
+        router.replace({
+          pathname: "/game",
+          params: { roundId },
+        });
+      } else {
+        router.replace({
+          pathname: "/card-selection",
+          params: { roundId },
+        });
+      }
     };
 
     // Handle errors
@@ -68,14 +97,38 @@ export default function JoinRoundScreen() {
       setErrorMessage(data.message);
     };
 
+    // Store error handler ref for cleanup
+    errorHandlerRef.current = handleError;
+
+    // Register event handlers
     socket.on("player:joined", handlePlayerJoined);
     socket.on("error", handleError);
 
+    // Try to join - check socket.connected directly
+    if (socket.connected) {
+      performJoin();
+    } else {
+      // Wait for connection, then join
+      socket.once("connect", performJoin);
+    }
+
+    // Fallback: if still not joined after 500ms, try again
+    const fallbackTimer = setTimeout(() => {
+      if (!joinAttemptedRef.current && socket.connected) {
+        console.log("Fallback join triggered");
+        performJoin();
+      }
+    }, 500);
+
     return () => {
-      socket.off("player:joined", handlePlayerJoined);
-      socket.off("error", handleError);
+      clearTimeout(fallbackTimer);
+      socket.removeAllListeners("player:joined");
+      if (errorHandlerRef.current) {
+        socket.off("error", errorHandlerRef.current);
+      }
+      socket.off("connect", performJoin);
     };
-  }, [socket, isConnected, roundId, user?.id, setRoundInfo]);
+  }, [socket, roundId, user?.id, setRoundInfo, setRoundPattern]);
 
   if (status === "error") {
     return (

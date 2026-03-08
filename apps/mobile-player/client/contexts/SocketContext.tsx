@@ -11,6 +11,7 @@ interface SocketContextValue {
   isConnected: boolean;
   connect: () => void;
   disconnect: () => void;
+  reconnect: () => void;  // Force fresh connection, clearing all listeners
 }
 
 // =============================================================================
@@ -80,11 +81,50 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
   }, []); // No dependencies - stable function reference
 
+  // Force a fresh connection - disconnect existing socket and create new one
+  // This clears ALL listeners and server-side state
+  const reconnect = useCallback(() => {
+    console.log('🔌 Reconnecting socket (fresh connection)');
+
+    // Disconnect existing socket if any
+    if (socketRef.current) {
+      socketRef.current.removeAllListeners();
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+
+    // Create fresh socket
+    const newSocket = io(serverConfig.baseUrl, {
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
+    newSocket.on('connect', () => {
+      console.log('🔌 Socket connected (fresh):', newSocket.id);
+      setIsConnected(true);
+    });
+
+    newSocket.on('disconnect', (reason) => {
+      console.log('🔌 Socket disconnected:', reason);
+      setIsConnected(false);
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('🔌 Socket connection error:', error.message);
+    });
+
+    socketRef.current = newSocket;
+    setSocket(newSocket);
+  }, []);
+
   const value: SocketContextValue = {
     socket,
     isConnected,
     connect,
     disconnect,
+    reconnect,
   };
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
