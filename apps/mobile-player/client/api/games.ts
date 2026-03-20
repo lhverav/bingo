@@ -92,3 +92,34 @@ export function formatGameDate(dateString: string): string {
     minute: "2-digit",
   });
 }
+
+/**
+ * Joined game info with game details
+ */
+export interface JoinedGameInfo {
+  playerId: string;
+  playerCode: string;
+  status: string;
+  joinedAt: string;
+  game: GameWithRounds;
+}
+
+/**
+ * Fetch all games a user has joined with game details
+ */
+export async function getJoinedGames(mobileUserId: string): Promise<JoinedGameInfo[]> {
+  const response = await fetch(`${serverConfig.baseUrl}/games/joined/${mobileUserId}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Error al obtener juegos unidos");
+  }
+
+  return response.json();
+}

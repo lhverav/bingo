@@ -18,7 +18,7 @@ export default function ResultsScreen() {
   const handleGoHome = () => {
     clearGame();
     disconnect();
-    router.replace("/home");
+    router.replace("/(tabs)/proximos-juegos");
   };
 
   if (!gameSummary) {

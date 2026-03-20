@@ -44,7 +44,7 @@ export default function EmailLoginScreen() {
       console.log('✅ User logged in successfully');
 
       // Navigate to app home
-      router.replace('/home');
+      router.replace('/(tabs)/proximos-juegos');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Email o contraseña incorrectos';
       setPasswordError(errorMessage);

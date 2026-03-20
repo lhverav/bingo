@@ -16,22 +16,22 @@ export default function NotificationsScreen() {
 
     // Clear registration context
     clearData();
-    console.log("📱 clearData done, navigating to home");
+    console.log("📱 clearData done, navigating to tabs");
 
-    // Navigate to app home
-    router.replace('/home');
-    console.log("📱 Navigation to /home executed");
+    // Navigate to app tabs
+    router.replace('/(tabs)/proximos-juegos');
+    console.log("📱 Navigation to tabs executed");
   };
 
   const handleSkip = () => {
     console.log("📱 handleSkip called");
     // Clear registration context
     clearData();
-    console.log("📱 clearData done, navigating to home");
+    console.log("📱 clearData done, navigating to tabs");
 
-    // Navigate to app home
-    router.replace('/home');
-    console.log("📱 Navigation to /home executed");
+    // Navigate to app tabs
+    router.replace('/(tabs)/proximos-juegos');
+    console.log("📱 Navigation to tabs executed");
   };
 
   return (

@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // =============================================================================
 // TYPES
@@ -95,8 +96,41 @@ interface GameProviderProps {
   children: ReactNode;
 }
 
+const JOINED_GAMES_KEY = '@bingo_joined_games';
+
 export function GameProvider({ children }: GameProviderProps) {
   const [state, setState] = useState<GameState>(initialState);
+
+  // Load joined games from AsyncStorage on mount
+  useEffect(() => {
+    const loadJoinedGames = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(JOINED_GAMES_KEY);
+        if (stored) {
+          const joinedGames = JSON.parse(stored);
+          setState(prev => ({
+            ...prev,
+            joinedGames,
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading joined games:', error);
+      }
+    };
+    loadJoinedGames();
+  }, []);
+
+  // Save joined games to AsyncStorage whenever they change
+  useEffect(() => {
+    const saveJoinedGames = async () => {
+      try {
+        await AsyncStorage.setItem(JOINED_GAMES_KEY, JSON.stringify(state.joinedGames));
+      } catch (error) {
+        console.error('Error saving joined games:', error);
+      }
+    };
+    saveJoinedGames();
+  }, [state.joinedGames]);
 
   const setRoundInfo = useCallback((roundId: string, playerId: string, playerCode: string) => {
     setState(prev => ({

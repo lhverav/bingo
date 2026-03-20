@@ -171,7 +171,7 @@ export default function GameScreen() {
     // Emit leave event to server before going home
     leaveRound();
     clearGame();
-    router.replace("/home");
+    router.replace("/(tabs)/proximos-juegos");
   };
 
   // Get pattern mask for visualization - uses custom cells if provided

@@ -10,52 +10,70 @@ export default function RootLayout() {
           <GameProvider>
             <StatusBar style="auto" />
             <Stack>
-        {/* Auth Screens */}
-        <Stack.Screen
-          name="(auth)"
-          options={{
-            headerShown: false,
-          }}
-        />
+              {/* Auth Screens */}
+              <Stack.Screen
+                name="(auth)"
+                options={{
+                  headerShown: false,
+                }}
+              />
 
-        {/* OAuth Callback */}
-        <Stack.Screen
-          name="oauth-callback"
-          options={{
-            title: 'Autenticando...',
-            headerShown: false,
-          }}
-        />
+              {/* OAuth Callback */}
+              <Stack.Screen
+                name="oauth-callback"
+                options={{
+                  title: 'Autenticando...',
+                  headerShown: false,
+                }}
+              />
 
-        {/* App Screens */}
-        <Stack.Screen
-          name="home"
-          options={{
-            title: 'Bingote de Oro',
-          }}
-        />
-        <Stack.Screen
-          name="join-round"
-          options={{
-            title: 'Unirse a Ronda',
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="card-selection"
-          options={{
-            title: 'Seleccionar Cartones',
-            headerBackVisible: false,
-          }}
-        />
-        <Stack.Screen
-          name="game"
-          options={{
-            title: 'Juego',
-            headerBackVisible: false,
-          }}
-        />
-          </Stack>
+              {/* Main Tab Navigation */}
+              <Stack.Screen
+                name="(tabs)"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              {/* Legacy home screen - redirect to tabs */}
+              <Stack.Screen
+                name="home"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              {/* Game Detail - Full screen from Mis Juegos */}
+              <Stack.Screen
+                name="game-detail"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              {/* Game Flow Screens */}
+              <Stack.Screen
+                name="join-round"
+                options={{
+                  title: 'Unirse a Ronda',
+                  headerShown: false,
+                }}
+              />
+              <Stack.Screen
+                name="card-selection"
+                options={{
+                  title: 'Seleccionar Cartones',
+                  headerBackVisible: false,
+                }}
+              />
+              <Stack.Screen
+                name="game"
+                options={{
+                  title: 'Juego',
+                  headerBackVisible: false,
+                }}
+              />
+            </Stack>
           </GameProvider>
         </SocketProvider>
       </RegistrationProvider>
