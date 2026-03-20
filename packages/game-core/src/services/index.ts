@@ -5,6 +5,24 @@ export {
   createUser,
 } from './userService';
 
+// Game services
+export {
+  createGame,
+  getAllGames,
+  getAllGamesWithRoundCount,
+  getGamesByStatus,
+  getGamesByUser,
+  getUpcomingGames,
+  getGameById,
+  updateGame,
+  startGame,
+  finishGame,
+  cancelGame,
+  deleteGame,
+} from './gameService';
+
+export type { CreateGameInput, UpdateGameInput, GameWithRoundCount } from './gameService';
+
 // Round services
 export {
   createRound,
@@ -61,10 +79,46 @@ export {
   checkPhoneExists,
 } from './mobileUserService';
 
-// Pattern services
-export { checkPattern, getPatternMask } from './patternService';
+// Pattern services (CRUD + checking)
+export {
+  createPattern,
+  getAllPatterns,
+  getPatternsByCardType,
+  getPresetPatterns,
+  getCustomPatterns,
+  getPatternById,
+  updatePattern,
+  deletePattern,
+  checkPattern,
+  checkCustomPattern,
+  getPatternMask,
+} from './patternService';
+
+export type { CreatePatternInput, UpdatePatternInput } from './patternService';
+
+// GeneralParameters services
+export {
+  getGeneralParameters,
+  updateGeneralParameters,
+  resetGeneralParameters,
+} from './generalParametersService';
 
 // Winner services
 export { checkForWinners, verifyWinner, getGameSummary } from './winnerService';
 
 export type { WinnerInfo, WinnerCheckResult, GameSummary } from './winnerService';
+
+// GamePlayer services
+export {
+  joinGame,
+  leaveGame,
+  getPlayersByGame,
+  getGamePlayerById,
+  getGamePlayerByCode,
+  getGamePlayerByMobileUser,
+  countPlayersInGame,
+  updateGamePlayerStatus,
+  getJoinedGames,
+} from './gamePlayerService';
+
+export type { JoinGameInput } from './gamePlayerService';

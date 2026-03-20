@@ -8,11 +8,11 @@ import {
   Modal,
   Pressable,
 } from "react-native";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { Audio } from "expo-av";
-import { useSocket, useGame } from "@/contexts";
+import { useGame } from "@/contexts";
+import { useGameSocket } from "@/hooks";
 import BingoCard from "../components/BingoCard";
 
 // Pattern labels for display
@@ -25,15 +25,15 @@ const PATTERN_LABELS: Record<string, string> = {
 };
 
 export default function GameScreen() {
-  const { socket, disconnect } = useSocket();
   const {
-    roundId,
     playerCode,
     cards,
     selectedCardIds,
     winningCardIds,
     isWinner,
     roundPattern,
+    patternCells,
+    cardType,
     clearGame,
     setWinningCards,
     setIsWinner,
@@ -50,40 +50,13 @@ export default function GameScreen() {
   // Animation for BINGO button
   const bingoButtonScale = useRef(new Animated.Value(1)).current;
 
-  // Sound refs
-  const ballSoundRef = useRef<Audio.Sound | null>(null);
-  const winSoundRef = useRef<Audio.Sound | null>(null);
-
-  // Store error handler ref for cleanup (other events use removeAllListeners)
-  const errorHandlerRef = useRef<((data: { message: string }) => void) | null>(null);
-
   // Filter cards to only show selected ones
   const selectedCards = cards.filter((card) => selectedCardIds.includes(card.id));
-
-  // Load sounds on mount
-  useEffect(() => {
-    const loadSounds = async () => {
-      try {
-        // Note: Sound files need to be added to assets/sounds/
-        // For now, we'll use system sounds or skip if files don't exist
-      } catch (error) {
-        console.log("Could not load sounds:", error);
-      }
-    };
-    loadSounds();
-
-    return () => {
-      ballSoundRef.current?.unloadAsync();
-      winSoundRef.current?.unloadAsync();
-    };
-  }, []);
 
   // Play sound and vibration for ball announcement
   const playBallNotification = useCallback(async () => {
     try {
-      // Vibration
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // Sound would play here if loaded
     } catch (error) {
       console.log("Notification feedback error:", error);
     }
@@ -93,7 +66,6 @@ export default function GameScreen() {
   const playWinSound = useCallback(async () => {
     try {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // Win sound would play here if loaded
     } catch (error) {
       console.log("Win sound error:", error);
     }
@@ -115,72 +87,33 @@ export default function GameScreen() {
     ]).start();
   }, [bingoButtonScale]);
 
-  useEffect(() => {
-    if (!socket) {
-      console.log("[game.tsx] No socket available");
-      return;
-    }
-
-    console.log("[game.tsx] Setting up socket listeners, socket connected:", socket.connected);
-
-    // AGGRESSIVELY remove ALL listeners for game-specific events to prevent accumulation
-    socket.removeAllListeners("game:started");
-    socket.removeAllListeners("ball:announced");
-    socket.removeAllListeners("winners:detected");
-    socket.removeAllListeners("game:ending");
-
-    // Handle game events
-    const handleGameStarted = (data: any) => {
-      console.log("Game started:", data);
+  // Use RxJS-based game event hooks - no stale closures, automatic cleanup
+  const { leaveRound } = useGameSocket({
+    onGameStarted: () => {
+      console.log("[game.tsx] Game started (RxJS)");
       setGameStatus("playing");
-    };
-
-    const handleBallAnnounced = (data: { number: number }) => {
-      console.log("Ball announced:", data.number);
-      setDrawnNumbers((prev) => [...prev, data.number]);
-      setLastDrawn(data.number);
+    },
+    onBallAnnounced: (event) => {
+      console.log("[game.tsx] Ball announced (RxJS):", event.number);
+      setDrawnNumbers((prev) => [...prev, event.number]);
+      setLastDrawn(event.number);
       setGameStatus("playing");
       playBallNotification();
-    };
-
-    const handleWinnersDetected = (data: { winningCardIds: string[] }) => {
-      console.log("[game.tsx] Winners detected event received!");
-      console.log("[game.tsx] winningCardIds:", data.winningCardIds);
-      console.log("[game.tsx] Current selectedCardIds:", selectedCardIds);
-      setWinningCards(data.winningCardIds);
-    };
-
-    const handleGameEnding = (data: { summary: any }) => {
-      console.log("Game ending:", data);
+    },
+    onWinnersDetected: (event) => {
+      console.log("[game.tsx] Winners detected (RxJS):", event.winningCardIds);
+      setWinningCards(event.winningCardIds);
+    },
+    onGameEnding: (event) => {
+      console.log("[game.tsx] Game ending (RxJS):", event);
       setGameStatus("ended");
-      setGameEnded(data.summary);
-      // Navigate to results screen
+      setGameEnded(event.summary);
       router.replace("/results");
-    };
-
-    const handleError = (data: { message: string }) => {
-      console.error("Server error:", data.message);
-    };
-
-    // Store error handler ref for cleanup
-    errorHandlerRef.current = handleError;
-
-    socket.on("game:started", handleGameStarted);
-    socket.on("ball:announced", handleBallAnnounced);
-    socket.on("winners:detected", handleWinnersDetected);
-    socket.on("game:ending", handleGameEnding);
-    socket.on("error", handleError);
-
-    return () => {
-      socket.removeAllListeners("game:started");
-      socket.removeAllListeners("ball:announced");
-      socket.removeAllListeners("winners:detected");
-      socket.removeAllListeners("game:ending");
-      if (errorHandlerRef.current) {
-        socket.off("error", errorHandlerRef.current);
-      }
-    };
-  }, [socket, playBallNotification, setWinningCards, setGameEnded]);
+    },
+    onError: (error) => {
+      console.error("[game.tsx] Server error (RxJS):", error.message);
+    },
+  });
 
   const handleMarkNumber = useCallback(
     (cardId: string, number: number) => {
@@ -236,40 +169,50 @@ export default function GameScreen() {
 
   const handleGoHome = () => {
     // Emit leave event to server before going home
-    socket?.emit("player:leave");
+    leaveRound();
     clearGame();
     router.replace("/home");
   };
 
-  // Get pattern mask for visualization
-  const getPatternMask = (pattern: string, size: number = 5): boolean[][] => {
-    const mask: boolean[][] = Array(size)
-      .fill(null)
-      .map(() => Array(size).fill(false));
+  // Get pattern mask for visualization - uses custom cells if provided
+  const getPatternMask = (): boolean[][] => {
+    // If we have custom pattern cells from the server, use them
+    if (patternCells && patternCells.length > 0) {
+      return patternCells;
+    }
 
-    switch (pattern) {
+    // Fallback to legacy pattern types
+    const cols = cardType === 'bingote' ? 7 : 5;
+    const rows = 5;
+    const mask: boolean[][] = Array(rows)
+      .fill(null)
+      .map(() => Array(cols).fill(false));
+
+    switch (roundPattern) {
       case "linea":
-        const middleRow = Math.floor(size / 2);
-        for (let col = 0; col < size; col++) {
+        const middleRow = Math.floor(rows / 2);
+        for (let col = 0; col < cols; col++) {
           mask[middleRow][col] = true;
         }
         break;
       case "columna":
-        const middleCol = Math.floor(size / 2);
-        for (let row = 0; row < size; row++) {
+        const middleCol = Math.floor(cols / 2);
+        for (let row = 0; row < rows; row++) {
           mask[row][middleCol] = true;
         }
         break;
       case "diagonal":
-        for (let i = 0; i < size; i++) {
+        for (let i = 0; i < Math.min(rows, cols); i++) {
           mask[i][i] = true;
-          mask[i][size - 1 - i] = true;
+          if (cols - 1 - i >= 0 && cols - 1 - i < cols) {
+            mask[i][cols - 1 - i] = true;
+          }
         }
         break;
       case "completo":
       case "figura_especial":
-        for (let row = 0; row < size; row++) {
-          for (let col = 0; col < size; col++) {
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < cols; col++) {
             mask[row][col] = true;
           }
         }
@@ -337,7 +280,7 @@ export default function GameScreen() {
               {PATTERN_LABELS[roundPattern || "linea"]}
             </Text>
             <View style={styles.patternGrid}>
-              {getPatternMask(roundPattern || "linea").map((row, rowIndex) => (
+              {getPatternMask().map((row, rowIndex) => (
                 <View key={rowIndex} style={styles.patternRow}>
                   {row.map((isActive, colIndex) => (
                     <View

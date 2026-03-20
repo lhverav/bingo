@@ -1,20 +1,28 @@
 import {
-  Round,
-  CreateRoundData as DomainCreateRoundData,
-  UpdateRoundData as DomainUpdateRoundData,
+  LegacyRound,
+  LegacyCreateRoundData,
+  LegacyUpdateRoundData,
   GamePattern,
   StartMode,
   CardDeliveryConfig,
+  Round,
 } from '@bingo/domain';
 import { roundRepository } from '../repositories';
+import { RoundModel } from '../database/schemas';
+import { connectToDatabase } from '../database/connection';
+import { RoundMapper } from '../database/mappers';
 
 /**
  * Round service - Business logic for round operations
  * Uses RoundRepository for data access
+ *
+ * NOTE: This service supports LEGACY round operations.
+ * For new Game-based rounds, use the repository directly.
  */
 
 /**
  * Data required to create a round (service layer interface)
+ * @deprecated Use CreateRoundData with gameId for new rounds
  */
 export interface CreateRoundInput {
   name: string;
@@ -31,6 +39,7 @@ export interface CreateRoundInput {
 
 /**
  * Data allowed when updating a round (service layer interface)
+ * @deprecated Use UpdateRoundData for new rounds
  */
 export interface UpdateRoundInput {
   name?: string;
@@ -45,10 +54,11 @@ export interface UpdateRoundInput {
 }
 
 /**
- * Create a new round
+ * Create a new round (legacy)
+ * @deprecated Use roundRepository.create with gameId for new rounds
  */
-export async function createRound(data: CreateRoundInput): Promise<Round> {
-  const createData: DomainCreateRoundData = {
+export async function createRound(data: CreateRoundInput): Promise<LegacyRound> {
+  const createData: LegacyCreateRoundData = {
     name: data.name,
     cardSize: data.cardSize,
     numberRange: {
@@ -63,46 +73,62 @@ export async function createRound(data: CreateRoundInput): Promise<Round> {
     cardDelivery: data.cardDelivery,
   };
 
-  return roundRepository.create(createData);
+  await connectToDatabase();
+  const dbData = RoundMapper.toLegacyDatabase(createData);
+  const doc = await RoundModel.create(dbData);
+  return RoundMapper.toLegacyDomain(doc);
 }
 
 /**
- * Get all rounds by user ID
+ * Get all rounds by user ID (legacy)
+ * @deprecated
  */
-export async function getRoundsByUser(userId: string): Promise<Round[]> {
-  return roundRepository.findByUserId(userId);
+export async function getRoundsByUser(userId: string): Promise<LegacyRound[]> {
+  await connectToDatabase();
+  const docs = await RoundModel.find({ createdBy: userId }).sort({ createdAt: -1 });
+  return docs.map(RoundMapper.toLegacyDomain);
 }
 
 /**
- * Get all rounds
+ * Get all rounds (legacy)
+ * @deprecated
  */
-export async function getAllRounds(): Promise<Round[]> {
-  return roundRepository.findAll();
+export async function getAllRounds(): Promise<LegacyRound[]> {
+  await connectToDatabase();
+  const docs = await RoundModel.find().sort({ createdAt: -1 });
+  return docs.map(RoundMapper.toLegacyDomain);
 }
 
 /**
- * Get a round by ID
+ * Get a round by ID (legacy)
+ * @deprecated
  */
-export async function getRoundById(id: string): Promise<Round | null> {
-  return roundRepository.findById(id);
+export async function getRoundById(id: string): Promise<LegacyRound | null> {
+  await connectToDatabase();
+  const doc = await RoundModel.findById(id);
+  return doc ? RoundMapper.toLegacyDomain(doc) : null;
 }
 
 /**
- * Update a round (only if status is 'configurada')
+ * Update a round (only if status is 'configurada') (legacy)
+ * @deprecated
  */
 export async function updateRound(
   id: string,
   data: UpdateRoundInput
-): Promise<Round | null> {
-  const round = await roundRepository.findById(id);
-  if (!round) return null;
+): Promise<LegacyRound | null> {
+  await connectToDatabase();
+  const doc = await RoundModel.findById(id);
+  if (!doc) return null;
+
+  const round = RoundMapper.toLegacyDomain(doc);
 
   // Business rule: Only allow editing if round is in 'configurada' status
   if (round.status !== 'configurada') {
     throw new Error('Solo se pueden editar rondas que no han iniciado');
   }
 
-  const updateData: DomainUpdateRoundData = {};
+  const updateData: LegacyUpdateRoundData = {};
 
   if (data.name !== undefined) updateData.name = data.name;
   if (data.cardSize !== undefined) updateData.cardSize = data.cardSize;
@@ -118,14 +144,19 @@ export async function updateRound(
   if (data.cardBunchId !== undefined) updateData.cardBunchId = data.cardBunchId;
   if (data.cardDelivery !== undefined) updateData.cardDelivery = data.cardDelivery;
 
-  return roundRepository.update(id, updateData);
+  const dbData = RoundMapper.toLegacyUpdateDatabase(updateData);
+  const updatedDoc = await RoundModel.findByIdAndUpdate(id, dbData, {
+    new: true,
+    runValidators: true,
+  });
+  return updatedDoc ? RoundMapper.toLegacyDomain(updatedDoc) : null;
 }
 
 /**
  * Delete a round (only if status is 'configurada')
  */
 export async function deleteRound(id: string): Promise<boolean> {
-  const round = await roundRepository.findById(id);
+  const round = await getRoundById(id);
   if (!round) return false;
 
   // Business rule: Only allow deleting if round is in 'configurada' status
@@ -159,20 +190,25 @@ export async function endRound(id: string): Promise<Round | null> {
 }
 
 /**
- * Draw a number in a round
+ * Draw a number in a round (legacy - validates against stored numberRange)
  */
 export async function drawNumber(id: string, number: number): Promise<Round | null> {
-  const round = await roundRepository.findById(id);
-  if (!round) return null;
+  await connectToDatabase();
+  const doc = await RoundModel.findById(id);
+  if (!doc) return null;
+
+  const round = RoundMapper.toLegacyDomain(doc);
 
   // Business rule: Can only draw numbers if round is in progress
   if (round.status !== 'en_progreso') {
     throw new Error('La ronda no esta en progreso');
   }
 
-  // Business rule: Number must be within range
-  if (number < round.numberRange.min || number > round.numberRange.max) {
-    throw new Error('El numero esta fuera del rango permitido');
+  // Business rule: Number must be within range (for legacy rounds with numberRange)
+  if (doc.minNumber !== undefined && doc.maxNumber !== undefined) {
+    if (number < doc.minNumber || number > doc.maxNumber) {
+      throw new Error('El numero esta fuera del rango permitido');
+    }
   }
 
   // Business rule: Number cannot be drawn twice

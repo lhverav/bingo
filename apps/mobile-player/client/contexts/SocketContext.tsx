@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { serverConfig } from '@/config/server';
+import { socketEventStream } from '@/services/socketEventStream';
 
 // =============================================================================
 // TYPES
@@ -51,6 +52,9 @@ export function SocketProvider({ children }: SocketProviderProps) {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      extraHeaders: {
+        "ngrok-skip-browser-warning": "true",
+      },
     });
 
     newSocket.on('connect', () => {
@@ -69,11 +73,16 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     socketRef.current = newSocket;
     setSocket(newSocket);
+
+    // Initialize RxJS event stream with the socket
+    socketEventStream.init(newSocket);
   }, []); // No dependencies - stable function reference
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {
       console.log('🔌 Disconnecting socket');
+      // Clean up RxJS event stream
+      socketEventStream.cleanup();
       socketRef.current.disconnect();
       socketRef.current = null;
       setSocket(null);
@@ -85,6 +94,9 @@ export function SocketProvider({ children }: SocketProviderProps) {
   // This clears ALL listeners and server-side state
   const reconnect = useCallback(() => {
     console.log('🔌 Reconnecting socket (fresh connection)');
+
+    // Clean up RxJS event stream first
+    socketEventStream.cleanup();
 
     // Disconnect existing socket if any
     if (socketRef.current) {
@@ -99,6 +111,9 @@ export function SocketProvider({ children }: SocketProviderProps) {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      extraHeaders: {
+        "ngrok-skip-browser-warning": "true",
+      },
     });
 
     newSocket.on('connect', () => {
@@ -117,6 +132,9 @@ export function SocketProvider({ children }: SocketProviderProps) {
 
     socketRef.current = newSocket;
     setSocket(newSocket);
+
+    // Initialize RxJS event stream with the fresh socket
+    socketEventStream.init(newSocket);
   }, []);
 
   const value: SocketContextValue = {

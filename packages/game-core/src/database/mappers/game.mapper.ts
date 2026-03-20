@@ -1,0 +1,53 @@
+import { Game, CreateGameData, UpdateGameData } from '@bingo/domain';
+import { GameDocument } from '../schemas/game.schema';
+
+/**
+ * Mapper for Game entity <-> GameDocument conversion
+ * Handles translation between domain and database layers
+ */
+export class GameMapper {
+  /**
+   * Convert database document to domain entity
+   */
+  static toDomain(doc: GameDocument): Game {
+    return {
+      id: doc._id.toString(),
+      name: doc.name,
+      cardType: doc.cardType,
+      scheduledAt: doc.scheduledAt,
+      status: doc.status,
+      createdBy: doc.createdBy.toString(),
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    };
+  }
+
+  /**
+   * Convert domain entity to database document format
+   * Used for creating new documents
+   */
+  static toDatabase(data: CreateGameData): Record<string, unknown> {
+    return {
+      name: data.name,
+      cardType: data.cardType,
+      scheduledAt: data.scheduledAt,
+      status: 'scheduled',
+      createdBy: data.createdBy,
+    };
+  }
+
+  /**
+   * Convert update data to database update format
+   * Only includes fields that are present in the update data
+   */
+  static toUpdateDatabase(data: UpdateGameData): Record<string, unknown> {
+    const update: Record<string, unknown> = {};
+
+    if (data.name !== undefined) update.name = data.name;
+    if (data.cardType !== undefined) update.cardType = data.cardType;
+    if (data.scheduledAt !== undefined) update.scheduledAt = data.scheduledAt;
+    if (data.status !== undefined) update.status = data.status;
+
+    return update;
+  }
+}

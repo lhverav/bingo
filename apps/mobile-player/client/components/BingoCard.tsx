@@ -1,24 +1,55 @@
-import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, Dimensions } from "react-native";
+
+// Card type configurations matching domain
+type CardType = 'bingo' | 'bingote';
+
+const CARD_CONFIG = {
+  bingo: {
+    letters: ['B', 'I', 'N', 'G', 'O'],
+    columns: 5,
+  },
+  bingote: {
+    letters: ['B', 'I', 'N', 'G', 'O', 'T', 'E'],
+    columns: 7,
+  },
+};
 
 interface BingoCardProps {
   id: string;
   cells: number[][];
+  cardType?: CardType;
   selected?: boolean;
   onSelect?: (id: string) => void;
   markedNumbers?: number[];
   onMarkNumber?: (number: number) => void;
   disabled?: boolean;
+  compact?: boolean; // For smaller display in selection screen
 }
 
 export default function BingoCard({
   id,
   cells,
+  cardType,
   selected = false,
   onSelect,
   markedNumbers = [],
   onMarkNumber,
   disabled = false,
+  compact = false,
 }: BingoCardProps) {
+  // Auto-detect card type from cells if not provided
+  const detectedType: CardType = cardType || (cells[0]?.length === 7 ? 'bingote' : 'bingo');
+  const config = CARD_CONFIG[detectedType];
+
+  // Calculate cell size based on card type and compact mode
+  const screenWidth = Dimensions.get('window').width;
+  const maxCardWidth = compact ? screenWidth * 0.42 : screenWidth - 60;
+  const cellSize = compact
+    ? Math.floor((maxCardWidth - 20) / config.columns) - 3
+    : Math.floor((maxCardWidth - 20) / config.columns) - 4;
+  const fontSize = compact ? 12 : (cellSize > 35 ? 16 : 14);
+  const headerFontSize = compact ? 10 : 14;
+
   const handlePress = () => {
     if (onSelect && !disabled) {
       onSelect(id);
@@ -50,29 +81,51 @@ export default function BingoCard({
           <Text style={styles.checkmarkText}>✓</Text>
         </View>
       )}
+
+      {/* Column Headers */}
+      <View style={[styles.row, styles.headerRow]}>
+        {config.letters.map((letter, index) => (
+          <View
+            key={`header-${index}`}
+            style={[
+              styles.headerCell,
+              { width: cellSize, height: cellSize * 0.6 },
+            ]}
+          >
+            <Text style={[styles.headerText, { fontSize: headerFontSize }]}>
+              {letter}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Card Grid */}
       <View style={styles.grid}>
         {cells.map((row, rowIndex) => (
           <View key={rowIndex} style={styles.row}>
             {row.map((number, colIndex) => {
               const isMarked = markedNumbers.includes(number);
+              const isFreeSpace = number === 0;
               return (
                 <TouchableOpacity
                   key={`${rowIndex}-${colIndex}`}
                   style={[
                     styles.cell,
+                    { width: cellSize, height: cellSize },
                     isMarked && styles.cellMarked,
-                    number === 0 && styles.cellFree,
+                    isFreeSpace && styles.cellFree,
                   ]}
                   onPress={() => handleCellPress(number)}
-                  disabled={!isMarkable || disabled || number === 0}
-                  activeOpacity={isMarkable && number !== 0 ? 0.7 : 1}
+                  disabled={!isMarkable || disabled || isFreeSpace}
+                  activeOpacity={isMarkable && !isFreeSpace ? 0.7 : 1}
                 >
                   <Text style={[
                     styles.cellText,
+                    { fontSize },
                     isMarked && styles.cellTextMarked,
-                    number === 0 && styles.cellTextFree,
+                    isFreeSpace && styles.cellTextFree,
                   ]}>
-                    {number === 0 ? '★' : number}
+                    {isFreeSpace ? '★' : number}
                   </Text>
                 </TouchableOpacity>
               );
@@ -129,10 +182,22 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     gap: 3,
+    justifyContent: "center",
+  },
+  headerRow: {
+    marginBottom: 4,
+  },
+  headerCell: {
+    backgroundColor: "#3498db",
+    borderRadius: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
   cell: {
-    width: 40,
-    height: 40,
     backgroundColor: "#f0f0f0",
     borderRadius: 6,
     justifyContent: "center",
@@ -149,7 +214,6 @@ const styles = StyleSheet.create({
     borderColor: "#FFA500",
   },
   cellText: {
-    fontSize: 16,
     fontWeight: "600",
     color: "#333",
   },
@@ -158,7 +222,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   cellTextFree: {
-    fontSize: 20,
     color: "#333",
   },
 });

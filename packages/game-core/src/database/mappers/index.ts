@@ -4,3 +4,7 @@ export { CardBunchMapper } from './cardBunch.mapper';
 export { BunchCardMapper } from './bunchCard.mapper';
 export { RoundPlayerMapper } from './roundPlayer.mapper';
 export { MobileUserMapper } from './mobileUser.mapper';
+export { GameMapper } from './game.mapper';
+export { PatternMapper } from './pattern.mapper';
+export { GeneralParametersMapper } from './generalParameters.mapper';
+export { GamePlayerMapper } from './gamePlayer.mapper';

@@ -7,6 +7,7 @@ import { getRoundById } from "@bingo/game-core";
 import { registerRoundEvents } from "./events/roundEvents";
 import { registerGameEvents } from "./events/gameEvents";
 import authRoutes from "./routes/auth.routes";
+import gamesRoutes from "./routes/games.routes";
 
 // Load environment variables from .env file
 
@@ -30,6 +31,7 @@ app.use(express.json());
 
 // Routes
 app.use("/auth", authRoutes);
+app.use("/games", gamesRoutes);
 
 // Health check
 app.get("/health", (req, res) => {
@@ -150,6 +152,84 @@ app.post("/notify", (req, res) => {
         roundId: data?.roundId,
         timestamp,
       });
+      break;
+
+    case "GAME_CREATED":
+      // Notify all clients about new scheduled game
+      io.emit("game:created", {
+        gameId: data?.gameId,
+        name: data?.name,
+        cardType: data?.cardType,
+        scheduledAt: data?.scheduledAt,
+        timestamp,
+      });
+      console.log(`New game created: ${data?.name} (${data?.gameId})`);
+      break;
+
+    case "GAME_STARTED":
+      // Notify all clients that a game has started
+      io.emit("game:started", {
+        gameId: data?.gameId,
+        timestamp,
+      });
+      console.log(`Game started: ${data?.gameId}`);
+      break;
+
+    case "GAME_FINISHED":
+      // Notify all clients that a game has finished
+      io.emit("game:finished", {
+        gameId: data?.gameId,
+        timestamp,
+      });
+      console.log(`Game finished: ${data?.gameId}`);
+      break;
+
+    case "GAME_CANCELLED":
+      // Notify all clients that a game has been cancelled
+      io.emit("game:cancelled", {
+        gameId: data?.gameId,
+        timestamp,
+      });
+      console.log(`Game cancelled: ${data?.gameId}`);
+      break;
+
+    case "ROUND_CREATED":
+      // Notify all clients about new round in a game
+      io.emit("round:created", {
+        gameId: data?.gameId,
+        roundId: data?.roundId,
+        name: data?.name,
+        order: data?.order,
+        isPaid: data?.isPaid,
+        pricePerCard: data?.pricePerCard,
+        currency: data?.currency,
+        timestamp,
+      });
+      console.log(`Round created: ${data?.name} in game ${data?.gameId}`);
+      break;
+
+    case "ROUND_UPDATED":
+      // Notify all clients about round update
+      io.emit("round:updated", {
+        gameId: data?.gameId,
+        roundId: data?.roundId,
+        name: data?.name,
+        isPaid: data?.isPaid,
+        pricePerCard: data?.pricePerCard,
+        currency: data?.currency,
+        timestamp,
+      });
+      console.log(`Round updated: ${data?.roundId} in game ${data?.gameId}`);
+      break;
+
+    case "ROUND_DELETED":
+      // Notify all clients about round deletion
+      io.emit("round:deleted", {
+        gameId: data?.gameId,
+        roundId: data?.roundId,
+        timestamp,
+      });
+      console.log(`Round deleted: ${data?.roundId} from game ${data?.gameId}`);
       break;
 
     default:

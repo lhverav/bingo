@@ -1,20 +1,90 @@
-import { GamePattern, RoundStatus, StartMode } from '../value-objects';
+import { RoundStatus } from '../value-objects';
 
 /**
- * Configuration for card delivery during player join phase
+ * Currency options for paid rounds
  */
-export interface CardDeliveryConfig {
-  selectionTimeSeconds: number;     // Time for player to select cards
-  freeCardsDelivered: number;       // Cards shown to player for selection
-  freeCardsToSelect: number;        // Cards player must choose
-  freeCardsOnTimeout: number;       // Cards auto-assigned if timeout
-}
+export type Currency = 'USD' | 'COP';
+
+export const CURRENCY_LABELS: Record<Currency, string> = {
+  USD: 'Dólares (USD)',
+  COP: 'Pesos Colombianos (COP)',
+};
+
+export const ALL_CURRENCIES: Currency[] = ['USD', 'COP'];
 
 /**
  * Round entity - Pure domain object
- * Represents a bingo game round configuration and state
+ * Represents a bingo game round within a Game
  */
 export interface Round {
+  id: string;
+  gameId: string;              // Reference to parent Game
+  name: string;
+  order: number;               // Sequence within game (1, 2, 3...)
+  patternId: string;           // Reference to Pattern
+  isPaid: boolean;             // Free or paid round
+  pricePerCard?: number;       // If paid: price per card
+  currency?: Currency;         // If paid: currency
+  status: RoundStatus;
+  drawnNumbers: number[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Data required to create a new round
+ */
+export interface CreateRoundData {
+  gameId: string;
+  name: string;
+  order: number;
+  patternId: string;
+  isPaid: boolean;
+  pricePerCard?: number;
+  currency?: Currency;
+}
+
+/**
+ * Data allowed when updating a round
+ */
+export interface UpdateRoundData {
+  name?: string;
+  order?: number;
+  patternId?: string;
+  isPaid?: boolean;
+  pricePerCard?: number;
+  currency?: Currency;
+}
+
+/**
+ * Round with expanded pattern info (for display)
+ */
+export interface RoundWithPattern extends Round {
+  patternName?: string;
+  patternCells?: boolean[][];
+}
+
+// ============================================================================
+// LEGACY TYPES - Keep for backwards compatibility during migration
+// These will be removed after migration is complete
+// ============================================================================
+
+import { GamePattern, StartMode } from '../value-objects';
+
+/**
+ * @deprecated Use GeneralParameters instead
+ */
+export interface CardDeliveryConfig {
+  selectionTimeSeconds: number;
+  freeCardsDelivered: number;
+  freeCardsToSelect: number;
+  freeCardsOnTimeout: number;
+}
+
+/**
+ * @deprecated Legacy Round structure
+ */
+export interface LegacyRound {
   id: string;
   name: string;
   cardSize: number;
@@ -24,20 +94,20 @@ export interface Round {
   };
   gamePattern: GamePattern;
   startMode: StartMode;
-  autoStartDelay?: number; // in seconds, only if startMode is 'automatico'
+  autoStartDelay?: number;
   status: RoundStatus;
-  createdBy: string; // User ID
+  createdBy: string;
   drawnNumbers: number[];
-  cardBunchId?: string; // Optional reference to pre-generated card bunch
-  cardDelivery?: CardDeliveryConfig; // Card delivery configuration for player join phase
+  cardBunchId?: string;
+  cardDelivery?: CardDeliveryConfig;
   createdAt: Date;
   updatedAt: Date;
 }
 
 /**
- * Data required to create a new round
+ * @deprecated Legacy create data
  */
-export interface CreateRoundData {
+export interface LegacyCreateRoundData {
   name: string;
   cardSize: number;
   numberRange: {
@@ -53,9 +123,9 @@ export interface CreateRoundData {
 }
 
 /**
- * Data allowed when updating a round
+ * @deprecated Legacy update data
  */
-export interface UpdateRoundData {
+export interface LegacyUpdateRoundData {
   name?: string;
   cardSize?: number;
   numberRange?: {

@@ -1,9 +1,22 @@
-import { RoundPlayer, CreateRoundPlayerData, BunchCard } from '@bingo/domain';
-import { roundPlayerRepository, roundRepository, bunchCardRepository } from '../repositories';
+import { RoundPlayer, CreateRoundPlayerData, BunchCard, LegacyRound } from '@bingo/domain';
+import { roundPlayerRepository, bunchCardRepository } from '../repositories';
+import { RoundModel } from '../database/schemas';
+import { RoundMapper } from '../database/mappers';
+import { connectToDatabase } from '../database/connection';
 
 /**
  * RoundPlayer service - Business logic for player operations in rounds
+ * NOTE: This service uses legacy round structure for backwards compatibility
  */
+
+/**
+ * Helper to get legacy round by ID
+ */
+async function getLegacyRound(roundId: string): Promise<LegacyRound | null> {
+  await connectToDatabase();
+  const doc = await RoundModel.findById(roundId);
+  return doc ? RoundMapper.toLegacyDomain(doc) : null;
+}
 
 /**
  * Generate a unique 4-character alphanumeric player code
@@ -101,7 +114,7 @@ export interface JoinRoundResult {
  * Returns existing player if mobileUserId already joined this round
  */
 export async function joinRound(input: JoinRoundInput): Promise<JoinRoundResult> {
-  const round = await roundRepository.findById(input.roundId);
+  const round = await getLegacyRound(input.roundId);
   if (!round) {
     throw new Error('Ronda no encontrada');
   }
@@ -176,7 +189,7 @@ export async function selectCards(input: SelectCardsInput): Promise<RoundPlayer>
   }
 
   // Get round to check card selection limits
-  const round = await roundRepository.findById(player.roundId);
+  const round = await getLegacyRound(player.roundId);
   if (!round?.cardDelivery) {
     throw new Error('Configuracion de ronda no encontrada');
   }
@@ -234,7 +247,7 @@ export async function requestCards(input: RequestCardsInput): Promise<RequestCar
     // Handle edge case: player in 'selecting' but no deadline or no cards (stale data)
     // Reset them to get fresh cards
     if (!player.selectionDeadline || player.lockedCardIds.length === 0) {
-      const round = await roundRepository.findById(player.roundId);
+      const round = await getLegacyRound(player.roundId);
       if (!round?.cardDelivery || !round.cardBunchId) {
         throw new Error('Configuracion de ronda no encontrada');
       }
@@ -281,7 +294,7 @@ export async function requestCards(input: RequestCardsInput): Promise<RequestCar
   }
 
   // Get round configuration
-  const round = await roundRepository.findById(player.roundId);
+  const round = await getLegacyRound(player.roundId);
   if (!round) {
     throw new Error('Ronda no encontrada');
   }
@@ -340,7 +353,7 @@ export async function handleTimeout(playerId: string): Promise<RoundPlayer> {
   }
 
   // Get round configuration
-  const round = await roundRepository.findById(player.roundId);
+  const round = await getLegacyRound(player.roundId);
   if (!round?.cardDelivery) {
     throw new Error('Configuracion de ronda no encontrada');
   }

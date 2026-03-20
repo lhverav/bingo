@@ -1,9 +1,89 @@
 import { Server, Socket } from "socket.io";
+import { joinGame, leaveGame, getGameById } from "@bingo/game-core";
 
 /**
  * Register game-related socket events
  */
 export function registerGameEvents(io: Server, socket: Socket) {
+  /**
+   * Player joins a game (new flow)
+   * Input: { gameId: string, mobileUserId?: string }
+   * Emits: game:joined with player data
+   */
+  socket.on("game:join", async (data: { gameId: string; mobileUserId?: string }) => {
+    try {
+      const { gameId, mobileUserId } = data;
+      console.log(`[game:join] Player joining game ${gameId}, mobileUserId: ${mobileUserId}`);
+
+      // Join the game using the service
+      const result = await joinGame({ gameId, mobileUserId });
+
+      // Get game details
+      const game = await getGameById(gameId);
+
+      // Join the socket to the game room
+      socket.join(`game:${gameId}`);
+
+      // Store player info on socket for later use
+      (socket as any).playerId = result.player.id;
+      (socket as any).playerCode = result.player.playerCode;
+      (socket as any).gameId = gameId;
+
+      // Send success response
+      socket.emit("game:joined", {
+        player: result.player,
+        game,
+        isReconnect: result.isReconnect,
+        message: result.isReconnect
+          ? "¡Bienvenido de nuevo!"
+          : "¡Te has unido al juego exitosamente!",
+      });
+
+      console.log(
+        `[game:join] Player ${result.player.playerCode} joined game ${gameId} (reconnect: ${result.isReconnect})`
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al unirse al juego";
+      socket.emit("game:join:error", { message });
+      console.error("[game:join] Error:", error);
+    }
+  });
+
+  /**
+   * Player leaves a game (new flow)
+   * Input: { gameId: string, mobileUserId: string }
+   * Emits: game:left on success
+   */
+  socket.on("game:leave", async (data: { gameId: string; mobileUserId: string }) => {
+    try {
+      const { gameId, mobileUserId } = data;
+      console.log(`[game:leave] Player leaving game ${gameId}, mobileUserId: ${mobileUserId}`);
+
+      // Leave the game using the service
+      await leaveGame(gameId, mobileUserId);
+
+      // Leave the socket room
+      socket.leave(`game:${gameId}`);
+
+      // Clear player info from socket
+      (socket as any).playerId = null;
+      (socket as any).playerCode = null;
+      (socket as any).gameId = null;
+
+      // Send success response
+      socket.emit("game:left", {
+        gameId,
+        message: "Has salido del juego exitosamente",
+      });
+
+      console.log(`[game:leave] Player left game ${gameId}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al salir del juego";
+      socket.emit("game:leave:error", { message });
+      console.error("[game:leave] Error:", error);
+    }
+  });
+
   /**
    * Host starts the game (ball drawing phase)
    * Input: { roundId: string }

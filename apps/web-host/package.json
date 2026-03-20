@@ -7,8 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "npx tsx src/lib/scripts/seedUsers.ts",
-    "seed1": "npx tsx --env-file=.env.local src/lib/scripts/seedUsers.ts"
+    "seed": "npx tsx src/lib/scripts/seedAll.ts",
+    "seed:users": "npx tsx src/lib/scripts/seedUsers.ts",
+    "seed:patterns": "npx tsx src/lib/scripts/seedPatterns.ts",
+    "seed:params": "npx tsx src/lib/scripts/seedGeneralParameters.ts"
   },
   "dependencies": {
     "@bingo/domain": "workspace:*",

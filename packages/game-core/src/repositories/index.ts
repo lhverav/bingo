@@ -4,3 +4,7 @@ export { CardBunchRepository, cardBunchRepository } from './cardBunch.repository
 export { BunchCardRepository, bunchCardRepository } from './bunchCard.repository';
 export { RoundPlayerRepository, roundPlayerRepository } from './roundPlayer.repository';
 export { MobileUserRepository, mobileUserRepository } from './mobileUser.repository';
+export { GameRepository, gameRepository } from './game.repository';
+export { PatternRepository, patternRepository } from './pattern.repository';
+export { GeneralParametersRepository, generalParametersRepository } from './generalParameters.repository';
+export { gamePlayerRepository } from './gamePlayer.repository';

@@ -18,7 +18,17 @@ export class RoundRepository {
   }
 
   /**
-   * Find all rounds by user ID
+   * Find all rounds by game ID (new structure)
+   */
+  async findByGameId(gameId: string): Promise<Round[]> {
+    await connectToDatabase();
+    const docs = await RoundModel.find({ gameId }).sort({ order: 1 });
+    return docs.map(RoundMapper.toDomain);
+  }
+
+  /**
+   * Find all rounds by user ID (legacy)
+   * @deprecated Use findByGameId instead
    */
   async findByUserId(userId: string): Promise<Round[]> {
     await connectToDatabase();
@@ -33,6 +43,15 @@ export class RoundRepository {
     await connectToDatabase();
     const docs = await RoundModel.find().sort({ createdAt: -1 });
     return docs.map(RoundMapper.toDomain);
+  }
+
+  /**
+   * Get the next order number for a game
+   */
+  async getNextOrder(gameId: string): Promise<number> {
+    await connectToDatabase();
+    const lastRound = await RoundModel.findOne({ gameId }).sort({ order: -1 });
+    return lastRound ? (lastRound.order ?? 0) + 1 : 1;
   }
 
   /**
@@ -85,12 +104,42 @@ export class RoundRepository {
   }
 
   /**
+   * Clear drawn numbers (for reset)
+   */
+  async clearDrawnNumbers(id: string): Promise<Round | null> {
+    await connectToDatabase();
+    const doc = await RoundModel.findByIdAndUpdate(
+      id,
+      { drawnNumbers: [] },
+      { new: true }
+    );
+    return doc ? RoundMapper.toDomain(doc) : null;
+  }
+
+  /**
    * Delete a round
    */
   async delete(id: string): Promise<boolean> {
     await connectToDatabase();
     const result = await RoundModel.findByIdAndDelete(id);
     return result !== null;
+  }
+
+  /**
+   * Delete all rounds for a game
+   */
+  async deleteByGameId(gameId: string): Promise<number> {
+    await connectToDatabase();
+    const result = await RoundModel.deleteMany({ gameId });
+    return result.deletedCount;
+  }
+
+  /**
+   * Count rounds in a game
+   */
+  async countByGameId(gameId: string): Promise<number> {
+    await connectToDatabase();
+    return RoundModel.countDocuments({ gameId });
   }
 }
 

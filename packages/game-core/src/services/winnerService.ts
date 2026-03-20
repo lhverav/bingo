@@ -1,6 +1,18 @@
-import { GamePattern } from '@bingo/domain';
-import { roundRepository, roundPlayerRepository, bunchCardRepository } from '../repositories';
+import { GamePattern, LegacyRound } from '@bingo/domain';
+import { roundPlayerRepository, bunchCardRepository } from '../repositories';
 import { checkPattern } from './patternService';
+import { RoundModel } from '../database/schemas';
+import { RoundMapper } from '../database/mappers';
+import { connectToDatabase } from '../database/connection';
+
+/**
+ * Helper to get legacy round by ID
+ */
+async function getLegacyRound(roundId: string): Promise<LegacyRound | null> {
+  await connectToDatabase();
+  const doc = await RoundModel.findById(roundId);
+  return doc ? RoundMapper.toLegacyDomain(doc) : null;
+}
 
 /**
  * Information about a winner
@@ -30,7 +42,7 @@ export interface WinnerCheckResult {
  */
 export async function checkForWinners(roundId: string): Promise<WinnerCheckResult> {
   // Get round to get pattern and drawn numbers
-  const round = await roundRepository.findById(roundId);
+  const round = await getLegacyRound(roundId);
   if (!round) {
     throw new Error('Ronda no encontrada');
   }
@@ -92,7 +104,7 @@ export async function checkForWinners(roundId: string): Promise<WinnerCheckResul
  * @returns true if the card is a valid winner
  */
 export async function verifyWinner(roundId: string, cardId: string): Promise<boolean> {
-  const round = await roundRepository.findById(roundId);
+  const round = await getLegacyRound(roundId);
   if (!round || !round.gamePattern) {
     return false;
   }
@@ -131,7 +143,7 @@ export async function getGameSummary(
   roundId: string,
   claimedWinners: WinnerInfo[]
 ): Promise<GameSummary> {
-  const round = await roundRepository.findById(roundId);
+  const round = await getLegacyRound(roundId);
   if (!round) {
     throw new Error('Ronda no encontrada');
   }

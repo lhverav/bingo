@@ -22,8 +22,48 @@ export default async function HostPage() {
       </header>
 
       <section className="host-content">
-        <h2>Gestión de Rondas</h2>
-        <p>Bienvenido al panel de control del Bingo.</p>
+        <h2>Gestión de Juegos</h2>
+        <p>Crea y administra juegos de bingo con múltiples rondas.</p>
+
+        <div className="actions">
+          <Link href="/host/juegos/crear" className="btn-primary">
+            Crear Nuevo Juego
+          </Link>
+          <Link href="/host/juegos" className="btn-secondary">
+            Ver Juegos
+          </Link>
+        </div>
+      </section>
+
+      <section className="host-content">
+        <h2>Patrones de Juego</h2>
+        <p>Administra los patrones de victoria para los juegos.</p>
+
+        <div className="actions">
+          <Link href="/host/patrones/crear" className="btn-primary">
+            Crear Patrón
+          </Link>
+          <Link href="/host/patrones" className="btn-secondary">
+            Ver Patrones
+          </Link>
+        </div>
+      </section>
+
+      <section className="host-content">
+        <h2>Parámetros Generales</h2>
+        <p>Configura los valores por defecto para los juegos.</p>
+
+        <div className="actions">
+          <Link href="/host/parametros" className="btn-secondary">
+            Configurar Parámetros
+          </Link>
+        </div>
+      </section>
+
+      {/* Legacy sections - to be removed after migration */}
+      <section className="host-content legacy-section">
+        <h2>Rondas (Legacy)</h2>
+        <p>Sistema anterior de rondas individuales.</p>
 
         <div className="actions">
           <Link href="/host/rondas/crear" className="btn-primary">
@@ -35,9 +75,9 @@ export default async function HostPage() {
         </div>
       </section>
 
-      <section className="host-content">
-        <h2>Gestión de Cartas</h2>
-        <p>Crea grupos de cartas pre-generadas para usar en tus rondas.</p>
+      <section className="host-content legacy-section">
+        <h2>Grupos de Cartas (Legacy)</h2>
+        <p>Sistema anterior de cartas pre-generadas.</p>
 
         <div className="actions">
           <Link href="/host/cartas/crear" className="btn-primary">

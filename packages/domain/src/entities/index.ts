@@ -6,3 +6,7 @@ export * from './cardBunch';
 export * from './bunchCard';
 export * from './roundPlayer';
 export * from './mobileUser';
+export * from './game';
+export * from './gamePlayer';
+export * from './pattern';
+export * from './generalParameters';

@@ -5,32 +5,71 @@ import {
   Dimensions,
   Modal,
   TouchableOpacity,
+  ScrollView,
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
-import { io } from "socket.io-client";
 import { router } from "expo-router";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { useAuth } from "@/contexts/AuthContext";
-import { serverConfig } from "@/config/server";
+import { useSocket } from "@/contexts/SocketContext";
+import { useGame } from "@/contexts/GameContext";
+import { useNotifications, useConnectionState, useGameJoinSocket } from "@/hooks";
+import { GameCarousel } from "@/components/GameCarousel";
+import { GameLobbyModal } from "@/components/GameLobbyModal";
+
 const YOUTUBE_VIDEO_ID =
   process.env.EXPO_PUBLIC_YOUTUBE_VIDEO_ID || "dQw4w9WgXcQ";
 
 export default function HomeScreen() {
   console.log("🏠 HomeScreen (index.tsx) MOUNTED");
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
+  const { connect } = useSocket();
+  const { joinedGames, addJoinedGame, removeJoinedGame } = useGame();
+  const isConnected = useConnectionState();
+
   console.log("🏠 Auth state:", { isAuthenticated, authLoading });
-  const [connected, setConnected] = useState(false);
+
   const [playing, setPlaying] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [currentNotification, setCurrentNotification] = useState<string | null>(
-    null,
-  );
+  const [notificationModalVisible, setNotificationModalVisible] = useState(false);
+  const [currentNotification, setCurrentNotification] = useState<string | null>(null);
   const [currentRoundId, setCurrentRoundId] = useState<string | null>(null);
+
+  // Game lobby modal state
+  const [lobbyModalVisible, setLobbyModalVisible] = useState(false);
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+
+  // Use RxJS-based game join socket for leave functionality
+  const { leaveGame } = useGameJoinSocket({
+    onLeftGame: (data) => {
+      console.log("[home.tsx] Left game:", data);
+      removeJoinedGame(data.gameId);
+    },
+    onGameLeaveError: (error) => {
+      console.error("[home.tsx] Leave game error:", error.message);
+    },
+  });
+
+  // Use RxJS-based notification hook
+  useNotifications({
+    onNotification: (data) => {
+      console.log("[home.tsx] Notification received (RxJS):", data);
+      setCurrentNotification(data.message);
+      if (data.roundId) {
+        setCurrentRoundId(data.roundId);
+      }
+      setNotificationModalVisible(true);
+    },
+  });
+
+  // Connect to socket on mount
+  useEffect(() => {
+    connect();
+  }, [connect]);
 
   // Redirect to auth if not authenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-    //  router.replace("/(auth)");
+      // router.replace("/(auth)");
     }
   }, [isAuthenticated, authLoading]);
 
@@ -38,6 +77,30 @@ export default function HomeScreen() {
     if (state === "ended") {
       setPlaying(false);
     }
+  }, []);
+
+  const handleJoinGame = useCallback((gameId: string) => {
+    console.log("Opening join modal for game:", gameId);
+    setSelectedGameId(gameId);
+    setLobbyModalVisible(true);
+  }, []);
+
+  const handleLeaveGame = useCallback((gameId: string) => {
+    console.log("Leaving game:", gameId);
+    if (user?.id) {
+      leaveGame(gameId, user.id);
+    }
+  }, [leaveGame, user?.id]);
+
+  const handleGameJoined = useCallback((gameId: string, playerCode: string) => {
+    console.log("Game joined:", gameId, "Code:", playerCode);
+    // Add to joined games in context (playerId not needed for display)
+    addJoinedGame(gameId, "", playerCode);
+  }, [addJoinedGame]);
+
+  const handleLobbyClose = useCallback(() => {
+    setLobbyModalVisible(false);
+    setSelectedGameId(null);
   }, []);
 
   // Show loading while checking auth
@@ -51,41 +114,11 @@ export default function HomeScreen() {
 
   // Don't render home content if not authenticated
   if (!isAuthenticated) {
-   // return null;
+    // return null;
   }
 
-  useEffect(() => {
-    const socket = io(serverConfig.baseUrl);
-
-    socket.on("connect", () => {
-      console.log("Connected to server");
-      setConnected(true);
-    });
-
-    socket.on("disconnect", () => {
-      console.log("Disconnected from server");
-      setConnected(false);
-    });
-
-    // When notification received, show popup
-    socket.on("notification", (data) => {
-      console.log("Notification received:", data);
-      console.log("Notification data:", JSON.stringify(data)); // Check Metro terminal
-      setCurrentNotification(data.message);
-      if (data.roundId) {
-        setCurrentRoundId(data.roundId);
-      }
-      setModalVisible(true);
-    });
-
-    // Cleanup on unmount
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
-
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.container}>
       {/* YouTube Video Player */}
       <View style={styles.videoContainer}>
         <YoutubePlayer
@@ -98,16 +131,32 @@ export default function HomeScreen() {
       </View>
 
       {/* Connection status */}
-      <Text style={{ color: connected ? "green" : "red", marginBottom: 16 }}>
-        {connected ? "● Connected" : "○   Disconnected"}
+      <Text style={{ color: isConnected ? "green" : "red", marginBottom: 16 }}>
+        {isConnected ? "● Connected" : "○   Disconnected"}
       </Text>
+
+      {/* Game Carousel */}
+      <GameCarousel
+        onJoinGame={handleJoinGame}
+        onLeaveGame={handleLeaveGame}
+        joinedGames={joinedGames}
+      />
+
+      {/* Game Lobby Modal - key forces remount on new game */}
+      <GameLobbyModal
+        key={selectedGameId || "no-game"}
+        visible={lobbyModalVisible}
+        gameId={selectedGameId}
+        onClose={handleLobbyClose}
+        onJoined={handleGameJoined}
+      />
 
       {/* Notification Popup Modal */}
       <Modal
         animationType="fade"
         transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        visible={notificationModalVisible}
+        onRequestClose={() => setNotificationModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -116,7 +165,7 @@ export default function HomeScreen() {
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.buttonIgnorar}
-                onPress={() => setModalVisible(false)}
+                onPress={() => setNotificationModalVisible(false)}
               >
                 <Text style={styles.buttonIgnorarText}>Ignorar</Text>
               </TouchableOpacity>
@@ -124,7 +173,7 @@ export default function HomeScreen() {
                 style={styles.buttonJugar}
                 onPress={() => {
                   console.log("Jugar button pressed");
-                  setModalVisible(false);
+                  setNotificationModalVisible(false);
                   if (currentRoundId) {
                     console.log("Joining round:", currentRoundId);
                     router.push({
@@ -142,17 +191,20 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  scrollContainer: {
     flex: 1,
     backgroundColor: "#fafafa",
+  },
+  container: {
     alignItems: "center",
     justifyContent: "flex-start",
     padding: 20,
+    paddingBottom: 40,
   },
   videoContainer: {
     marginBottom: 20,

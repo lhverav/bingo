@@ -21,6 +21,12 @@ interface GameSummary {
   numbersDrawn: number;
 }
 
+// Map of gameId -> playerCode for joined games
+interface JoinedGameInfo {
+  playerCode: string;
+  playerId: string;
+}
+
 interface GameState {
   roundId: string | null;
   playerId: string | null;
@@ -33,7 +39,11 @@ interface GameState {
   isWinner: boolean;
   gameEnded: boolean;
   roundPattern: string | null;
+  patternCells: boolean[][] | null; // Custom pattern cells from server
+  cardType: 'bingo' | 'bingote' | null;
   gameSummary: GameSummary | null;
+  // Joined games tracking
+  joinedGames: Record<string, JoinedGameInfo>;
 }
 
 interface GameContextValue extends GameState {
@@ -41,11 +51,17 @@ interface GameContextValue extends GameState {
   setRoundInfo: (roundId: string, playerId: string, playerCode: string) => void;
   setCards: (cards: Card[], deadline: Date) => void;
   setSelectedCards: (cardIds: string[]) => void;
-  setRoundPattern: (pattern: string) => void;
+  setRoundPattern: (pattern: string, patternCells?: boolean[][]) => void;
+  setCardType: (cardType: 'bingo' | 'bingote') => void;
   setWinningCards: (cardIds: string[]) => void;
   setIsWinner: (isWinner: boolean) => void;
   setGameEnded: (summary: GameSummary) => void;
   clearGame: () => void;
+  // Joined games management
+  addJoinedGame: (gameId: string, playerId: string, playerCode: string) => void;
+  removeJoinedGame: (gameId: string) => void;
+  isGameJoined: (gameId: string) => boolean;
+  getJoinedGameInfo: (gameId: string) => JoinedGameInfo | null;
 }
 
 // =============================================================================
@@ -69,7 +85,10 @@ const initialState: GameState = {
   isWinner: false,
   gameEnded: false,
   roundPattern: null,
+  patternCells: null,
+  cardType: null,
   gameSummary: null,
+  joinedGames: {},
 };
 
 interface GameProviderProps {
@@ -103,10 +122,18 @@ export function GameProvider({ children }: GameProviderProps) {
     }));
   }, []);
 
-  const setRoundPattern = useCallback((pattern: string) => {
+  const setRoundPattern = useCallback((pattern: string, patternCells?: boolean[][]) => {
     setState(prev => ({
       ...prev,
       roundPattern: pattern,
+      patternCells: patternCells || null,
+    }));
+  }, []);
+
+  const setCardType = useCallback((cardType: 'bingo' | 'bingote') => {
+    setState(prev => ({
+      ...prev,
+      cardType,
     }));
   }, []);
 
@@ -133,8 +160,40 @@ export function GameProvider({ children }: GameProviderProps) {
   }, []);
 
   const clearGame = useCallback(() => {
-    setState(initialState);
+    setState(prev => ({
+      ...initialState,
+      // Preserve joined games when clearing round state
+      joinedGames: prev.joinedGames,
+    }));
   }, []);
+
+  const addJoinedGame = useCallback((gameId: string, playerId: string, playerCode: string) => {
+    setState(prev => ({
+      ...prev,
+      joinedGames: {
+        ...prev.joinedGames,
+        [gameId]: { playerId, playerCode },
+      },
+    }));
+  }, []);
+
+  const removeJoinedGame = useCallback((gameId: string) => {
+    setState(prev => {
+      const { [gameId]: removed, ...rest } = prev.joinedGames;
+      return {
+        ...prev,
+        joinedGames: rest,
+      };
+    });
+  }, []);
+
+  const isGameJoined = useCallback((gameId: string) => {
+    return gameId in state.joinedGames;
+  }, [state.joinedGames]);
+
+  const getJoinedGameInfo = useCallback((gameId: string): JoinedGameInfo | null => {
+    return state.joinedGames[gameId] || null;
+  }, [state.joinedGames]);
 
   const value: GameContextValue = {
     ...state,
@@ -142,10 +201,15 @@ export function GameProvider({ children }: GameProviderProps) {
     setCards,
     setSelectedCards,
     setRoundPattern,
+    setCardType,
     setWinningCards,
     setIsWinner,
     setGameEnded,
     clearGame,
+    addJoinedGame,
+    removeJoinedGame,
+    isGameJoined,
+    getJoinedGameInfo,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
