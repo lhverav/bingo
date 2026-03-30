@@ -9,7 +9,7 @@ import {
 } from "@/lib/actions/games";
 import { startGameRoundAction } from "@/lib/actions/gameRounds";
 import Link from "next/link";
-import { CARD_TYPE_LABELS } from "@bingo/domain";
+import { CARD_TYPE_LABELS, CURRENCY_LABELS } from "@bingo/domain";
 
 const statusLabels: Record<string, string> = {
   scheduled: "Programado",
@@ -87,13 +87,24 @@ export default async function VerJuegoPage({
 
       <div className="game-details">
         <div className="detail-card">
-          <h3>Información del Juego</h3>
+          <h3>Informacion del Juego</h3>
           <dl>
-            <dt>Tipo de Cartón</dt>
+            <dt>Tipo de Carton</dt>
             <dd>{CARD_TYPE_LABELS[game.cardType]}</dd>
 
             <dt>Fecha Programada</dt>
             <dd>{formatDate(game.scheduledAt)}</dd>
+
+            <dt>Tipo de Pago</dt>
+            <dd>
+              {game.isPaid ? (
+                <span className="paid-badge">
+                  Pago - {game.pricePerCard} {game.currency && CURRENCY_LABELS[game.currency]}
+                </span>
+              ) : (
+                <span className="free-badge">Gratis</span>
+              )}
+            </dd>
 
             <dt>Estado</dt>
             <dd>
@@ -146,7 +157,7 @@ export default async function VerJuegoPage({
       <section className="rounds-section">
         <div className="section-header">
           <h2>Rondas del Juego</h2>
-          {game.status === "scheduled" && (
+          {(game.status === "scheduled" || game.status === "active") && (
             <Link
               href={`/host/juegos/${game.id}/rondas/crear`}
               className="btn-primary"
@@ -159,8 +170,8 @@ export default async function VerJuegoPage({
         {rounds.length === 0 ? (
           <div className="empty-state">
             <p>No hay rondas configuradas para este juego.</p>
-            {game.status === "scheduled" && (
-              <p>Agrega rondas antes de iniciar el juego.</p>
+            {(game.status === "scheduled" || game.status === "active") && (
+              <p>Puedes agregar rondas en cualquier momento.</p>
             )}
           </div>
         ) : (
@@ -169,8 +180,7 @@ export default async function VerJuegoPage({
               <tr>
                 <th>#</th>
                 <th>Nombre</th>
-                <th>Patrón</th>
-                <th>Tipo</th>
+                <th>Patron</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -181,15 +191,6 @@ export default async function VerJuegoPage({
                   <td>{round.order}</td>
                   <td className="round-name">{round.name}</td>
                   <td>{patternMap.get(round.patternId) || "Desconocido"}</td>
-                  <td>
-                    {round.isPaid ? (
-                      <span className="paid-badge">
-                        Pago ({round.pricePerCard} {round.currency})
-                      </span>
-                    ) : (
-                      <span className="free-badge">Gratis</span>
-                    )}
-                  </td>
                   <td>
                     <span
                       className={`status-badge ${roundStatusColors[round.status]}`}

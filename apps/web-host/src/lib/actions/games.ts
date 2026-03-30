@@ -13,7 +13,7 @@ import {
   getGameById,
   getAllGamesWithRoundCount,
 } from "@bingo/game-core";
-import { CardType } from "@bingo/domain";
+import { CardType, Currency } from "@bingo/domain";
 
 export async function createGameAction(formData: FormData) {
   const session = await getSession();
@@ -26,6 +26,10 @@ export async function createGameAction(formData: FormData) {
   const cardType = formData.get("cardType") as CardType;
   const scheduledAtStr = formData.get("scheduledAt") as string;
   const scheduledAt = new Date(scheduledAtStr);
+  const isPaid = formData.get("isPaid") === "true";
+  const pricePerCardStr = formData.get("pricePerCard") as string | null;
+  const pricePerCard = pricePerCardStr ? parseFloat(pricePerCardStr) : undefined;
+  const currency = (formData.get("currency") as Currency | null) || undefined;
 
   let gameId: string;
 
@@ -35,6 +39,9 @@ export async function createGameAction(formData: FormData) {
       cardType,
       scheduledAt,
       createdBy: session.userId,
+      isPaid,
+      pricePerCard: isPaid ? pricePerCard : undefined,
+      currency: isPaid ? currency : undefined,
     });
     gameId = game.id;
 
@@ -80,12 +87,19 @@ export async function updateGameAction(formData: FormData) {
   const cardType = formData.get("cardType") as CardType;
   const scheduledAtStr = formData.get("scheduledAt") as string;
   const scheduledAt = new Date(scheduledAtStr);
+  const isPaid = formData.get("isPaid") === "true";
+  const pricePerCardStr = formData.get("pricePerCard") as string | null;
+  const pricePerCard = pricePerCardStr ? parseFloat(pricePerCardStr) : undefined;
+  const currency = (formData.get("currency") as Currency | null) || undefined;
 
   try {
     await updateGame(id, {
       name,
       cardType,
       scheduledAt,
+      isPaid,
+      pricePerCard: isPaid ? pricePerCard : undefined,
+      currency: isPaid ? currency : undefined,
     });
   } catch (error) {
     const message =

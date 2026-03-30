@@ -136,7 +136,7 @@ export default function GamesScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Juegos Disponibles</Text>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.replace("/(tabs)")}>
           <Text style={styles.backLink}>Volver</Text>
         </TouchableOpacity>
       </View>

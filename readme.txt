@@ -1,227 +1,225 @@
 =============================================================================
-COMMIT: Playing Flow 2 - Bug Fixes
-Date: 2026-03-02
+COMMIT: Game Flow Improvements - Payment at Game Level + On-the-fly Rounds
+Date: 2026-03-30
 =============================================================================
 
 SUMMARY
 -------
-Bug fixes found during testing of the BINGO game flow.
+Major refactoring to move payment configuration from Round level to Game level,
+enable on-the-fly round creation, and fix mobile navigation bugs.
 
 =============================================================================
-BUG FIXES
+FEATURE 1: PAYMENT MOVED FROM ROUND TO GAME LEVEL
 =============================================================================
 
-1. GAME STATUS NOT CHANGING TO "PLAYING"
-   File: apps/mobile-player/client/app/game.tsx
+Previously: Each round had its own payment settings (isPaid, pricePerCard, currency)
+Now: Payment is configured once at the Game level. Players pay once per game.
 
-   Problem:
-   - gameStatus started as "waiting" and never changed to "playing"
-   - "game:started" event was never emitted from server
-   - BINGO button was hidden (required gameStatus === "playing")
-   - Cards were disabled (required gameStatus === "playing")
+RATIONALE:
+- Players pay once to participate in a game (not per round)
+- Players can change cards between rounds (always free)
+- Simpler UX for hosts when creating games
 
-   Fix:
-   - Set gameStatus to "playing" when first ball:announced is received
-   - Now cards enable and BINGO button appears after first number drawn
+DOMAIN CHANGES:
+---------------
+packages/domain/src/entities/game.ts
+  + Added: isPaid, pricePerCard, currency fields
+  + Added: CreateGameData, UpdateGameData interfaces with payment fields
 
-2. PATTERN VERIFICATION MISMATCHES
-   File: packages/game-core/src/services/patternService.ts
+packages/domain/src/entities/round.ts
+  - Removed: isPaid, pricePerCard, currency fields
+  - Removed: payment-related interfaces
 
-   Problem:
-   - Visualization showed one pattern, but validation checked different logic
-   - linea: UI showed middle row, but code accepted ANY row
-   - columna: UI showed middle column, but code accepted ANY column
-   - diagonal: UI showed BOTH diagonals, but code accepted EITHER one
-   - figura_especial: UI showed X shape, but code checked ALL cells
+packages/domain/src/entities/gamePlayer.ts
+  - Simplified card tracking structure
+  - Removed: cardsPerPlayer (redundant with GeneralParameters)
 
-   Fix:
-   - linea: Now only checks middle row
-   - columna: Now only checks middle column
-   - diagonal: Now requires BOTH diagonals complete
-   - figura_especial: Now checks X shape (both diagonals)
+SCHEMA CHANGES:
+---------------
+packages/game-core/src/database/schemas/game.schema.ts
+  + Added: isPaid (Boolean, default: false)
+  + Added: pricePerCard (Number, optional)
+  + Added: currency (String enum: COP/USD, optional)
 
-3. WINNER OVERLAY BUTTON NOT CLICKABLE
-   File: apps/mobile-player/client/app/game.tsx
+packages/game-core/src/database/schemas/round.schema.ts
+  - Removed: isPaid, pricePerCard, currency fields
 
-   Problem:
-   - "Volver al inicio" button rendered behind winner overlay
-   - Button was not clickable due to overlay z-index
+packages/game-core/src/database/schemas/gamePlayer.schema.ts
+  - Restructured for new game-level payment flow
 
-   Fix:
-   - Moved button INSIDE the winner overlay component
-   - Button now appears below "Ganaste!!" text and is clickable
+MAPPER CHANGES:
+---------------
+packages/game-core/src/database/mappers/game.mapper.ts
+  + Added: isPaid, pricePerCard, currency mapping
 
-4. JOIN ROUND REQUIRES MULTIPLE CLICKS
-   File: apps/mobile-player/client/app/join-round.tsx
+packages/game-core/src/database/mappers/round.mapper.ts
+  - Removed: payment field mapping
 
-   Problem:
-   - On subsequent rounds, join button needed multiple clicks
-   - Socket already connected, so connect() returned early
-   - No state change triggered, useEffect didn't re-run
-   - player:join was never emitted
+packages/game-core/src/database/mappers/gamePlayer.mapper.ts
+  - Updated for simplified structure
 
-   Fix:
-   - Use socket.connected instead of isConnected state
-   - Use ref to prevent duplicate join attempts
-   - Call clearGame() before joining new round
+SERVICE CHANGES:
+----------------
+packages/game-core/src/services/gameService.ts
+  + Added: Payment validation in createGame()
+  + Added: Payment validation in updateGame()
+  + Rule: Paid games must have price and currency
+  + Rule: Free games should not have price
 
-5. "PLAYER ALREADY SELECTED CARDS" ERROR ON NEW ROUND
-   File: apps/mobile-player/client/app/join-round.tsx
+HOST UI CHANGES:
+----------------
+apps/web-host/src/app/host/juegos/crear/page.tsx
+  + Added: Payment toggle and fields
 
-   Problem:
-   - Joining NEW round showed error about cards already selected
-   - Old game state from previous round was not cleared
-   - Reconnecting players sent to card-selection even if status "ready"
+apps/web-host/src/app/host/juegos/crear/PaymentFields.tsx (NEW FILE)
+  + Client component for payment toggle (isPaid checkbox)
+  + Shows/hides price and currency fields based on toggle
 
-   Fix:
-   - Call clearGame() at start of join-round screen
-   - Check player status on join response
-   - If status "ready", navigate to game screen (not card-selection)
+apps/web-host/src/app/host/juegos/editar/[id]/page.tsx
+  + Added: Payment fields for editing
 
-6. PATTERN NOT UPDATING ON NEW ROUNDS
-   Files:
-   - apps/mobile-player/server/src/events/roundEvents.ts
-   - apps/mobile-player/client/app/join-round.tsx
+apps/web-host/src/app/host/juegos/[id]/page.tsx
+  + Display: Shows payment info at game level (Pago/Gratis badge)
+  - Removed: Payment badges from round rows
 
-   Problem:
-   - When joining a new round with different pattern, old pattern displayed
-   - Server never sent pattern in player:joined response
-   - Client never called setRoundPattern with new pattern
+apps/web-host/src/app/host/juegos/[id]/rondas/crear/page.tsx
+  - Removed: Payment fields (now at game level)
 
-   Fix:
-   - Server now includes roundPattern in player:joined response
-   - Client reads roundPattern and calls setRoundPattern()
+apps/web-host/src/app/host/juegos/[id]/rondas/editar/[roundId]/page.tsx
+  - Removed: Payment fields
 
-7. JOIN ROUND TIMING ISSUES (ADDITIONAL FIX)
-   File: apps/mobile-player/client/app/join-round.tsx
+apps/web-host/src/lib/actions/games.ts
+  + Added: Payment fields handling in create/update actions
 
-   Problem:
-   - Even with previous fixes, join sometimes needed multiple attempts
-   - Race condition between socket connection state and useEffect execution
+apps/web-host/src/lib/actions/gameRounds.ts
+  - Removed: Payment fields from round actions
 
-   Fix:
-   - Added 500ms fallback timer to retry join if not attempted
-   - Ensures join happens even if initial check missed connection
-
-8. EVENT LISTENER ACCUMULATION (CRITICAL BUG)
-   Files:
-   - apps/mobile-player/client/contexts/SocketContext.tsx
-   - apps/mobile-player/client/app/join-round.tsx
-   - apps/mobile-player/client/app/card-selection.tsx
-   - apps/mobile-player/client/app/game.tsx
-   - apps/mobile-player/server/src/events/roundEvents.ts
-
-   Problem:
-   - Each round required N clicks (where N = round number)
-   - Round 2 needed 2 clicks, Round 3 needed 3 clicks, etc.
-   - Socket event listeners accumulated across rounds
-   - socket.off(event, handler) failed because React re-created handler functions
-   - Server: sockets joined rooms but never left them
-   - Socket reuse kept all accumulated listeners
-
-   Root Cause (Client):
-   - Same socket was reused across rounds
-   - React creates NEW function references on each render
-   - socket.off("event", newHandler) doesn't remove the OLD handler
-   - connect() returned early if already connected, keeping stale listeners
-
-   Root Cause (Server):
-   - socket.join(`round:${roundId}`) added rooms but never removed old ones
-   - Socket properties (playerId, roundId) kept old values
-
-   Fix (Client - Most Important):
-   - Added `reconnect()` function to SocketContext
-   - reconnect() creates FRESH socket (removeAllListeners + disconnect + new socket)
-   - join-round.tsx now uses reconnect() instead of connect()
-   - Each round starts with a completely clean socket
-   - Use removeAllListeners() for screen-specific events
-
-   Fix (Server):
-   - Clear socket properties BEFORE joining new round
-   - Leave previous room when joining new round
-   - Add player:leave event for explicit room cleanup
-   - Clean socket properties on disconnect
+apps/web-host/src/app/globals.css
+  + Added: Styles for payment toggle, form improvements
 
 =============================================================================
-MODIFIED FILES
+FEATURE 2: ON-THE-FLY ROUND CREATION
 =============================================================================
 
-apps/mobile-player/client/contexts/SocketContext.tsx
-  - Added reconnect() function for fresh socket connection
-  - reconnect() removes all listeners, disconnects, and creates new socket
-  - This ensures each round starts with clean state
+Previously: Games required at least one round before starting
+Now: Games can start without rounds, rounds can be added while game is active
 
-apps/mobile-player/client/app/game.tsx
-  - Set gameStatus = "playing" in handleBallAnnounced
-  - Moved "Volver al inicio" button inside winner overlay
-  - Use removeAllListeners() for game-specific events
-  - Use socket.emit("player:leave") when going home
+RATIONALE:
+- Host may want to start the game and create rounds dynamically
+- More flexible game management
+
+CHANGES:
+--------
+packages/game-core/src/services/gameService.ts
+  - Removed: Round count validation in startGame()
+  - Games can now start with 0 rounds
+
+apps/web-host/src/lib/actions/gameRounds.ts
+  - Changed: createGameRoundAction allows game.status === "active"
+  - Previously only allowed "scheduled"
+
+apps/web-host/src/app/host/juegos/[id]/page.tsx
+  - Changed: "Add Round" button shows for scheduled AND active games
+
+apps/web-host/src/app/host/juegos/[id]/rondas/crear/page.tsx
+  - Changed: Page accessible when game is scheduled OR active
+
+apps/mobile-player/server/src/server.ts
+  - Cleaned up: ROUND_CREATED notification handler
+
+=============================================================================
+FEATURE 3: MOBILE NAVIGATION BUG FIX
+=============================================================================
+
+BUG: Pressing back button from game summary showed "Seleccionar cuenta de Google"
+     instead of returning to main page.
+
+CAUSE: router.back() navigated to previous item in navigation stack, which
+       included auth screens after Google login.
+
+FIX: Replace router.back() with router.replace("/(tabs)") or
+     router.replace("/(tabs)/mis-juegos") for explicit navigation.
+
+CHANGES:
+--------
+apps/mobile-player/client/app/game-detail.tsx
+  - Line 38: onLeftGame callback -> router.replace("/(tabs)/mis-juegos")
+  - Line 132: Error back button -> router.replace("/(tabs)/mis-juegos")
+  - Line 146: Header back arrow -> router.replace("/(tabs)/mis-juegos")
+
+apps/mobile-player/client/app/games.tsx
+  - Line 139: Header "Volver" link -> router.replace("/(tabs)")
 
 apps/mobile-player/client/app/join-round.tsx
-  - Use reconnect() instead of connect() for fresh socket each round
-  - Use removeAllListeners("player:joined") for cleanup
-  - Add joinAttemptedRef to prevent duplicate joins
-  - Read roundPattern from response and call setRoundPattern()
-  - Add 500ms fallback timer to ensure join happens
+  - Line 89: Error "Volver" link -> router.replace("/(tabs)")
 
-apps/mobile-player/client/app/card-selection.tsx
-  - Use removeAllListeners() for card-specific events
-
-apps/mobile-player/server/src/events/roundEvents.ts
-  - Clear socket properties (playerId, roundId, playerCode) BEFORE joining
-  - Include roundPattern in player:joined response
-  - Leave previous round room when joining new round
-  - Added player:leave event for explicit room cleanup
-
-packages/game-core/src/services/patternService.ts
-  - checkLine(): Only checks middle row
-  - checkColumn(): Only checks middle column
-  - checkDiagonal(): Requires BOTH diagonals
-  - figura_especial case: Uses checkDiagonal (X shape)
+apps/mobile-player/client/app/game-lobby.tsx
+  - Line 87: Error "Volver" link -> router.replace("/(tabs)")
 
 =============================================================================
-PENDING (TO BE REMOVED BEFORE COMMIT)
+MODIFIED FILES SUMMARY
 =============================================================================
 
-Debug console.log statements in:
-  - packages/game-core/src/services/winnerService.ts
-  - apps/mobile-player/client/app/game.tsx
-  - apps/mobile-player/server/src/server.ts
+DOMAIN (packages/domain/src/entities/)
+  - game.ts (+29 lines)
+  - round.ts (-24 lines)
+  - gamePlayer.ts (restructured)
+
+SCHEMAS (packages/game-core/src/database/schemas/)
+  - game.schema.ts (+27 lines)
+  - round.schema.ts (-20 lines)
+  - gamePlayer.schema.ts (restructured)
+
+MAPPERS (packages/game-core/src/database/mappers/)
+  - game.mapper.ts (+9 lines)
+  - round.mapper.ts (-9 lines)
+  - gamePlayer.mapper.ts (restructured)
+
+SERVICES (packages/game-core/src/services/)
+  - gameService.ts (+40 lines)
+
+HOST UI (apps/web-host/src/)
+  - app/host/juegos/crear/page.tsx
+  - app/host/juegos/crear/PaymentFields.tsx (NEW)
+  - app/host/juegos/editar/[id]/page.tsx
+  - app/host/juegos/[id]/page.tsx
+  - app/host/juegos/[id]/rondas/crear/page.tsx
+  - app/host/juegos/[id]/rondas/editar/[roundId]/page.tsx
+  - lib/actions/games.ts
+  - lib/actions/gameRounds.ts
+  - app/globals.css (+87 lines)
+
+MOBILE (apps/mobile-player/)
+  - client/app/game-detail.tsx
+  - client/app/games.tsx
+  - client/app/join-round.tsx
+  - client/app/game-lobby.tsx
+  - server/src/server.ts
+
+TOTAL: 336 lines added, 321 lines removed across 23 modified files + 1 new file
 
 =============================================================================
 TESTING NOTES
 =============================================================================
 
-1. Restart both servers (web-host and mobile-player server)
+1. PAYMENT AT GAME LEVEL:
+   - Create a new game with "Pago" toggle ON
+   - Verify price and currency fields appear
+   - Verify game detail shows payment badge
+   - Create rounds - they should NOT have payment fields
+   - Edit game - payment fields should be editable
 
-2. **CRITICAL TEST - Event Listener Accumulation:**
-   - Create 3+ rounds in sequence
-   - Join round 1, play, go home
-   - Join round 2 - should work on FIRST click (not 2 clicks)
-   - Join round 3 - should work on FIRST click (not 3 clicks)
-   - Cards should arrive quickly (not hang or timeout)
-   - No messy behavior or delays
+2. ON-THE-FLY ROUND CREATION:
+   - Create a game with NO rounds
+   - Start the game (should work)
+   - Add a round while game is active
+   - Mobile players should receive ROUND_CREATED notification
 
-3. Test multiple rounds in sequence:
-   - Join round 1 (e.g., with "linea" pattern), play, win/lose, go home
-   - Join round 2 (e.g., with "columna" pattern) - should work on first click
-   - Verify no "already selected cards" error
-   - Verify pattern shown matches round 2's pattern (not round 1's)
-
-4. Test pattern verification:
-   - linea = middle row only
-   - columna = middle column only
-   - diagonal = both diagonals (X shape)
-
-5. Test winner flow:
-   - "Ganaste!!" overlay appears
-   - "Volver al inicio" button is clickable
-   - Returns to home screen properly
-
-6. Test pattern updates:
-   - Create two rounds with DIFFERENT patterns
-   - Join first round, note the pattern shown
-   - Finish or exit, go home
-   - Join second round, pattern should update to new value
+3. NAVIGATION FIX:
+   - Login with Google
+   - Go to "Mis Juegos" tab
+   - Open a game detail
+   - Press back button
+   - Should return to "Mis Juegos" (NOT Google selector screen)
 
 =============================================================================

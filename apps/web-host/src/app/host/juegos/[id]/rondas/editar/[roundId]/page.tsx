@@ -3,7 +3,6 @@ import { redirect, notFound } from "next/navigation";
 import { getGameById, getPatternsByCardType, roundRepository } from "@bingo/game-core";
 import { updateGameRoundAction, deleteGameRoundAction } from "@/lib/actions/gameRounds";
 import Link from "next/link";
-import { ALL_CURRENCIES, CURRENCY_LABELS } from "@bingo/domain";
 
 export default async function EditarRondaPage({
   params,
@@ -64,14 +63,14 @@ export default async function EditarRondaPage({
         </div>
 
         <div className="form-group">
-          <label htmlFor="patternId">Patrón de Victoria</label>
+          <label htmlFor="patternId">Patron de Victoria</label>
           <select
             id="patternId"
             name="patternId"
             required
             defaultValue={round.patternId}
           >
-            <option value="">Selecciona un patrón</option>
+            <option value="">Selecciona un patron</option>
             {patterns.map((pattern) => (
               <option key={pattern.id} value={pattern.id}>
                 {pattern.name} {pattern.isPreset && "(Predefinido)"}
@@ -79,62 +78,6 @@ export default async function EditarRondaPage({
             ))}
           </select>
         </div>
-
-        <fieldset className="form-fieldset">
-          <legend>Tipo de Ronda</legend>
-
-          <div className="form-radio-group">
-            <label className="radio-label">
-              <input
-                type="radio"
-                name="isPaid"
-                value="false"
-                defaultChecked={!round.isPaid}
-              />
-              <span>Ronda Gratis</span>
-            </label>
-            <label className="radio-label">
-              <input
-                type="radio"
-                name="isPaid"
-                value="true"
-                defaultChecked={round.isPaid}
-              />
-              <span>Ronda Paga</span>
-            </label>
-          </div>
-
-          <div className="paid-options">
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="pricePerCard">Precio por Cartón</label>
-                <input
-                  type="number"
-                  id="pricePerCard"
-                  name="pricePerCard"
-                  min="0"
-                  step="0.01"
-                  defaultValue={round.pricePerCard}
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="currency">Moneda</label>
-                <select
-                  id="currency"
-                  name="currency"
-                  defaultValue={round.currency}
-                >
-                  {ALL_CURRENCIES.map((curr) => (
-                    <option key={curr} value={curr}>
-                      {CURRENCY_LABELS[curr]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        </fieldset>
 
         <div className="form-actions">
           <button type="submit" className="btn-primary">

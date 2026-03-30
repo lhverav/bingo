@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createGameAction } from "@/lib/actions/games";
 import Link from "next/link";
 import { ALL_CARD_TYPES, CARD_TYPE_LABELS } from "@bingo/domain";
+import PaymentFields from "./PaymentFields";
 
 export default async function CrearJuegoPage({
   searchParams,
@@ -42,12 +43,12 @@ export default async function CrearJuegoPage({
             id="name"
             name="name"
             required
-            placeholder="Ej: Bingo Navideño 2024"
+            placeholder="Ej: Bingo Navideno 2024"
           />
         </div>
 
         <div className="form-group">
-          <label htmlFor="cardType">Tipo de Cartón</label>
+          <label htmlFor="cardType">Tipo de Carton</label>
           <select id="cardType" name="cardType" required>
             {ALL_CARD_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -56,7 +57,7 @@ export default async function CrearJuegoPage({
             ))}
           </select>
           <small className="form-help">
-            BINGO: 5x5 (números 1-75) | BINGOTE: 7x5 (números 1-103)
+            BINGO: 5x5 (numeros 1-75) | BINGOTE: 7x5 (numeros 1-103)
           </small>
         </div>
 
@@ -70,6 +71,8 @@ export default async function CrearJuegoPage({
             defaultValue={defaultDateTime}
           />
         </div>
+
+        <PaymentFields />
 
         <div className="form-actions">
           <button type="submit" className="btn-primary">

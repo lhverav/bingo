@@ -17,6 +17,9 @@ export class GameMapper {
       scheduledAt: doc.scheduledAt,
       status: doc.status,
       createdBy: doc.createdBy.toString(),
+      isPaid: doc.isPaid,
+      pricePerCard: doc.pricePerCard,
+      currency: doc.currency,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
@@ -33,6 +36,9 @@ export class GameMapper {
       scheduledAt: data.scheduledAt,
       status: 'scheduled',
       createdBy: data.createdBy,
+      isPaid: data.isPaid,
+      pricePerCard: data.pricePerCard,
+      currency: data.currency,
     };
   }
 
@@ -47,6 +53,9 @@ export class GameMapper {
     if (data.cardType !== undefined) update.cardType = data.cardType;
     if (data.scheduledAt !== undefined) update.scheduledAt = data.scheduledAt;
     if (data.status !== undefined) update.status = data.status;
+    if (data.isPaid !== undefined) update.isPaid = data.isPaid;
+    if (data.pricePerCard !== undefined) update.pricePerCard = data.pricePerCard;
+    if (data.currency !== undefined) update.currency = data.currency;
 
     return update;
   }

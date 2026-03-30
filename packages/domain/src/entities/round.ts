@@ -1,20 +1,11 @@
 import { RoundStatus } from '../value-objects';
 
 /**
- * Currency options for paid rounds
- */
-export type Currency = 'USD' | 'COP';
-
-export const CURRENCY_LABELS: Record<Currency, string> = {
-  USD: 'Dólares (USD)',
-  COP: 'Pesos Colombianos (COP)',
-};
-
-export const ALL_CURRENCIES: Currency[] = ['USD', 'COP'];
-
-/**
  * Round entity - Pure domain object
  * Represents a bingo game round within a Game
+ *
+ * Note: Payment info (isPaid, pricePerCard, currency) is now at the GAME level,
+ * not the round level. All rounds in a game share the same payment configuration.
  */
 export interface Round {
   id: string;
@@ -22,9 +13,6 @@ export interface Round {
   name: string;
   order: number;               // Sequence within game (1, 2, 3...)
   patternId: string;           // Reference to Pattern
-  isPaid: boolean;             // Free or paid round
-  pricePerCard?: number;       // If paid: price per card
-  currency?: Currency;         // If paid: currency
   status: RoundStatus;
   drawnNumbers: number[];
   createdAt: Date;
@@ -39,9 +27,6 @@ export interface CreateRoundData {
   name: string;
   order: number;
   patternId: string;
-  isPaid: boolean;
-  pricePerCard?: number;
-  currency?: Currency;
 }
 
 /**
@@ -51,9 +36,6 @@ export interface UpdateRoundData {
   name?: string;
   order?: number;
   patternId?: string;
-  isPaid?: boolean;
-  pricePerCard?: number;
-  currency?: Currency;
 }
 
 /**

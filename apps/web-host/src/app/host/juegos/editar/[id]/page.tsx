@@ -4,6 +4,7 @@ import { getGameById } from "@bingo/game-core";
 import { updateGameAction } from "@/lib/actions/games";
 import Link from "next/link";
 import { ALL_CARD_TYPES, CARD_TYPE_LABELS } from "@bingo/domain";
+import PaymentFields from "../../crear/PaymentFields";
 
 function formatDateForInput(date: Date): string {
   const d = new Date(date);
@@ -63,7 +64,7 @@ export default async function EditarJuegoPage({
         </div>
 
         <div className="form-group">
-          <label htmlFor="cardType">Tipo de Cartón</label>
+          <label htmlFor="cardType">Tipo de Carton</label>
           <select id="cardType" name="cardType" required defaultValue={game.cardType}>
             {ALL_CARD_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -72,7 +73,7 @@ export default async function EditarJuegoPage({
             ))}
           </select>
           <small className="form-help">
-            BINGO: 5x5 (números 1-75) | BINGOTE: 7x5 (números 1-103)
+            BINGO: 5x5 (numeros 1-75) | BINGOTE: 7x5 (numeros 1-103)
           </small>
         </div>
 
@@ -86,6 +87,12 @@ export default async function EditarJuegoPage({
             defaultValue={formatDateForInput(game.scheduledAt)}
           />
         </div>
+
+        <PaymentFields
+          defaultIsPaid={game.isPaid}
+          defaultPricePerCard={game.pricePerCard}
+          defaultCurrency={game.currency}
+        />
 
         <div className="form-actions">
           <button type="submit" className="btn-primary">

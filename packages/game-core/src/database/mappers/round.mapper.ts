@@ -24,9 +24,6 @@ export class RoundMapper {
       name: doc.name,
       order: doc.order ?? 1,
       patternId: doc.patternId?.toString() ?? '',
-      isPaid: doc.isPaid ?? false,
-      pricePerCard: doc.pricePerCard,
-      currency: doc.currency,
       status: doc.status,
       drawnNumbers: doc.drawnNumbers,
       createdAt: doc.createdAt,
@@ -77,9 +74,6 @@ export class RoundMapper {
       name: data.name,
       order: data.order,
       patternId: data.patternId,
-      isPaid: data.isPaid,
-      pricePerCard: data.pricePerCard,
-      currency: data.currency,
       status: 'configurada',
       drawnNumbers: [],
     };
@@ -116,9 +110,6 @@ export class RoundMapper {
     if (data.name !== undefined) update.name = data.name;
     if (data.order !== undefined) update.order = data.order;
     if (data.patternId !== undefined) update.patternId = data.patternId;
-    if (data.isPaid !== undefined) update.isPaid = data.isPaid;
-    if (data.pricePerCard !== undefined) update.pricePerCard = data.pricePerCard;
-    if (data.currency !== undefined) update.currency = data.currency;
 
     return update;
   }

@@ -1,49 +1,35 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 /**
- * Paid round cards subdocument interface
- */
-interface PaidRoundCardsDoc {
-  roundId: mongoose.Types.ObjectId;
-  cardIds: mongoose.Types.ObjectId[];
-  purchasedAt: Date;
-}
-
-/**
  * GamePlayer document interface
+ * Represents a player who has joined a game
+ *
+ * Card flow:
+ * - Player joins game and gets/buys cards (depending on isPaid at game level)
+ * - Player can CHANGE cards before each round starts (always free)
+ * - Once a round starts, cards are locked until round ends
  */
 export interface GamePlayerDocument extends Document {
   gameId: mongoose.Types.ObjectId;
   mobileUserId?: mongoose.Types.ObjectId;
   playerCode: string;
   status: 'joined' | 'cards_selected' | 'playing';
-  freeCardIds: mongoose.Types.ObjectId[];
-  paidRoundCards: PaidRoundCardsDoc[];
-  freeCardsLocked: mongoose.Types.ObjectId[];
-  freeSelectionDeadline?: Date;
+
+  // Current cards (can be changed before each round)
+  cardIds: mongoose.Types.ObjectId[];
+
+  // Payment tracking (for paid games)
+  hasPaid: boolean;
+  paidAt?: Date;
+
+  // Card selection tracking
+  cardsLocked: boolean;
+  selectionDeadline?: Date;
+
   joinedAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }
-
-/**
- * Paid round cards subdocument schema
- */
-const PaidRoundCardsSchema = new Schema({
-  roundId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Round',
-    required: true,
-  },
-  cardIds: [{
-    type: Schema.Types.ObjectId,
-    ref: 'BunchCard',
-  }],
-  purchasedAt: {
-    type: Date,
-    default: Date.now,
-  },
-}, { _id: false });
 
 /**
  * GamePlayer schema
@@ -71,18 +57,31 @@ const GamePlayerSchema = new Schema<GamePlayerDocument>(
       enum: ['joined', 'cards_selected', 'playing'],
       default: 'joined',
     },
-    freeCardIds: [{
+
+    // Current cards
+    cardIds: [{
       type: Schema.Types.ObjectId,
       ref: 'BunchCard',
     }],
-    paidRoundCards: [PaidRoundCardsSchema],
-    freeCardsLocked: [{
-      type: Schema.Types.ObjectId,
-      ref: 'BunchCard',
-    }],
-    freeSelectionDeadline: {
+
+    // Payment tracking
+    hasPaid: {
+      type: Boolean,
+      default: false,
+    },
+    paidAt: {
       type: Date,
     },
+
+    // Card selection tracking
+    cardsLocked: {
+      type: Boolean,
+      default: false,
+    },
+    selectionDeadline: {
+      type: Date,
+    },
+
     joinedAt: {
       type: Date,
       default: Date.now,

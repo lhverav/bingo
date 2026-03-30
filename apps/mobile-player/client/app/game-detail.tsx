@@ -35,7 +35,7 @@ export default function GameDetailScreen() {
     onLeftGame: (data) => {
       console.log("[game-detail] Left game:", data);
       removeJoinedGame(data.gameId);
-      router.back();
+      router.replace("/(tabs)/mis-juegos");
     },
     onGameLeaveError: (error) => {
       console.error("[game-detail] Leave game error:", error.message);
@@ -129,7 +129,7 @@ export default function GameDetailScreen() {
         <TouchableOpacity style={styles.retryButton} onPress={loadGame}>
           <Text style={styles.retryButtonText}>Reintentar</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)/mis-juegos")}>
           <Text style={styles.backButtonText}>Volver</Text>
         </TouchableOpacity>
       </View>
@@ -143,7 +143,7 @@ export default function GameDetailScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Header with back button */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backArrow} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backArrow} onPress={() => router.replace("/(tabs)/mis-juegos")}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{game.name}</Text>
@@ -223,17 +223,6 @@ export default function GameDetailScreen() {
                       <Text style={styles.roundPattern}>Patron: {round.patternName}</Text>
                     )}
                   </View>
-                  {round.isPaid ? (
-                    <View style={styles.paidBadge}>
-                      <Text style={styles.paidBadgeText}>
-                        {formatPrice(round.pricePerCard || 0, round.currency)}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={styles.freeBadge}>
-                      <Text style={styles.freeBadgeText}>Gratis</Text>
-                    </View>
-                  )}
                 </View>
               </View>
             ))}

@@ -6,9 +6,6 @@ export interface RoundDocument extends Document {
   gameId?: Types.ObjectId;
   order?: number;
   patternId?: Types.ObjectId;
-  isPaid?: boolean;
-  pricePerCard?: number;
-  currency?: 'USD' | 'COP';
 
   // Common fields
   name: string;
@@ -48,18 +45,6 @@ const RoundSchema = new Schema<RoundDocument>(
     patternId: {
       type: Schema.Types.ObjectId,
       ref: 'Pattern',
-    },
-    isPaid: {
-      type: Boolean,
-      default: false,
-    },
-    pricePerCard: {
-      type: Number,
-      min: [0, 'El precio no puede ser negativo'],
-    },
-    currency: {
-      type: String,
-      enum: ['USD', 'COP'],
     },
 
     // Common fields
@@ -151,11 +136,6 @@ RoundSchema.pre('save', function () {
         `Debe haber al menos ${totalCells} numeros para una carta de ${this.cardSize}x${this.cardSize}`
       );
     }
-  }
-
-  // Validate paid round has price and currency
-  if (this.isPaid && (!this.pricePerCard || !this.currency)) {
-    throw new Error('Las rondas pagas requieren precio y moneda');
   }
 });
 

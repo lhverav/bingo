@@ -7,6 +7,12 @@ export interface GameDocument extends Document {
   scheduledAt: Date;
   status: 'scheduled' | 'active' | 'finished' | 'cancelled';
   createdBy: Types.ObjectId;
+
+  // Payment configuration (at game level)
+  isPaid: boolean;
+  pricePerCard?: number;
+  currency?: 'USD' | 'COP';
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,11 +43,32 @@ const GameSchema = new Schema<GameDocument>(
       ref: 'User',
       required: true,
     },
+
+    // Payment configuration
+    isPaid: {
+      type: Boolean,
+      default: false,
+    },
+    pricePerCard: {
+      type: Number,
+      min: [0, 'El precio no puede ser negativo'],
+    },
+    currency: {
+      type: String,
+      enum: ['USD', 'COP'],
+    },
   },
   {
     timestamps: true,
   }
 );
+
+// Validate paid game has price and currency
+GameSchema.pre('save', function () {
+  if (this.isPaid && (!this.pricePerCard || !this.currency)) {
+    throw new Error('Los juegos pagos requieren precio y moneda');
+  }
+});
 
 // Index for efficient queries
 GameSchema.index({ status: 1, scheduledAt: 1 });

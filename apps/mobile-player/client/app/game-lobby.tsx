@@ -84,7 +84,7 @@ export default function GameLobbyScreen() {
         <Text style={styles.errorText}>
           {errorMessage || "Error al unirse al juego"}
         </Text>
-        <Text style={styles.backLink} onPress={() => router.back()}>
+        <Text style={styles.backLink} onPress={() => router.replace("/(tabs)")}>
           Volver
         </Text>
       </View>

@@ -1,4 +1,4 @@
-import { GamePlayer, CreateGamePlayerData, PaidRoundCards } from '@bingo/domain';
+import { GamePlayer, CreateGamePlayerData, UpdateGamePlayerData } from '@bingo/domain';
 import { GamePlayerDocument } from '../schemas/gamePlayer.schema';
 
 /**
@@ -16,14 +16,11 @@ export class GamePlayerMapper {
       mobileUserId: doc.mobileUserId?.toString(),
       playerCode: doc.playerCode,
       status: doc.status,
-      freeCardIds: doc.freeCardIds.map((id) => id.toString()),
-      paidRoundCards: doc.paidRoundCards.map((prc) => ({
-        roundId: prc.roundId.toString(),
-        cardIds: prc.cardIds.map((id) => id.toString()),
-        purchasedAt: prc.purchasedAt,
-      })),
-      freeCardsLocked: doc.freeCardsLocked.map((id) => id.toString()),
-      freeSelectionDeadline: doc.freeSelectionDeadline,
+      cardIds: doc.cardIds.map((id) => id.toString()),
+      hasPaid: doc.hasPaid,
+      paidAt: doc.paidAt,
+      cardsLocked: doc.cardsLocked,
+      selectionDeadline: doc.selectionDeadline,
       joinedAt: doc.joinedAt,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
@@ -39,10 +36,27 @@ export class GamePlayerMapper {
       mobileUserId: data.mobileUserId,
       playerCode: data.playerCode,
       status: 'joined',
-      freeCardIds: [],
-      paidRoundCards: [],
-      freeCardsLocked: [],
+      cardIds: [],
+      hasPaid: false,
+      cardsLocked: false,
       joinedAt: new Date(),
     };
+  }
+
+  /**
+   * Convert update data to database update format
+   * Only includes fields that are present in the update data
+   */
+  static toUpdateDatabase(data: UpdateGamePlayerData): Record<string, unknown> {
+    const update: Record<string, unknown> = {};
+
+    if (data.status !== undefined) update.status = data.status;
+    if (data.cardIds !== undefined) update.cardIds = data.cardIds;
+    if (data.hasPaid !== undefined) update.hasPaid = data.hasPaid;
+    if (data.paidAt !== undefined) update.paidAt = data.paidAt;
+    if (data.cardsLocked !== undefined) update.cardsLocked = data.cardsLocked;
+    if (data.selectionDeadline !== undefined) update.selectionDeadline = data.selectionDeadline;
+
+    return update;
   }
 }

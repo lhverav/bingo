@@ -4,6 +4,7 @@ import {
   UpdateGameData,
   GameStatus,
   CardType,
+  Currency,
 } from '@bingo/domain';
 import { gameRepository, roundRepository } from '../repositories';
 
@@ -20,6 +21,9 @@ export interface CreateGameInput {
   cardType: CardType;
   scheduledAt: Date;
   createdBy: string;
+  isPaid: boolean;
+  pricePerCard?: number;
+  currency?: Currency;
 }
 
 /**
@@ -29,6 +33,9 @@ export interface UpdateGameInput {
   name?: string;
   cardType?: CardType;
   scheduledAt?: Date;
+  isPaid?: boolean;
+  pricePerCard?: number;
+  currency?: Currency;
 }
 
 /**
@@ -42,11 +49,24 @@ export interface GameWithRoundCount extends Game {
  * Create a new game
  */
 export async function createGame(data: CreateGameInput): Promise<Game> {
+  // Business rule: Paid games must have price and currency
+  if (data.isPaid && (!data.pricePerCard || !data.currency)) {
+    throw new Error('Los juegos pagos requieren precio y moneda');
+  }
+
+  // Business rule: Free games should not have price
+  if (!data.isPaid && data.pricePerCard) {
+    throw new Error('Los juegos gratuitos no deben tener precio');
+  }
+
   const createData: CreateGameData = {
     name: data.name,
     cardType: data.cardType,
     scheduledAt: data.scheduledAt,
     createdBy: data.createdBy,
+    isPaid: data.isPaid,
+    pricePerCard: data.isPaid ? data.pricePerCard : undefined,
+    currency: data.isPaid ? data.currency : undefined,
   };
 
   return gameRepository.create(createData);
@@ -117,16 +137,30 @@ export async function updateGame(
     throw new Error('Solo se pueden editar juegos que no han iniciado');
   }
 
+  // Determine what isPaid will be after update
+  const willBePaid = data.isPaid !== undefined ? data.isPaid : game.isPaid;
+  const newPricePerCard = data.pricePerCard !== undefined ? data.pricePerCard : game.pricePerCard;
+  const newCurrency = data.currency !== undefined ? data.currency : game.currency;
+
+  // Business rule: Paid games must have price and currency
+  if (willBePaid && (!newPricePerCard || !newCurrency)) {
+    throw new Error('Los juegos pagos requieren precio y moneda');
+  }
+
   const updateData: UpdateGameData = {};
   if (data.name !== undefined) updateData.name = data.name;
   if (data.cardType !== undefined) updateData.cardType = data.cardType;
   if (data.scheduledAt !== undefined) updateData.scheduledAt = data.scheduledAt;
+  if (data.isPaid !== undefined) updateData.isPaid = data.isPaid;
+  if (data.pricePerCard !== undefined) updateData.pricePerCard = data.pricePerCard;
+  if (data.currency !== undefined) updateData.currency = data.currency;
 
   return gameRepository.update(id, updateData);
 }
 
 /**
  * Start a game (change status to 'active')
+ * Note: Rounds can be created before or after the game starts (on the fly)
  */
 export async function startGame(id: string): Promise<Game | null> {
   const game = await gameRepository.findById(id);
@@ -135,12 +169,6 @@ export async function startGame(id: string): Promise<Game | null> {
   // Business rule: Can only start if status is 'scheduled'
   if (game.status !== 'scheduled') {
     throw new Error('Este juego ya ha sido iniciado o finalizado');
-  }
-
-  // Business rule: Game must have at least one round
-  const roundCount = await roundRepository.countByGameId(id);
-  if (roundCount === 0) {
-    throw new Error('El juego debe tener al menos una ronda');
   }
 
   return gameRepository.updateStatus(id, 'active');

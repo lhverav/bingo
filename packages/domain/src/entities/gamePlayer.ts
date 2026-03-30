@@ -2,10 +2,10 @@
  * GamePlayer Entity
  * Represents a player who has joined a game (not a round)
  *
- * In the new game flow:
- * - Players join a GAME (via gameId)
- * - Cards are selected per-game for FREE rounds
- * - Cards are purchased per-round for PAID rounds
+ * Card flow:
+ * - Player joins game and gets/buys cards (depending on isPaid at game level)
+ * - Player can CHANGE cards before each round starts (always free)
+ * - Once a round starts, cards are locked until round ends
  */
 
 export type GamePlayerStatus = 'joined' | 'cards_selected' | 'playing';
@@ -17,15 +17,6 @@ export const GAME_PLAYER_STATUS_LABELS: Record<GamePlayerStatus, string> = {
 };
 
 /**
- * Cards purchased for a specific paid round
- */
-export interface PaidRoundCards {
-  roundId: string;
-  cardIds: string[];
-  purchasedAt: Date;
-}
-
-/**
  * GamePlayer entity - Player participation in a game
  */
 export interface GamePlayer {
@@ -35,15 +26,16 @@ export interface GamePlayer {
   playerCode: string;                // Unique 4-char code for this game
   status: GamePlayerStatus;
 
-  // Cards for FREE rounds (selected once, used for all free rounds)
-  freeCardIds: string[];
+  // Current cards (can be changed before each round)
+  cardIds: string[];
 
-  // Cards for PAID rounds (purchased separately per round)
-  paidRoundCards: PaidRoundCards[];
+  // Payment tracking (for paid games)
+  hasPaid: boolean;                  // Has the player paid for this game?
+  paidAt?: Date;                     // When payment was made
 
-  // Selection tracking
-  freeCardsLocked: string[];         // Temporarily locked during selection
-  freeSelectionDeadline?: Date;      // Deadline for free card selection
+  // Card selection tracking
+  cardsLocked: boolean;              // True when round is in progress (can't change)
+  selectionDeadline?: Date;          // Deadline for card selection/change
 
   joinedAt: Date;
   createdAt: Date;
@@ -64,9 +56,11 @@ export interface CreateGamePlayerData {
  */
 export interface UpdateGamePlayerData {
   status?: GamePlayerStatus;
-  freeCardIds?: string[];
-  freeCardsLocked?: string[];
-  freeSelectionDeadline?: Date;
+  cardIds?: string[];
+  hasPaid?: boolean;
+  paidAt?: Date;
+  cardsLocked?: boolean;
+  selectionDeadline?: Date;
 }
 
 /**

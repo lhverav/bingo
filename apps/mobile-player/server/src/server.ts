@@ -194,15 +194,12 @@ app.post("/notify", (req, res) => {
       break;
 
     case "ROUND_CREATED":
-      // Notify all clients about new round in a game
+      // Notify all clients about new round in a game (can be created on the fly)
       io.emit("round:created", {
         gameId: data?.gameId,
         roundId: data?.roundId,
         name: data?.name,
         order: data?.order,
-        isPaid: data?.isPaid,
-        pricePerCard: data?.pricePerCard,
-        currency: data?.currency,
         timestamp,
       });
       console.log(`Round created: ${data?.name} in game ${data?.gameId}`);
@@ -214,9 +211,6 @@ app.post("/notify", (req, res) => {
         gameId: data?.gameId,
         roundId: data?.roundId,
         name: data?.name,
-        isPaid: data?.isPaid,
-        pricePerCard: data?.pricePerCard,
-        currency: data?.currency,
         timestamp,
       });
       console.log(`Round updated: ${data?.roundId} in game ${data?.gameId}`);

@@ -4,23 +4,17 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/actions/auth";
 import { roundRepository, gameRepository } from "@bingo/game-core";
-import { CreateRoundData, Currency } from "@bingo/domain";
+import { CreateRoundData } from "@bingo/domain";
 
 export interface CreateGameRoundInput {
   gameId: string;
   name: string;
   patternId: string;
-  isPaid: boolean;
-  pricePerCard?: number;
-  currency?: Currency;
 }
 
 export interface UpdateGameRoundInput {
   name?: string;
   patternId?: string;
-  isPaid?: boolean;
-  pricePerCard?: number;
-  currency?: Currency;
 }
 
 export async function createGameRoundAction(formData: FormData) {
@@ -33,22 +27,17 @@ export async function createGameRoundAction(formData: FormData) {
   const gameId = formData.get("gameId") as string;
   const name = formData.get("name") as string;
   const patternId = formData.get("patternId") as string;
-  const isPaid = formData.get("isPaid") === "true";
-  const pricePerCard = isPaid
-    ? parseFloat(formData.get("pricePerCard") as string)
-    : undefined;
-  const currency = isPaid ? (formData.get("currency") as Currency) : undefined;
 
-  // Verify game exists and is scheduled
+  // Verify game exists and is scheduled or active
   const game = await gameRepository.findById(gameId);
   if (!game) {
     redirect(`/host/juegos?error=${encodeURIComponent("Juego no encontrado")}`);
     return;
   }
 
-  if (game.status !== "scheduled") {
+  if (game.status !== "scheduled" && game.status !== "active") {
     redirect(
-      `/host/juegos/${gameId}?error=${encodeURIComponent("Solo se pueden agregar rondas a juegos programados")}`
+      `/host/juegos/${gameId}?error=${encodeURIComponent("Solo se pueden agregar rondas a juegos programados o activos")}`
     );
     return;
   }
@@ -62,9 +51,6 @@ export async function createGameRoundAction(formData: FormData) {
       name,
       order,
       patternId,
-      isPaid,
-      pricePerCard,
-      currency,
     };
 
     const round = await roundRepository.create(createData);
@@ -85,9 +71,6 @@ export async function createGameRoundAction(formData: FormData) {
               roundId: round.id,
               name: round.name,
               order: round.order,
-              isPaid: round.isPaid,
-              pricePerCard: round.pricePerCard,
-              currency: round.currency,
             },
           }),
         }
@@ -118,11 +101,6 @@ export async function updateGameRoundAction(formData: FormData) {
   const roundId = formData.get("roundId") as string;
   const name = formData.get("name") as string;
   const patternId = formData.get("patternId") as string;
-  const isPaid = formData.get("isPaid") === "true";
-  const pricePerCard = isPaid
-    ? parseFloat(formData.get("pricePerCard") as string)
-    : undefined;
-  const currency = isPaid ? (formData.get("currency") as Currency) : undefined;
 
   // Verify round exists and is configurable
   const round = await roundRepository.findById(roundId);
@@ -144,9 +122,6 @@ export async function updateGameRoundAction(formData: FormData) {
     await roundRepository.update(roundId, {
       name,
       patternId,
-      isPaid,
-      pricePerCard,
-      currency,
     });
 
     // Notify mobile players about round update
@@ -164,9 +139,6 @@ export async function updateGameRoundAction(formData: FormData) {
               gameId,
               roundId,
               name,
-              isPaid,
-              pricePerCard,
-              currency,
             },
           }),
         }
