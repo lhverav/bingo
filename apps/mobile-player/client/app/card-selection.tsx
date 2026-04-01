@@ -15,9 +15,12 @@ import BingoCard from "../components/BingoCard";
 import CountdownTimer from "../components/CountdownTimer";
 
 export default function CardSelectionScreen() {
-  const { roundId } = useLocalSearchParams<{ roundId: string }>();
+  const { roundId, gameId } = useLocalSearchParams<{ roundId?: string; gameId?: string }>();
   const { playerId, playerCode, cards, deadline, setCards, setSelectedCards } = useGame();
   const isConnected = useConnectionState();
+
+  // If navigated with gameId (from MIS CARTONES button), show game-level card management
+  const isGameLevel = !!gameId && !roundId;
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -109,6 +112,35 @@ export default function CardSelectionScreen() {
     setSubmitting(true);
     selectCards(playerId, selectedIds);
   };
+
+  // Game-level card management view (from MIS CARTONES button)
+  if (isGameLevel) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Mis Cartones</Text>
+        </View>
+
+        <View style={styles.gameCardInfo}>
+          <Text style={styles.gameCardIcon}>🎴</Text>
+          <Text style={styles.gameCardTitle}>Cartones del Juego</Text>
+          <Text style={styles.gameCardDescription}>
+            Los cartones se asignaran cuando una ronda comience.
+            {"\n\n"}
+            Cuando el anfitrion inicie una ronda, recibiras una notificacion
+            para seleccionar tus cartones.
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.backButtonText}>Volver</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (loading) {
     return (
@@ -242,5 +274,40 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
+  },
+  gameCardInfo: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 30,
+  },
+  gameCardIcon: {
+    fontSize: 80,
+    marginBottom: 24,
+  },
+  gameCardTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 16,
+  },
+  gameCardDescription: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 24,
+  },
+  backButton: {
+    backgroundColor: "#f0f0f0",
+    paddingVertical: 16,
+    borderRadius: 25,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#666",
   },
 });

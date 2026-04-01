@@ -146,6 +146,14 @@ export default function MisJuegosScreen() {
     });
   }, []);
 
+  // Handle select cards
+  const handleSelectCards = useCallback((gameId: string) => {
+    router.push({
+      pathname: "/card-selection",
+      params: { gameId },
+    });
+  }, []);
+
   // Handle leave game
   const handleLeaveGame = useCallback((gameId: string) => {
     if (user?.id) {
@@ -278,6 +286,14 @@ export default function MisJuegosScreen() {
 
               {/* Actions */}
               <View style={styles.actions}>
+                <TouchableOpacity
+                  style={styles.cardsButton}
+                  onPress={() => handleSelectCards(item.gameId)}
+                >
+                  <Text style={styles.cardsButtonText}>MIS CARTONES</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.secondaryActions}>
                 <TouchableOpacity
                   style={styles.detailButton}
                   onPress={() => handleGamePress(item.gameId, item.playerCode)}
@@ -443,31 +459,50 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   actions: {
+    marginBottom: 12,
+  },
+  cardsButton: {
+    backgroundColor: "#4CAF50",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    shadowColor: "#388E3C",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardsButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  secondaryActions: {
     flexDirection: "row",
     gap: 12,
   },
   detailButton: {
     flex: 1,
-    backgroundColor: "#FFD700",
-    paddingVertical: 12,
+    backgroundColor: "#f0f0f0",
+    paddingVertical: 10,
     borderRadius: 10,
     alignItems: "center",
   },
   detailButtonText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#666",
   },
   leaveButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#D32F2F",
     alignItems: "center",
   },
   leaveButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: "#D32F2F",
   },

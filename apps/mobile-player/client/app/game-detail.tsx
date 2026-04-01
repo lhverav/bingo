@@ -6,9 +6,10 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  BackHandler,
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGame } from "@/contexts/GameContext";
@@ -68,6 +69,21 @@ export default function GameDetailScreen() {
     loadGame();
   }, [loadGame]);
 
+  // Handle Android hardware back button - use useFocusEffect to ensure it works when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        console.log("[game-detail] Back button pressed, navigating to mis-juegos");
+        router.replace("/(tabs)/mis-juegos");
+        return true; // Prevent default behavior (app exit)
+      };
+
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+
+      return () => subscription.remove();
+    }, [])
+  );
+
   // Handle leave game button
   const handleLeaveGame = useCallback(() => {
     Alert.alert(
@@ -112,26 +128,64 @@ export default function GameDetailScreen() {
     }
   };
 
+  // Bottom navigation component (reusable)
+  const BottomNavBar = () => (
+    <View style={styles.bottomNav}>
+      <TouchableOpacity
+        style={styles.navItem}
+        onPress={() => router.replace("/(tabs)/proximos-juegos")}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="calendar-outline" size={26} color="#888" />
+        <Text style={styles.navLabel}>Proximos</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.navItem}
+        onPress={() => router.replace("/(tabs)/mis-juegos")}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="game-controller" size={26} color="#FFD700" />
+        <Text style={[styles.navLabel, styles.navLabelActive]}>Mis Juegos</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.navItem}
+        onPress={() => router.replace("/(tabs)/perfil")}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="person-outline" size={26} color="#888" />
+        <Text style={styles.navLabel}>Perfil</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>Cargando juego...</Text>
+      <View style={styles.mainContainer}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#FFD700" />
+          <Text style={styles.loadingText}>Cargando juego...</Text>
+        </View>
+        <BottomNavBar />
       </View>
     );
   }
 
   if (error || !game) {
     return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="warning-outline" size={64} color="#D32F2F" />
-        <Text style={styles.errorText}>{error || "Juego no encontrado"}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadGame}>
-          <Text style={styles.retryButtonText}>Reintentar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)/mis-juegos")}>
-          <Text style={styles.backButtonText}>Volver</Text>
-        </TouchableOpacity>
+      <View style={styles.mainContainer}>
+        <View style={styles.centerContainer}>
+          <Ionicons name="warning-outline" size={64} color="#D32F2F" />
+          <Text style={styles.errorText}>{error || "Juego no encontrado"}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadGame}>
+            <Text style={styles.retryButtonText}>Reintentar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)/mis-juegos")}>
+            <Text style={styles.backButtonText}>Volver</Text>
+          </TouchableOpacity>
+        </View>
+        <BottomNavBar />
       </View>
     );
   }
@@ -140,6 +194,7 @@ export default function GameDetailScreen() {
   const cardTypeInfo = getCardTypeInfo(game.cardType);
 
   return (
+  <View style={styles.mainContainer}>
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Header with back button */}
       <View style={styles.header}>
@@ -253,16 +308,23 @@ export default function GameDetailScreen() {
         </View>
       )}
     </ScrollView>
+
+    <BottomNavBar />
+  </View>
   );
 }
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: "#fafafa",
+  },
   container: {
     flex: 1,
     backgroundColor: "#fafafa",
   },
   contentContainer: {
-    paddingBottom: 40,
+    paddingBottom: 20,
   },
   centerContainer: {
     flex: 1,
@@ -537,5 +599,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#D32F2F",
+  },
+  bottomNav: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#ddd",
+    paddingBottom: 34,
+    paddingTop: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 8,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+  },
+  navLabel: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 6,
+  },
+  navLabelActive: {
+    color: "#333",
+    fontWeight: "700",
   },
 });

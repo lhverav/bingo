@@ -85,11 +85,19 @@ export default function ProximosJuegosScreen() {
   const handleGameJoined = useCallback((gameId: string, playerCode: string) => {
     console.log("Game joined:", gameId, "Code:", playerCode);
     addJoinedGame(gameId, "", playerCode);
-    // Close modal and navigate to Mis Juegos tab
+    // Close modal and stay on the same page - user can use "MIS CARTONES" button
     setLobbyModalVisible(false);
     setSelectedGameId(null);
-    router.replace("/(tabs)/mis-juegos");
   }, [addJoinedGame]);
+
+  const handleSelectCards = useCallback((gameId: string) => {
+    console.log("Select cards for game:", gameId);
+    // Navigate to card selection screen
+    router.push({
+      pathname: "/card-selection",
+      params: { gameId },
+    });
+  }, []);
 
   const handleLobbyClose = useCallback(() => {
     setLobbyModalVisible(false);
@@ -127,6 +135,7 @@ export default function ProximosJuegosScreen() {
       <GameCarousel
         onJoinGame={handleJoinGame}
         onLeaveGame={handleLeaveGame}
+        onSelectCards={handleSelectCards}
         joinedGames={joinedGames}
       />
 

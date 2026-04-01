@@ -7,9 +7,10 @@ interface GameCardProps {
   playerCode?: string;
   onJoin: (gameId: string) => void;
   onLeave: (gameId: string) => void;
+  onSelectCards?: (gameId: string) => void;
 }
 
-export function GameCard({ game, isJoined, playerCode, onJoin, onLeave }: GameCardProps) {
+export function GameCard({ game, isJoined, playerCode, onJoin, onLeave, onSelectCards }: GameCardProps) {
   const cardTypeLabel = game.cardType === "bingo" ? "BINGO" : "BINGOTE";
 
   return (
@@ -56,14 +57,25 @@ export function GameCard({ game, isJoined, playerCode, onJoin, onLeave }: GameCa
         )}
       </View>
 
-      {/* Join/Leave Button */}
+      {/* Action Buttons */}
       {isJoined ? (
-        <TouchableOpacity
-          style={styles.leaveButton}
-          onPress={() => onLeave(game.id)}
-        >
-          <Text style={styles.leaveButtonText}>DESVINCULARSE</Text>
-        </TouchableOpacity>
+        <View style={styles.joinedActions}>
+          {/* My Cards Button */}
+          <TouchableOpacity
+            style={styles.cardsButton}
+            onPress={() => onSelectCards?.(game.id)}
+          >
+            <Text style={styles.cardsButtonText}>MIS CARTONES</Text>
+          </TouchableOpacity>
+
+          {/* Leave Button */}
+          <TouchableOpacity
+            style={styles.leaveButton}
+            onPress={() => onLeave(game.id)}
+          >
+            <Text style={styles.leaveButtonText}>DESVINCULARSE</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <TouchableOpacity
           style={styles.joinButton}
@@ -203,16 +215,35 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
   },
+  joinedActions: {
+    gap: 10,
+  },
+  cardsButton: {
+    backgroundColor: "#4CAF50",
+    paddingVertical: 14,
+    borderRadius: 25,
+    alignItems: "center",
+    shadowColor: "#388E3C",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  cardsButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#fff",
+  },
   leaveButton: {
     backgroundColor: "#f5f5f5",
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 25,
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#e74c3c",
   },
   leaveButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "bold",
     color: "#e74c3c",
   },

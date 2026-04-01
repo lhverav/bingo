@@ -378,6 +378,261 @@ This feature is part of Plan 010 - Phase 14, which has not been implemented yet.
 
 ---
 
+### [ISSUE-013] Game Created Notification Not Received by Mobile Client
+- **Type**: Functional / Integration
+- **Severity**: Medium
+- **Status**: In Progress
+- **Discovered**: 2026-03-30
+
+**Description:**
+When a game is created in the web host, the mobile app does not receive the `game:created` notification even though:
+1. The mobile server receives the notification correctly
+2. The server emits the event via `io.emit("game:created", ...)`
+3. The user's socket is connected (verified in server logs)
+
+**Server Log (shows notification received and emitted):**
+```
+A user connected: rtIEdkNs8PnzccGRAAAB
+Received notification request: GAME_CREATED {
+  gameId: '69cc2f5ace53cefa2fa5b5b9',
+  name: 'sdfsadf',
+  ...
+}
+New game created: sdfsadf (69cc2f5ace53cefa2fa5b5b9)
+```
+
+**Expected Behavior:**
+1. Server emits `game:created` to all connected clients
+2. Mobile client's `GameCarousel` receives event
+3. Console shows `🎮 New game created, refreshing list...`
+4. Game list refreshes automatically
+
+**Actual Behavior:**
+The game list does not refresh. No client-side log appears.
+
+**Possible Causes:**
+1. Socket ID mismatch between connected socket and the one `GameCarousel` is listening on
+2. Event listener not properly set up (useEffect timing issue)
+3. Socket reference changed after OAuth redirect but listeners weren't re-attached
+
+**Investigation Notes:**
+- User was on "Proximos Juegos" screen when game was created
+- Socket connection was established (server shows `A user connected`)
+- `GameCarousel` has listeners set up in useEffect with `[socket, loadGames]` dependencies
+
+**Related Files:**
+- `apps/mobile-player/client/components/GameCarousel.tsx`
+- `apps/mobile-player/client/contexts/SocketContext.tsx`
+- `apps/mobile-player/server/src/server.ts`
+
+---
+
+### [ISSUE-012] Mobile Navigation Returns to Google Selector Instead of Main Page
+- **Type**: UX / Architecture
+- **Severity**: Medium
+- **Status**: Resolved
+- **Discovered**: 2026-03-30
+- **Resolved**: 2026-03-31
+
+**Description:**
+When pressing the Android hardware back button from the game detail screen, the app navigates to "Seleccionar cuenta de Google" (Google account selector) instead of returning to the main tabs.
+
+**Root Cause:**
+1. Auth and App flows shared the same Stack Navigator
+2. Screens used `router.back()` which navigates to the previous item in the navigation stack
+3. After Google OAuth login, the auth screens remain in the navigation history
+4. Pressing back navigated to those auth screens
+5. No visible navigation options on standalone screens like game-detail
+
+**Solution - Navigation Architecture Overhaul:**
+
+**1. Created Root Navigation Guard (`app/index.tsx`):**
+```typescript
+export default function RootIndex() {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  if (isAuthenticated) {
+    return <Redirect href="/(tabs)/proximos-juegos" />;
+  }
+
+  return <Redirect href="/(auth)" />;
+}
+```
+
+**2. Updated Root Layout with Isolated Flows:**
+```
+_layout.tsx (Root - Auth Guard)
+├── index           ← Navigation guard (checks auth)
+├── IF NOT authenticated:
+│   └── (auth)/*    ← Auth Stack (isolated)
+│
+├── IF authenticated:
+│   └── (tabs)/*    ← App Stack (isolated)
+│   └── game-detail, join-round, etc.
+```
+
+**3. Auth Completion Navigates to Root:**
+All auth completion points (login, registration) now use `router.replace("/")` instead of `router.replace("/(tabs)/...")`. This resets the navigation stack completely.
+
+**4. Added BackHandler for Android hardware back button**
+
+**5. Added Bottom Navigation Bar** to game-detail screen
+
+**Navigation Flow Diagram:**
+```
+User Opens App
+      │
+      ▼
+   index.tsx
+   (Auth Guard)
+      │
+      ├─── isAuthenticated=true ──► Redirect to /(tabs)
+      │                              (clean stack, no auth screens)
+      │
+      └─── isAuthenticated=false ─► Redirect to /(auth)
+                                     (auth flow begins)
+
+After Login/Registration:
+      │
+      ▼
+router.replace("/")
+      │
+      ▼
+   index.tsx
+   (Auth Guard)
+      │
+      ▼
+isAuthenticated=true
+      │
+      ▼
+Redirect to /(tabs)
+(entire auth stack is replaced)
+```
+
+**Key Changes:**
+- `apps/mobile-player/client/app/index.tsx` (NEW - root navigation guard)
+- `apps/mobile-player/client/app/_layout.tsx` (updated with isolated flows)
+- `apps/mobile-player/client/app/home.tsx` (simplified to redirect to root)
+- `apps/mobile-player/client/app/(auth)/login/email.tsx` (uses router.replace("/"))
+- `apps/mobile-player/client/app/(auth)/profile/notifications.tsx` (uses router.replace("/"))
+- `apps/mobile-player/client/app/oauth-callback.tsx` (uses router.replace("/"))
+- `apps/mobile-player/client/app/(tabs)/perfil.tsx` (logout uses router.replace("/"))
+- `apps/mobile-player/client/app/game-detail.tsx` (BackHandler + BottomNavBar)
+- `apps/mobile-player/client/app/games.tsx` (BackHandler)
+- `apps/mobile-player/client/app/join-round.tsx` (BackHandler)
+- `apps/mobile-player/client/app/game-lobby.tsx` (BackHandler)
+
+---
+
+### [ISSUE-011] On-the-fly Round Creation - Games Can Start Without Rounds
+- **Type**: Functional
+- **Severity**: Low
+- **Status**: Resolved
+- **Discovered**: 2026-03-30
+- **Resolved**: 2026-03-30
+
+**Description:**
+Previously, games required at least one round to be configured before the game could start. This was too restrictive for hosts who want to create rounds dynamically during the game.
+
+**Previous Behavior:**
+- `startGame()` validated that `roundCount > 0`
+- Error: "No hay rondas configuradas para este juego"
+- Rounds could only be added when game status was "scheduled"
+
+**New Behavior:**
+- Games can start with zero rounds
+- Rounds can be added while game is "scheduled" OR "active"
+- Mobile players receive `ROUND_CREATED` notification when new rounds are added
+
+**Implementation:**
+1. Removed round count validation from `gameService.startGame()`
+2. Changed `createGameRoundAction` to allow `game.status === "active"`
+3. Updated UI to show "Add Round" button for both scheduled and active games
+4. Round creation page accessible when game is active
+
+**Related Files:**
+- `packages/game-core/src/services/gameService.ts`
+- `apps/web-host/src/lib/actions/gameRounds.ts`
+- `apps/web-host/src/app/host/juegos/[id]/page.tsx`
+- `apps/web-host/src/app/host/juegos/[id]/rondas/crear/page.tsx`
+
+---
+
+### [ISSUE-010] Payment Configuration Moved from Round to Game Level
+- **Type**: Functional / Architecture
+- **Severity**: High
+- **Status**: Resolved
+- **Discovered**: 2026-03-30
+- **Resolved**: 2026-03-30
+
+**Description:**
+The payment configuration (`isPaid`, `pricePerCard`, `currency`) was previously at the Round level. This was incorrect because players should pay once per game, not per round. Players can change their cards between rounds (always free).
+
+**Previous Architecture (Wrong):**
+```
+Game
+  └── Round 1 (isPaid: true, pricePerCard: 5000, currency: COP)
+  └── Round 2 (isPaid: false)
+  └── Round 3 (isPaid: true, pricePerCard: 3000, currency: COP)
+```
+
+**New Architecture (Correct):**
+```
+Game (isPaid: true, pricePerCard: 5000, currency: COP)
+  └── Round 1 (no payment fields)
+  └── Round 2 (no payment fields)
+  └── Round 3 (no payment fields)
+```
+
+**Implementation:**
+
+**Domain Layer:**
+- `game.ts`: Added `isPaid`, `pricePerCard`, `currency` fields
+- `round.ts`: Removed payment fields
+- `gamePlayer.ts`: Simplified, removed `cardsPerPlayer` (redundant with GeneralParameters)
+
+**Database Layer:**
+- `game.schema.ts`: Added payment fields
+- `round.schema.ts`: Removed payment fields
+- `gamePlayer.schema.ts`: Restructured for game-level payment
+
+**Service Layer:**
+- `gameService.ts`: Added payment validation rules
+  - Paid games must have price and currency
+  - Free games should not have price
+
+**Host UI:**
+- Game creation/edit pages now have payment fields
+- Round creation/edit pages no longer have payment fields
+- New `PaymentFields.tsx` client component for payment toggle
+- Game detail shows payment badge at game level
+
+**Related Files:**
+- `packages/domain/src/entities/game.ts`
+- `packages/domain/src/entities/round.ts`
+- `packages/domain/src/entities/gamePlayer.ts`
+- `packages/game-core/src/database/schemas/game.schema.ts`
+- `packages/game-core/src/database/schemas/round.schema.ts`
+- `packages/game-core/src/database/schemas/gamePlayer.schema.ts`
+- `packages/game-core/src/database/mappers/game.mapper.ts`
+- `packages/game-core/src/database/mappers/round.mapper.ts`
+- `packages/game-core/src/database/mappers/gamePlayer.mapper.ts`
+- `packages/game-core/src/services/gameService.ts`
+- `apps/web-host/src/app/host/juegos/crear/page.tsx`
+- `apps/web-host/src/app/host/juegos/crear/PaymentFields.tsx` (new)
+- `apps/web-host/src/app/host/juegos/editar/[id]/page.tsx`
+- `apps/web-host/src/app/host/juegos/[id]/page.tsx`
+- `apps/web-host/src/app/host/juegos/[id]/rondas/crear/page.tsx`
+- `apps/web-host/src/app/host/juegos/[id]/rondas/editar/[roundId]/page.tsx`
+- `apps/web-host/src/lib/actions/games.ts`
+- `apps/web-host/src/lib/actions/gameRounds.ts`
+
+---
+
 ## Technical Issues
 
 Issues related to code, architecture, performance, or infrastructure.
@@ -444,7 +699,256 @@ This is a common gotcha in Next.js 14 Server Actions. Error redirects inside cat
 
 Issues related to user experience, UI design, or usability.
 
-<!-- Add UX issues here -->
+*(ISSUE-012 documented in Functional section as it involved code changes)*
+
+---
+
+## Feature Implementations
+
+Features that have been implemented and should be documented for reference.
+
+### [FEATURE-001] Mobile User Authentication System
+- **Type**: Feature
+- **Status**: Implemented
+- **Date**: 2026-03 (multiple commits)
+
+**Description:**
+Complete authentication system for mobile players with multiple login methods.
+
+**Authentication Methods:**
+1. **Email + Password**: Traditional email/password registration and login
+2. **Google OAuth**: Login via Google account with OAuth2 flow
+3. **Phone + SMS**: Phone number with SMS verification (structure ready)
+
+**Profile Setup Flow:**
+1. Select auth method (email/Google/phone)
+2. Enter credentials
+3. Complete profile: Name, Birthdate, Gender
+4. Accept terms and notification preferences
+
+**Implementation:**
+- `packages/domain/src/entities/mobileUser.ts` - MobileUser entity
+- `packages/game-core/src/services/mobileUserService.ts` - Auth services
+- `apps/mobile-player/client/app/(auth)/` - Auth screens:
+  - `login/hub.tsx`, `login/email.tsx` - Login flows
+  - `register/hub.tsx`, `register/email.tsx`, `register/password.tsx` - Registration
+  - `register/google-selector.tsx` - Google OAuth
+  - `register/phone.tsx`, `register/sms-verification.tsx` - Phone auth
+  - `profile/name.tsx`, `profile/birthdate.tsx`, `profile/gender.tsx` - Profile setup
+  - `profile/terms.tsx`, `profile/notifications.tsx` - Preferences
+- `apps/mobile-player/client/contexts/AuthContext.tsx` - Auth state management
+- `apps/mobile-player/server/src/routes/auth.routes.ts` - Auth API endpoints
+
+---
+
+### [FEATURE-002] Mobile Tab Navigation System
+- **Type**: Feature
+- **Status**: Implemented
+- **Date**: 2026-03
+
+**Description:**
+Bottom tab navigation for the mobile app with three main sections.
+
+**Tabs:**
+1. **Proximos Juegos** - YouTube stream + scheduled games carousel
+2. **Mis Juegos** - List of games the user has joined
+3. **Perfil** - User profile and settings
+
+**Implementation:**
+- `apps/mobile-player/client/app/(tabs)/_layout.tsx` - Tab navigator
+- `apps/mobile-player/client/app/(tabs)/proximos-juegos.tsx` - Games carousel + YouTube
+- `apps/mobile-player/client/app/(tabs)/mis-juegos.tsx` - Joined games list
+- `apps/mobile-player/client/app/(tabs)/perfil.tsx` - Profile screen
+
+---
+
+### [FEATURE-003] Card Bunch Generation System
+- **Type**: Feature
+- **Status**: Implemented
+- **Date**: 2026-03
+
+**Description:**
+System for pre-generating large quantities of bingo cards that can be assigned to players.
+
+**Capabilities:**
+- Generate cards with configurable grid size (3-10)
+- Configurable number range (1 to maxNumber)
+- Generate in chunks to handle millions of cards
+- Progress tracking during generation
+- Card bunches stored separately from games for reuse
+
+**Implementation:**
+- `packages/domain/src/entities/cardBunch.ts` - CardBunch entity
+- `packages/domain/src/entities/bunchCard.ts` - Individual cards in a bunch
+- `packages/game-core/src/services/cardBunchService.ts` - Generation logic
+- `apps/web-host/src/app/host/cartas/page.tsx` - Card bunch list
+- `apps/web-host/src/app/host/cartas/crear/page.tsx` - Create card bunch
+- `apps/web-host/src/app/host/cartas/crear/CardBunchFormWithProgress.tsx` - Progress UI
+
+---
+
+### [FEATURE-004] Pattern Management System
+- **Type**: Feature
+- **Status**: Implemented
+- **Date**: 2026-03
+
+**Description:**
+System for defining and managing winning patterns for bingo games.
+
+**Pattern Types:**
+- **Preset patterns**: Line, Column, Diagonal, Corners, Full
+- **Custom patterns**: User-defined cell configurations
+
+**Features:**
+- Visual pattern editor
+- Pattern preview
+- CRUD operations for custom patterns
+- Pattern checking logic for winner verification
+
+**Implementation:**
+- `packages/domain/src/entities/pattern.ts` - Pattern entity
+- `packages/game-core/src/services/patternService.ts` - Pattern CRUD + checking
+- `apps/web-host/src/app/host/patrones/page.tsx` - Pattern list
+- `apps/web-host/src/app/host/patrones/crear/page.tsx` - Create pattern
+- `apps/web-host/src/app/host/patrones/editar/[id]/page.tsx` - Edit pattern
+- `apps/web-host/src/app/host/patrones/PatternEditor.tsx` - Visual editor component
+
+---
+
+### [FEATURE-005] General Parameters Configuration
+- **Type**: Feature
+- **Status**: Implemented
+- **Date**: 2026-03
+
+**Description:**
+Global configuration parameters for game settings.
+
+**Parameters:**
+- `selectionTimeSeconds`: Time limit for card selection (default: 60)
+- `freeCardsDelivered`: Cards delivered in free games (default: 5)
+- `freeCardsToSelect`: Cards player can select in free games (default: 2)
+- `maxCardsToBuy`: Maximum cards purchasable (default: 10)
+- `paidCardsToIssue`: Cards delivered in paid games (default: 5)
+
+**Implementation:**
+- `packages/domain/src/entities/generalParameters.ts` - Entity + defaults
+- `packages/game-core/src/services/generalParametersService.ts` - CRUD services
+- `apps/web-host/src/app/host/parametros/page.tsx` - Configuration UI
+
+---
+
+### [FEATURE-006] Winner Detection System
+- **Type**: Feature
+- **Status**: Implemented
+- **Date**: 2026-03
+
+**Description:**
+Real-time winner detection when numbers are drawn.
+
+**Capabilities:**
+- Check all player cards against current pattern when number drawn
+- Verify individual bingo claims
+- Generate game summary with winners
+
+**Implementation:**
+- `packages/game-core/src/services/winnerService.ts`
+  - `checkForWinners()` - Check all cards after each draw
+  - `verifyWinner()` - Verify a specific bingo claim
+  - `getGameSummary()` - Generate end-of-round summary
+
+---
+
+### [FEATURE-007] Playing Flow (Mobile)
+- **Type**: Feature
+- **Status**: Implemented
+- **Date**: 2026-03
+
+**Description:**
+Complete playing experience on mobile devices.
+
+**Flow:**
+1. **Join Round** - Connect to round via socket
+2. **Card Selection** - Receive cards, select within time limit
+3. **Game Screen** - View cards, mark numbers, claim BINGO
+4. **Winner Overlay** - Celebrate win or see results
+
+**Features:**
+- Real-time ball announcements with haptic feedback
+- Tap-to-mark numbers on cards
+- BINGO button for claiming wins
+- Pattern visualization popup
+- Auto-assignment on timeout
+- Winner detection and notification
+
+**Implementation:**
+- `apps/mobile-player/client/app/join-round.tsx` - Join flow
+- `apps/mobile-player/client/app/card-selection.tsx` - Card selection
+- `apps/mobile-player/client/app/game.tsx` - Game screen
+- `apps/mobile-player/client/components/BingoCard.tsx` - Card component
+- `apps/mobile-player/client/components/CountdownTimer.tsx` - Selection timer
+
+---
+
+### [FEATURE-008] RxJS Socket Event Stream
+- **Type**: Feature / Technical
+- **Status**: Implemented
+- **Date**: 2026-03
+
+**Description:**
+Centralized reactive socket event handling using RxJS Observables.
+
+**Benefits:**
+- Clean separation of socket event logic
+- Composable event streams
+- Easy cleanup on unmount
+- Type-safe event handling
+
+**Event Streams:**
+- `roundJoined$` - Player joined round
+- `cardsDelivered$` - Cards received
+- `cardsConfirmed$` - Card selection confirmed
+- `ballAnnounced$` - Number drawn
+- `winnersDetected$` - Winners found
+- `gameEnding$` - Round ending
+- `notification$` - General notifications
+
+**Implementation:**
+- `apps/mobile-player/client/services/socketEventStream.ts` - Event stream service
+- `apps/mobile-player/client/hooks/useSocketEvents.ts` - React hooks for streams
+
+---
+
+### [FEATURE-009] Legacy Standalone Rounds System
+- **Type**: Feature
+- **Status**: Implemented (Legacy)
+- **Date**: 2026-03
+
+**Description:**
+Original round management system where rounds were standalone entities (not tied to games). Kept for backwards compatibility.
+
+**Note:** The new flow uses Games with Rounds. This legacy system allows creating/playing rounds without a parent game.
+
+**Implementation:**
+- `apps/web-host/src/app/host/rondas/page.tsx` - Round list
+- `apps/web-host/src/app/host/rondas/crear/page.tsx` - Create round
+- `apps/web-host/src/app/host/rondas/editar/[id]/page.tsx` - Edit round
+- `apps/web-host/src/app/host/rondas/[id]/page.tsx` - Round details
+- `apps/web-host/src/app/host/rondas/[id]/jugar/page.tsx` - Play round
+- `apps/web-host/src/app/host/rondas/[id]/jugar/GameBoard.tsx` - Game board
+
+---
+
+### [FEATURE-010] Game-Round Playing System (New)
+- **Type**: Feature
+- **Status**: Implemented
+- **Date**: 2026-03
+
+**Description:**
+New game playing system where rounds belong to games.
+
+**Implementation:**
+- `apps/web-host/src/app/host/juegos/[id]/rondas/[roundId]/jugar/page.tsx` - Play round in game
+- `apps/web-host/src/app/host/juegos/[id]/rondas/[roundId]/jugar/GameRoundBoard.tsx` - Game board
 
 ---
 
@@ -582,12 +1086,27 @@ When creating new pages, either:
 
 ## Summary Stats
 
+### Issues
 | Category | Open | In Progress | Resolved |
 |----------|------|-------------|----------|
-| Functional | 0 | 0 | 5 |
+| Functional | 0 | 1 | 7 |
 | Technical | 0 | 0 | 3 |
-| UX | 0 | 0 | 0 |
+| UX | 0 | 0 | 1 |
 | Integration | 0 | 0 | 1 |
 | Data | 0 | 0 | 0 |
 
-Last Updated: 2026-03-20
+### Features Documented
+| Feature | Status |
+|---------|--------|
+| FEATURE-001: Mobile User Authentication | Implemented |
+| FEATURE-002: Tab Navigation System | Implemented |
+| FEATURE-003: Card Bunch Generation | Implemented |
+| FEATURE-004: Pattern Management | Implemented |
+| FEATURE-005: General Parameters Config | Implemented |
+| FEATURE-006: Winner Detection System | Implemented |
+| FEATURE-007: Playing Flow (Mobile) | Implemented |
+| FEATURE-008: RxJS Socket Event Stream | Implemented |
+| FEATURE-009: Legacy Standalone Rounds | Implemented (Legacy) |
+| FEATURE-010: Game-Round Playing System | Implemented |
+
+Last Updated: 2026-03-30

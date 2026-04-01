@@ -18,20 +18,20 @@ export default function NotificationsScreen() {
     clearData();
     console.log("📱 clearData done, navigating to tabs");
 
-    // Navigate to app tabs
-    router.replace('/(tabs)/proximos-juegos');
-    console.log("📱 Navigation to tabs executed");
+    // Navigate to root - auth guard will redirect to tabs with clean stack
+    router.replace('/');
+    console.log("📱 Navigation to root executed");
   };
 
   const handleSkip = () => {
     console.log("📱 handleSkip called");
     // Clear registration context
     clearData();
-    console.log("📱 clearData done, navigating to tabs");
+    console.log("📱 clearData done, navigating to root");
 
-    // Navigate to app tabs
-    router.replace('/(tabs)/proximos-juegos');
-    console.log("📱 Navigation to tabs executed");
+    // Navigate to root - auth guard will redirect to tabs with clean stack
+    router.replace('/');
+    console.log("📱 Navigation to root executed");
   };
 
   return (

@@ -63,7 +63,8 @@ export default function OAuthCallbackScreen() {
         await login(result.user.user, result.user.token, result.user.expiresAt);
         console.log("✅ User logged in with OAuth");
         setTimeout(() => {
-          router.replace("/(tabs)/proximos-juegos");
+          // Navigate to root - auth guard will redirect to tabs with clean stack
+          router.replace("/");
         }, 1500);
       } else if (result.isNewUser) {
         // New user - continue to profile completion flow

@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  BackHandler,
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { serverConfig } from "@/config/server";
 
 interface Round {
@@ -77,6 +78,18 @@ export default function GamesScreen() {
   useEffect(() => {
     fetchGames();
   }, [fetchGames]);
+
+  // Handle Android hardware back button - use useFocusEffect
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        router.replace("/(tabs)");
+        return true;
+      };
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => subscription.remove();
+    }, [])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

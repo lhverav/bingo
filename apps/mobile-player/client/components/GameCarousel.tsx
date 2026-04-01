@@ -12,10 +12,11 @@ interface JoinedGameInfo {
 interface GameCarouselProps {
   onJoinGame: (gameId: string) => void;
   onLeaveGame: (gameId: string) => void;
+  onSelectCards: (gameId: string) => void;
   joinedGames: Record<string, JoinedGameInfo>;
 }
 
-export function GameCarousel({ onJoinGame, onLeaveGame, joinedGames }: GameCarouselProps) {
+export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGames }: GameCarouselProps) {
   const [games, setGames] = useState<GameWithRounds[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -170,6 +171,7 @@ export function GameCarousel({ onJoinGame, onLeaveGame, joinedGames }: GameCarou
           playerCode={joinedInfo?.playerCode}
           onJoin={onJoinGame}
           onLeave={onLeaveGame}
+          onSelectCards={onSelectCards}
         />
       </View>
 

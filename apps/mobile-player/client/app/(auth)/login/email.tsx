@@ -43,8 +43,8 @@ export default function EmailLoginScreen() {
       await login(response.user, response.token, response.expiresAt);
       console.log('✅ User logged in successfully');
 
-      // Navigate to app home
-      router.replace('/(tabs)/proximos-juegos');
+      // Navigate to root - auth guard will redirect to tabs with clean stack
+      router.replace('/');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Email o contraseña incorrectos';
       setPasswordError(errorMessage);

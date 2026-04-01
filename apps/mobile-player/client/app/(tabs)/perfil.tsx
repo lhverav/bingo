@@ -27,7 +27,8 @@ export default function PerfilScreen() {
           onPress: async () => {
             try {
               await logout();
-              router.replace("/(auth)");
+              // Navigate to root - auth guard will redirect to auth with clean stack
+              router.replace("/");
             } catch (error) {
               console.error("Error logging out:", error);
             }
@@ -73,7 +74,7 @@ export default function PerfilScreen() {
         </Text>
         <TouchableOpacity
           style={styles.loginButton}
-          onPress={() => router.replace("/(auth)")}
+          onPress={() => router.replace("/")}
         >
           <Text style={styles.loginButtonText}>Iniciar Sesion</Text>
         </TouchableOpacity>

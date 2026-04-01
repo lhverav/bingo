@@ -1,6 +1,6 @@
-import { StyleSheet, Text, View, ActivityIndicator } from "react-native";
-import { useState, useEffect, useRef } from "react";
-import { useLocalSearchParams, router } from "expo-router";
+import { StyleSheet, Text, View, ActivityIndicator, BackHandler } from "react-native";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useSocket, useAuth } from "@/contexts";
 import { useGameJoinSocket, useConnectionState } from "@/hooks";
 
@@ -77,6 +77,18 @@ export default function GameLobbyScreen() {
     setStatus("joining");
     joinGame(gameId, user?.id);
   }, [gameId, isConnected, joinGame, user?.id]);
+
+  // Handle Android hardware back button - use useFocusEffect
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        router.replace("/(tabs)");
+        return true;
+      };
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+      return () => subscription.remove();
+    }, [])
+  );
 
   if (status === "error") {
     return (
