@@ -38,7 +38,7 @@ export async function POST(
           data: {
             roundId: params.id,
             winners: winnerResult.winners,
-            pattern: winnerResult.pattern,
+            patternName: winnerResult.patternName,
             totalPlayers,
             numbersDrawn: round.drawnNumbers?.length || 0,
           },

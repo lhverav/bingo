@@ -69,8 +69,7 @@ export default function CardBunchFormWithProgress() {
     const formData = new FormData(e.currentTarget);
     const data = {
       name: formData.get("name") as string,
-      cardSize: parseInt(formData.get("cardSize") as string),
-      maxNumber: parseInt(formData.get("maxNumber") as string),
+      cardType: formData.get("cardType") as string,
       count: parseInt(formData.get("count") as string),
     };
     console.log("[DEBUG 1] Form submitted, sending to API:", data);
@@ -181,47 +180,26 @@ export default function CardBunchFormWithProgress() {
             type="text"
             id="name"
             name="name"
-            placeholder="Ej: Cartas 5x5 - 75 números"
+            placeholder="Ej: Cartas Bingo Navidad 2025"
             required
             disabled={isSubmitting}
           />
           <small>Un nombre descriptivo para este grupo de cartas</small>
         </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="cardSize">Tamaño de la Carta</label>
-            <select
-              id="cardSize"
-              name="cardSize"
-              required
-              defaultValue="5"
-              disabled={isSubmitting}
-            >
-              <option value="3">3x3</option>
-              <option value="4">4x4</option>
-              <option value="5">5x5</option>
-              <option value="6">6x6</option>
-              <option value="7">7x7</option>
-            </select>
-            <small>Tamaño de la cuadrícula del cartón</small>
-          </div>
-        </div>
-
         <div className="form-group">
-          <label htmlFor="maxNumber">Números Disponibles (1 hasta)</label>
-          <input
-            type="number"
-            id="maxNumber"
-            name="maxNumber"
-            min="9"
-            defaultValue="75"
+          <label htmlFor="cardType">Tipo de Carta</label>
+          <select
+            id="cardType"
+            name="cardType"
             required
+            defaultValue="bingo"
             disabled={isSubmitting}
-          />
-          <small>
-            Cantidad de números disponibles (ej: 75 significa del 1 al 75)
-          </small>
+          >
+            <option value="bingo">BINGO (5x5, 75 números)</option>
+            <option value="bingote">BINGOTE (7x5, 103 números)</option>
+          </select>
+          <small>Selecciona el tipo de carta a generar</small>
         </div>
 
         <div className="form-group">

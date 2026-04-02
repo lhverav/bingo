@@ -1,21 +1,29 @@
-import { RoundPlayer, CreateRoundPlayerData, BunchCard, LegacyRound } from '@bingo/domain';
-import { roundPlayerRepository, bunchCardRepository } from '../repositories';
-import { RoundModel } from '../database/schemas';
-import { RoundMapper } from '../database/mappers';
-import { connectToDatabase } from '../database/connection';
+import { RoundPlayer, CreateRoundPlayerData, BunchCard, Round, Game, GeneralParameters } from '@bingo/domain';
+import { roundPlayerRepository, bunchCardRepository, roundRepository, gameRepository, generalParametersRepository } from '../repositories';
 
 /**
  * RoundPlayer service - Business logic for player operations in rounds
- * NOTE: This service uses legacy round structure for backwards compatibility
  */
 
 /**
- * Helper to get legacy round by ID
+ * Helper to get round context: round, game, and general parameters
  */
-async function getLegacyRound(roundId: string): Promise<LegacyRound | null> {
-  await connectToDatabase();
-  const doc = await RoundModel.findById(roundId);
-  return doc ? RoundMapper.toLegacyDomain(doc) : null;
+interface RoundContext {
+  round: Round;
+  game: Game;
+  params: GeneralParameters;
+}
+
+async function getRoundContext(roundId: string): Promise<RoundContext | null> {
+  const round = await roundRepository.findById(roundId);
+  if (!round) return null;
+
+  const game = await gameRepository.findById(round.gameId);
+  if (!game) return null;
+
+  const params = await generalParametersRepository.get();
+
+  return { round, game, params };
 }
 
 /**
@@ -114,10 +122,12 @@ export interface JoinRoundResult {
  * Returns existing player if mobileUserId already joined this round
  */
 export async function joinRound(input: JoinRoundInput): Promise<JoinRoundResult> {
-  const round = await getLegacyRound(input.roundId);
-  if (!round) {
+  const context = await getRoundContext(input.roundId);
+  if (!context) {
     throw new Error('Ronda no encontrada');
   }
+
+  const { round } = context;
 
   if (round.status !== 'en_progreso') {
     throw new Error('La ronda no esta disponible para unirse');
@@ -188,14 +198,16 @@ export async function selectCards(input: SelectCardsInput): Promise<RoundPlayer>
     }
   }
 
-  // Get round to check card selection limits
-  const round = await getLegacyRound(player.roundId);
-  if (!round?.cardDelivery) {
+  // Get round context to check card selection limits
+  const context = await getRoundContext(player.roundId);
+  if (!context) {
     throw new Error('Configuracion de ronda no encontrada');
   }
 
+  const { params } = context;
+
   // Validate selection count (at least 1, up to max)
-  const maxCards = round.cardDelivery.freeCardsToSelect;
+  const maxCards = params.freeCardsToSelect;
   if (input.selectedCardIds.length === 0) {
     throw new Error('Debe seleccionar al menos un carton');
   }
@@ -247,20 +259,23 @@ export async function requestCards(input: RequestCardsInput): Promise<RequestCar
     // Handle edge case: player in 'selecting' but no deadline or no cards (stale data)
     // Reset them to get fresh cards
     if (!player.selectionDeadline || player.lockedCardIds.length === 0) {
-      const round = await getLegacyRound(player.roundId);
-      if (!round?.cardDelivery || !round.cardBunchId) {
+      const context = await getRoundContext(player.roundId);
+      const cardBunchId = context?.game.cardBunchId;
+      if (!context || !cardBunchId) {
         throw new Error('Configuracion de ronda no encontrada');
       }
 
+      const { params } = context;
+
       // Get NEW cards from the bunch
       const cards = await getAvailableCards(
-        round.cardBunchId,
+        cardBunchId,
         player.roundId,
-        round.cardDelivery.freeCardsDelivered
+        params.freeCardsDelivered
       );
 
       const newDeadline = new Date();
-      newDeadline.setSeconds(newDeadline.getSeconds() + round.cardDelivery.selectionTimeSeconds);
+      newDeadline.setSeconds(newDeadline.getSeconds() + params.selectionTimeSeconds);
 
       const updatedPlayer = await roundPlayerRepository.updateForCardRequest(
         input.playerId,
@@ -294,30 +309,28 @@ export async function requestCards(input: RequestCardsInput): Promise<RequestCar
   }
 
   // Get round configuration
-  const round = await getLegacyRound(player.roundId);
-  if (!round) {
+  const context = await getRoundContext(player.roundId);
+  if (!context) {
     throw new Error('Ronda no encontrada');
   }
 
-  if (!round.cardBunchId) {
-    throw new Error('La ronda no tiene un lote de cartones asignado');
-  }
+  const { game, params } = context;
 
-  if (!round.cardDelivery) {
-    throw new Error('La ronda no tiene configuracion de entrega de cartones');
+  if (!game.cardBunchId) {
+    throw new Error('El juego no tiene un lote de cartones asignado');
   }
 
   // Get available cards from the bunch (temporarily lock them)
   const cards = await getAvailableCards(
-    round.cardBunchId,
+    game.cardBunchId,
     player.roundId,
-    round.cardDelivery.freeCardsDelivered
+    params.freeCardsDelivered
   );
 
   // Calculate selection deadline (starts NOW)
   const selectionDeadline = new Date();
   selectionDeadline.setSeconds(
-    selectionDeadline.getSeconds() + round.cardDelivery.selectionTimeSeconds
+    selectionDeadline.getSeconds() + params.selectionTimeSeconds
   );
 
   // Update player: lock cards, set deadline, change status to 'selecting'
@@ -353,13 +366,16 @@ export async function handleTimeout(playerId: string): Promise<RoundPlayer> {
   }
 
   // Get round configuration
-  const round = await getLegacyRound(player.roundId);
-  if (!round?.cardDelivery) {
+  const context = await getRoundContext(player.roundId);
+  if (!context) {
     throw new Error('Configuracion de ronda no encontrada');
   }
 
+  const { params } = context;
+
   // Auto-assign the configured number of cards from locked cards
-  const autoAssignCount = round.cardDelivery.freeCardsOnTimeout;
+  // Uses freeCardsToSelect as the auto-assign count on timeout
+  const autoAssignCount = params.freeCardsToSelect;
   const autoSelectedIds = player.lockedCardIds.slice(0, autoAssignCount);
 
   // Update player: assign selected, clear locked (releases the rest)

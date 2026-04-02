@@ -25,32 +25,22 @@ export type { CreateGameInput, UpdateGameInput, GameWithRoundCount } from './gam
 
 // Round services
 export {
-  createRound,
-  getRoundsByUser,
-  getAllRounds,
-  getRoundById,
-  updateRound,
-  deleteRound,
   startRound,
   endRound,
   drawNumber,
+  deleteRound,
 } from './roundService';
-
-export type { CreateRoundInput, UpdateRoundInput } from './roundService';
 
 // CardBunch services
 export {
-  createCardBunch,
-  saveCardBunch,
   getCardBunches,
-  getCardBunchesByDimensions,
+  getCardBunchesByType,
   deleteCardBunch,
-  generateCards,
-  generateCardsInChunks,
+  generateCardByType,
   generateAndSaveCardsInChunks,
 } from './cardBunchService';
 
-export type { CreateCardBunchInput, SaveCardBunchInput, GenerateAndSaveInput } from './cardBunchService';
+export type { CreateCardBunchInput, GenerateAndSaveInput } from './cardBunchService';
 
 // RoundPlayer services
 export {
@@ -89,9 +79,7 @@ export {
   getPatternById,
   updatePattern,
   deletePattern,
-  checkPattern,
   checkCustomPattern,
-  getPatternMask,
 } from './patternService';
 
 export type { CreatePatternInput, UpdatePatternInput } from './patternService';

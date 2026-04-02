@@ -24,6 +24,7 @@ export async function createGameAction(formData: FormData) {
 
   const name = formData.get("name") as string;
   const cardType = formData.get("cardType") as CardType;
+  const cardBunchId = formData.get("cardBunchId") as string | null;
   const scheduledAtStr = formData.get("scheduledAt") as string;
   const scheduledAt = new Date(scheduledAtStr);
   const isPaid = formData.get("isPaid") === "true";
@@ -37,6 +38,7 @@ export async function createGameAction(formData: FormData) {
     const game = await createGame({
       name,
       cardType,
+      cardBunchId: cardBunchId || undefined,
       scheduledAt,
       createdBy: session.userId,
       isPaid,
@@ -85,6 +87,7 @@ export async function updateGameAction(formData: FormData) {
   const id = formData.get("id") as string;
   const name = formData.get("name") as string;
   const cardType = formData.get("cardType") as CardType;
+  const cardBunchId = formData.get("cardBunchId") as string | null;
   const scheduledAtStr = formData.get("scheduledAt") as string;
   const scheduledAt = new Date(scheduledAtStr);
   const isPaid = formData.get("isPaid") === "true";
@@ -96,6 +99,7 @@ export async function updateGameAction(formData: FormData) {
     await updateGame(id, {
       name,
       cardType,
+      cardBunchId: cardBunchId || undefined,
       scheduledAt,
       isPaid,
       pricePerCard: isPaid ? pricePerCard : undefined,

@@ -3,6 +3,7 @@ import { getSession } from "@/lib/actions/auth";
 import { cardBunchJobService } from "@/lib/services/cardBunchJobService";
 import { CreateCardBunchJobInput } from "@/lib/types/cardBunchJob";
 import { generateAndSaveCardsInChunks, cardBunchRepository } from "@bingo/game-core";
+import { CardType } from "@bingo/domain";
 
 export async function POST(request: NextRequest) {
   // Validate session
@@ -13,18 +14,23 @@ export async function POST(request: NextRequest) {
 
   // Parse request body
   const body = await request.json();
-  const { name, cardSize, maxNumber, count } = body as CreateCardBunchJobInput;
+  const { name, cardType, count } = body as CreateCardBunchJobInput;
 
   // Validate input
-  if (!name || !cardSize || !maxNumber || !count) {
+  if (!name || !cardType || !count) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
+  // Validate cardType is valid
+  if (cardType !== 'bingo' && cardType !== 'bingote') {
+    return NextResponse.json({ error: "Invalid card type. Must be 'bingo' or 'bingote'" }, { status: 400 });
+  }
+
   // Create job for progress tracking
-  const jobId = cardBunchJobService.createJob({ name, cardSize, maxNumber, count });
+  const jobId = cardBunchJobService.createJob({ name, cardType, count });
 
   // Start background task (don't await)
-  generateCardsBackgroundTask(jobId, name, cardSize, maxNumber, count);
+  generateCardsBackgroundTask(jobId, name, cardType as CardType, count);
 
   // Return jobId immediately
   return NextResponse.json({ jobId });
@@ -33,24 +39,20 @@ export async function POST(request: NextRequest) {
 async function generateCardsBackgroundTask(
   jobId: string,
   name: string,
-  cardSize: number,
-  maxNumber: number,
+  cardType: CardType,
   count: number
 ) {
   try {
     // Step 1: Create CardBunch (metadata only, cards stored separately)
     const bunch = await cardBunchRepository.create({
       name,
-      cardSize,
-      maxNumber,
-      cards: [], // Empty - cards stored in BunchCard collection
+      cardType,
     });
 
     // Step 2: Generate and save cards in chunks
     await generateAndSaveCardsInChunks({
       bunchId: bunch.id,
-      cardSize,
-      maxNumber,
+      cardType,
       count,
       onProgress: (current, total) => {
         cardBunchJobService.updateProgress(jobId, current);

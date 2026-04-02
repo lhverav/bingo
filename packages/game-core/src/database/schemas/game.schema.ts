@@ -4,6 +4,7 @@ import { mongoose } from '../connection';
 export interface GameDocument extends Document {
   name: string;
   cardType: 'bingo' | 'bingote';
+  cardBunchId?: Types.ObjectId;
   scheduledAt: Date;
   status: 'scheduled' | 'active' | 'finished' | 'cancelled';
   createdBy: Types.ObjectId;
@@ -28,6 +29,10 @@ const GameSchema = new Schema<GameDocument>(
       type: String,
       enum: ['bingo', 'bingote'],
       required: [true, 'El tipo de cartón es requerido'],
+    },
+    cardBunchId: {
+      type: Schema.Types.ObjectId,
+      ref: 'CardBunch',
     },
     scheduledAt: {
       type: Date,

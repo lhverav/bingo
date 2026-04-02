@@ -1,3 +1,5 @@
+import { CardType } from '@bingo/domain';
+
 export type JobStatus = 'running' | 'completed' | 'cancelled' | 'failed';
 
 export interface CardBunchJobProgress {
@@ -12,7 +14,6 @@ export interface CardBunchJobProgress {
 
 export interface CreateCardBunchJobInput {
   name: string;
-  cardSize: number;
-  maxNumber: number;
+  cardType: CardType;
   count: number;
 }

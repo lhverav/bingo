@@ -3,7 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { getRoundById } from "@bingo/game-core";
+import { roundRepository } from "@bingo/game-core";
 import { registerRoundEvents } from "./events/roundEvents";
 import { registerGameEvents } from "./events/gameEvents";
 import authRoutes from "./routes/auth.routes";
@@ -41,7 +41,7 @@ app.get("/health", (req, res) => {
 // Example route using game-core
 app.get("/rounds/:id", async (req, res) => {
   try {
-    const round = await getRoundById(req.params.id);
+    const round = await roundRepository.findById(req.params.id);
     if (!round) {
       return res.status(404).json({ error: "Round not found" });
     }
@@ -134,7 +134,7 @@ app.post("/notify", (req, res) => {
           roundId: data.roundId,
           summary: {
             winners: data.winners || [],
-            pattern: data.pattern,
+            patternName: data.patternName,
             totalPlayers: data.totalPlayers,
             numbersDrawn: data.numbersDrawn,
           },

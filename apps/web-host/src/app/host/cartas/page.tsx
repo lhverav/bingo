@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAllCardBunchesAction } from "@/lib/actions/cardBunches";
 import DeleteButton from "./DeleteButton";
 import Link from "next/link";
+import { getCardTypeConfig } from "@bingo/domain";
 
 export default async function CartasPage() {
   const session = await getSession();
@@ -38,24 +39,25 @@ export default async function CartasPage() {
             <thead>
               <tr>
                 <th>Nombre</th>
-                <th>Tamaño</th>
-                <th>Números</th>
+                <th>Tipo</th>
                 <th>Cantidad de Cartas</th>
                 <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {bunches.map((bunch) => (
-                <tr key={bunch.id}>
-                  <td>{bunch.name}</td>
-                  <td>{bunch.cardSize}x{bunch.cardSize}</td>
-                  <td>1 - {bunch.maxNumber}</td>
-                  <td>{bunch.cards.length}</td>
-                  <td>
-                    <DeleteButton id={bunch.id} name={bunch.name} />
-                  </td>
-                </tr>
-              ))}
+              {bunches.map((bunch) => {
+                const config = getCardTypeConfig(bunch.cardType);
+                return (
+                  <tr key={bunch.id}>
+                    <td>{bunch.name}</td>
+                    <td>{bunch.cardType.toUpperCase()} ({config.columns}x{config.rows}, {config.totalNumbers} números)</td>
+                    <td>{bunch.cardCount}</td>
+                    <td>
+                      <DeleteButton id={bunch.id} name={bunch.name} />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

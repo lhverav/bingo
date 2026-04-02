@@ -5,7 +5,8 @@ import {
   selectCards,
   handleTimeout,
   getPlayerById,
-  getRoundById,
+  roundRepository,
+  patternRepository,
 } from "@bingo/game-core";
 
 /**
@@ -36,8 +37,13 @@ export function registerRoundEvents(io: Server, socket: Socket) {
       // Join the round (creates player or returns existing)
       const result = await joinRound({ roundId, mobileUserId });
 
-      // Get round info for pattern
-      const round = await getRoundById(roundId);
+      // Get round and pattern info
+      const round = await roundRepository.findById(roundId);
+      let patternName: string | null = null;
+      if (round?.patternId) {
+        const pattern = await patternRepository.findById(round.patternId);
+        patternName = pattern?.name || null;
+      }
 
       // Join a socket room for this round
       socket.join(`round:${roundId}`);
@@ -47,7 +53,7 @@ export function registerRoundEvents(io: Server, socket: Socket) {
       (socket as any).roundId = roundId;
       (socket as any).playerCode = result.player.playerCode;
 
-      // Send confirmation to the player with round pattern
+      // Send confirmation to the player with pattern name
       socket.emit("player:joined", {
         player: {
           id: result.player.id,
@@ -55,7 +61,7 @@ export function registerRoundEvents(io: Server, socket: Socket) {
           status: result.player.status,
         },
         isReconnect: result.isReconnect,
-        roundPattern: round?.gamePattern || null,
+        patternName,
       });
 
       // Notify others in the round (only for new players, not reconnects)

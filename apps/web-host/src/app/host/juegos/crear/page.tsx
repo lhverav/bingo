@@ -1,9 +1,11 @@
 import { getSession } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
 import { createGameAction } from "@/lib/actions/games";
+import { getCardBunches } from "@bingo/game-core";
 import Link from "next/link";
 import { ALL_CARD_TYPES, CARD_TYPE_LABELS } from "@bingo/domain";
 import PaymentFields from "./PaymentFields";
+import GameCardBunchSelector from "./GameCardBunchSelector";
 
 export default async function CrearJuegoPage({
   searchParams,
@@ -17,6 +19,7 @@ export default async function CrearJuegoPage({
   }
 
   const error = searchParams.error;
+  const cardBunches = await getCardBunches();
 
   // Default scheduled date: tomorrow at 10:00
   const tomorrow = new Date();
@@ -60,6 +63,8 @@ export default async function CrearJuegoPage({
             BINGO: 5x5 (numeros 1-75) | BINGOTE: 7x5 (numeros 1-103)
           </small>
         </div>
+
+        <GameCardBunchSelector bunches={cardBunches} />
 
         <div className="form-group">
           <label htmlFor="scheduledAt">Fecha y Hora Programada</label>

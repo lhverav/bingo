@@ -1,4 +1,4 @@
-import { CardBunch, CreateCardBunchData } from '@bingo/domain';
+import { CardBunch, CreateCardBunchData, CardType } from '@bingo/domain';
 import { CardBunchDocument } from '../schemas/cardBunch.schema';
 
 /**
@@ -13,9 +13,7 @@ export class CardBunchMapper {
     return {
       id: doc._id.toString(),
       name: doc.name,
-      cardSize: doc.cardSize,
-      maxNumber: doc.maxNumber,
-      cards: doc.cards,
+      cardType: doc.cardType as CardType,
       cardCount: doc.cardCount,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
@@ -29,9 +27,8 @@ export class CardBunchMapper {
   static toDatabase(data: CreateCardBunchData): Record<string, unknown> {
     return {
       name: data.name,
-      cardSize: data.cardSize,
-      maxNumber: data.maxNumber,
-      cards: data.cards,
+      cardType: data.cardType,
+      cardCount: 0, // Will be updated as cards are generated
     };
   }
 }

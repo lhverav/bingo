@@ -10,9 +10,6 @@ export interface RoundSummary {
   id: string;
   name: string;
   order: number;
-  isPaid: boolean;
-  pricePerCard?: number;
-  currency?: string;
   patternName?: string;
 }
 
@@ -43,9 +40,6 @@ export async function getScheduledGames(req: Request, res: Response) {
             id: round.id,
             name: round.name,
             order: round.order,
-            isPaid: round.isPaid,
-            pricePerCard: round.pricePerCard,
-            currency: round.currency,
             patternName: pattern?.name,
           };
         });
@@ -87,9 +81,6 @@ export async function getGame(req: Request, res: Response) {
           id: round.id,
           name: round.name,
           order: round.order,
-          isPaid: round.isPaid,
-          pricePerCard: round.pricePerCard,
-          currency: round.currency,
           patternName: pattern?.name,
         };
       });
@@ -151,9 +142,6 @@ export async function getMyJoinedGames(req: Request, res: Response) {
               id: round.id,
               name: round.name,
               order: round.order,
-              isPaid: round.isPaid,
-              pricePerCard: round.pricePerCard,
-              currency: round.currency,
               patternName: pattern?.name,
             };
           });

@@ -1,12 +1,11 @@
 import { Schema, Document, Model } from 'mongoose';
 import { mongoose } from '../connection';
+import { CardType } from '@bingo/domain';
 
 export interface CardBunchDocument extends Document {
   name: string;
-  cardSize: number;
-  maxNumber: number;
-  cards: number[][][];  // Legacy: embedded cards (empty for new bunches)
-  cardCount?: number;   // New: count of cards in BunchCard collection
+  cardType: CardType;   // 'bingo' or 'bingote'
+  cardCount: number;    // Count of cards in BunchCard collection
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,26 +18,19 @@ const CardBunchSchema = new Schema<CardBunchDocument>(
       trim: true,
       unique: true,
     },
-    cardSize: {
-      type: Number,
-      required: [true, 'El tamaño de la carta es requerido'],
-      min: [3, 'El tamaño mínimo es 3'],
-      max: [10, 'El tamaño máximo es 10'],
-    },
-    maxNumber: {
-      type: Number,
-      required: [true, 'El número máximo es requerido'],
-      min: [1, 'El número máximo debe ser al menos 1'],
-    },
-    cards: {
-      type: [[[Number]]],
-      required: false,  // No longer required - cards stored in BunchCard collection
-      default: [],
+    cardType: {
+      type: String,
+      required: [true, 'El tipo de carta es requerido'],
+      enum: {
+        values: ['bingo', 'bingote'],
+        message: 'El tipo de carta debe ser "bingo" o "bingote"',
+      },
     },
     cardCount: {
       type: Number,
-      required: false,
+      required: true,
       default: 0,
+      min: [0, 'El conteo de cartas no puede ser negativo'],
     },
   },
   {

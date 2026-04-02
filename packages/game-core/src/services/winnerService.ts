@@ -1,18 +1,5 @@
-import { GamePattern, LegacyRound } from '@bingo/domain';
-import { roundPlayerRepository, bunchCardRepository } from '../repositories';
-import { checkPattern } from './patternService';
-import { RoundModel } from '../database/schemas';
-import { RoundMapper } from '../database/mappers';
-import { connectToDatabase } from '../database/connection';
-
-/**
- * Helper to get legacy round by ID
- */
-async function getLegacyRound(roundId: string): Promise<LegacyRound | null> {
-  await connectToDatabase();
-  const doc = await RoundModel.findById(roundId);
-  return doc ? RoundMapper.toLegacyDomain(doc) : null;
-}
+import { roundPlayerRepository, bunchCardRepository, roundRepository, patternRepository } from '../repositories';
+import { checkCustomPattern } from './patternService';
 
 /**
  * Information about a winner
@@ -29,7 +16,7 @@ export interface WinnerInfo {
 export interface WinnerCheckResult {
   hasWinners: boolean;
   winners: WinnerInfo[];
-  pattern: GamePattern;
+  patternName: string;
   drawnNumbers: number[];
 }
 
@@ -41,20 +28,25 @@ export interface WinnerCheckResult {
  * @returns WinnerCheckResult with winner info
  */
 export async function checkForWinners(roundId: string): Promise<WinnerCheckResult> {
-  // Get round to get pattern and drawn numbers
-  const round = await getLegacyRound(roundId);
+  // Get round
+  const round = await roundRepository.findById(roundId);
   if (!round) {
     throw new Error('Ronda no encontrada');
   }
 
-  if (!round.gamePattern) {
+  if (!round.patternId) {
     throw new Error('La ronda no tiene un patron definido');
   }
 
-  const pattern = round.gamePattern as GamePattern;
+  // Get pattern
+  const pattern = await patternRepository.findById(round.patternId);
+  if (!pattern) {
+    throw new Error('Patron no encontrado');
+  }
+
   const drawnNumbers = round.drawnNumbers || [];
 
-  console.log('[checkForWinners] Pattern:', pattern, 'Drawn numbers:', drawnNumbers.length);
+  console.log('[checkForWinners] Pattern:', pattern.name, 'Drawn numbers:', drawnNumbers.length);
 
   // Get all players in the round who are ready to play
   const players = await roundPlayerRepository.findByRoundId(roundId);
@@ -75,7 +67,7 @@ export async function checkForWinners(roundId: string): Promise<WinnerCheckResul
       }
 
       // Check if this card matches the pattern
-      const isWinner = checkPattern(card.cells, drawnNumbers, pattern);
+      const isWinner = checkCustomPattern(card.cells, drawnNumbers, pattern.cells);
       console.log(`[checkForWinners] Card ${cardId} isWinner:`, isWinner);
       if (isWinner) {
         winners.push({
@@ -90,7 +82,7 @@ export async function checkForWinners(roundId: string): Promise<WinnerCheckResul
   return {
     hasWinners: winners.length > 0,
     winners,
-    pattern,
+    patternName: pattern.name,
     drawnNumbers,
   };
 }
@@ -104,8 +96,13 @@ export async function checkForWinners(roundId: string): Promise<WinnerCheckResul
  * @returns true if the card is a valid winner
  */
 export async function verifyWinner(roundId: string, cardId: string): Promise<boolean> {
-  const round = await getLegacyRound(roundId);
-  if (!round || !round.gamePattern) {
+  const round = await roundRepository.findById(roundId);
+  if (!round || !round.patternId) {
+    return false;
+  }
+
+  const pattern = await patternRepository.findById(round.patternId);
+  if (!pattern) {
     return false;
   }
 
@@ -114,10 +111,7 @@ export async function verifyWinner(roundId: string, cardId: string): Promise<boo
     return false;
   }
 
-  const pattern = round.gamePattern as GamePattern;
-  const drawnNumbers = round.drawnNumbers || [];
-
-  return checkPattern(card.cells, drawnNumbers, pattern);
+  return checkCustomPattern(card.cells, round.drawnNumbers, pattern.cells);
 }
 
 /**
@@ -126,7 +120,7 @@ export async function verifyWinner(roundId: string, cardId: string): Promise<boo
 export interface GameSummary {
   roundId: string;
   roundName: string;
-  pattern: GamePattern;
+  patternName: string;
   totalPlayers: number;
   numbersDrawn: number;
   winners: WinnerInfo[];
@@ -143,9 +137,17 @@ export async function getGameSummary(
   roundId: string,
   claimedWinners: WinnerInfo[]
 ): Promise<GameSummary> {
-  const round = await getLegacyRound(roundId);
+  const round = await roundRepository.findById(roundId);
   if (!round) {
     throw new Error('Ronda no encontrada');
+  }
+
+  let patternName = 'Desconocido';
+  if (round.patternId) {
+    const pattern = await patternRepository.findById(round.patternId);
+    if (pattern) {
+      patternName = pattern.name;
+    }
   }
 
   const players = await roundPlayerRepository.findByRoundId(roundId);
@@ -154,7 +156,7 @@ export async function getGameSummary(
   return {
     roundId,
     roundName: round.name,
-    pattern: round.gamePattern as GamePattern,
+    patternName,
     totalPlayers: readyPlayers.length,
     numbersDrawn: round.drawnNumbers?.length || 0,
     winners: claimedWinners,

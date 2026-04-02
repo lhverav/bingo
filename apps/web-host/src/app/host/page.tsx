@@ -60,31 +60,16 @@ export default async function HostPage() {
         </div>
       </section>
 
-      {/* Legacy sections - to be removed after migration */}
-      <section className="host-content legacy-section">
-        <h2>Rondas (Legacy)</h2>
-        <p>Sistema anterior de rondas individuales.</p>
-
-        <div className="actions">
-          <Link href="/host/rondas/crear" className="btn-primary">
-            Crear Nueva Ronda
-          </Link>
-          <Link href="/host/rondas" className="btn-secondary">
-            Ver Rondas
-          </Link>
-        </div>
-      </section>
-
-      <section className="host-content legacy-section">
-        <h2>Grupos de Cartas (Legacy)</h2>
-        <p>Sistema anterior de cartas pre-generadas.</p>
+      <section className="host-content">
+        <h2>Cartones</h2>
+        <p>Genera y administra grupos de cartones pre-generados para los juegos.</p>
 
         <div className="actions">
           <Link href="/host/cartas/crear" className="btn-primary">
-            Crear Grupo de Cartas
+            Crear Grupo de Cartones
           </Link>
           <Link href="/host/cartas" className="btn-secondary">
-            Ver Grupos de Cartas
+            Ver Cartones
           </Link>
         </div>
       </section>

@@ -1,4 +1,4 @@
-import { CardBunch, CreateCardBunchData } from '@bingo/domain';
+import { CardBunch, CreateCardBunchData, CardType } from '@bingo/domain';
 import { connectToDatabase } from '../database/connection';
 import { CardBunchModel } from '../database/schemas/cardBunch.schema';
 import { CardBunchMapper } from '../database/mappers/cardBunch.mapper';
@@ -27,12 +27,12 @@ export class CardBunchRepository {
   }
 
   /**
-   * Find card bunches by dimensions (cardSize and maxNumber)
-   * This is the key query for matching bunches to round configuration
+   * Find card bunches by card type
+   * Used to filter bunches compatible with a game's card type
    */
-  async findByDimensions(cardSize: number, maxNumber: number): Promise<CardBunch[]> {
+  async findByCardType(cardType: CardType): Promise<CardBunch[]> {
     await connectToDatabase();
-    const docs = await CardBunchModel.find({ cardSize, maxNumber }).sort({ name: 1 });
+    const docs = await CardBunchModel.find({ cardType }).sort({ name: 1 });
     return docs.map(CardBunchMapper.toDomain);
   }
 
@@ -44,6 +44,20 @@ export class CardBunchRepository {
     const dbData = CardBunchMapper.toDatabase(data);
     const doc = await CardBunchModel.create(dbData);
     return CardBunchMapper.toDomain(doc);
+  }
+
+  /**
+   * Update the card count for a bunch
+   * Called after cards are generated and saved to BunchCard collection
+   */
+  async updateCardCount(id: string, cardCount: number): Promise<CardBunch | null> {
+    await connectToDatabase();
+    const doc = await CardBunchModel.findByIdAndUpdate(
+      id,
+      { cardCount },
+      { new: true }
+    );
+    return doc ? CardBunchMapper.toDomain(doc) : null;
   }
 
   /**

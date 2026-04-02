@@ -1,4 +1,4 @@
-import { CardBunch, CreateCardBunchData, CreateBunchCardData } from '@bingo/domain';
+import { CardBunch, CreateCardBunchData, CreateBunchCardData, CardType, getCardTypeConfig } from '@bingo/domain';
 import { cardBunchRepository, bunchCardRepository } from '../repositories';
 
 /**
@@ -6,112 +6,71 @@ import { cardBunchRepository, bunchCardRepository } from '../repositories';
  */
 export interface CreateCardBunchInput {
   name: string;
-  cardSize: number;
-  maxNumber: number;
+  cardType: CardType;
   count: number; // how many cards to generate
 }
 
 /**
- * Generate bingo cards with random numbers
- * Pure function - no side effects
- *
- * @param cardSize - Grid size (3-10)
- * @param maxNumber - Maximum number (numbers are 1 to maxNumber)
- * @param count - How many cards to generate
- * @returns Array of cards, each card is a 2D grid. 0 = free center space.
+ * Pick N unique random numbers from a range
  */
-export function generateCards(
-  cardSize: number,
-  maxNumber: number,
-  count: number
-): number[][][] {
-  const cards: number[][][] = [];
-  const totalCells = cardSize * cardSize;
-  const hasFreeCenter = cardSize % 2 === 1; // odd sizes get a free center
-  const centerIndex = hasFreeCenter ? Math.floor(totalCells / 2) : -1;
-
-  for (let i = 0; i < count; i++) {
-    // Pick unique random numbers for this card
-    const numbers = pickUniqueNumbers(maxNumber, totalCells, centerIndex);
-
-    // Convert flat array to 2D grid
-    const grid: number[][] = [];
-    for (let row = 0; row < cardSize; row++) {
-      const rowCells: number[] = [];
-      for (let col = 0; col < cardSize; col++) {
-        const index = row * cardSize + col;
-        rowCells.push(numbers[index]);
-      }
-      grid.push(rowCells);
-    }
-
-    cards.push(grid);
+function pickFromRange(min: number, max: number, count: number): number[] {
+  const pool: number[] = [];
+  for (let i = min; i <= max; i++) {
+    pool.push(i);
   }
 
-  return cards;
+  // Fisher-Yates shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  return pool.slice(0, count);
 }
 
 /**
- * Generate bingo cards in chunks with progress tracking and cancellation support
+ * Generate a single card based on card type configuration
+ * Uses column ranges to distribute numbers properly
  *
- * @param cardSize - Grid size (3-10)
- * @param maxNumber - Maximum number (numbers are 1 to maxNumber)
- * @param count - How many cards to generate
- * @param onProgress - Callback called after each chunk with (current, total)
- * @param shouldCancel - Callback that returns true if generation should stop
- * @param chunkSize - How many cards to generate per chunk (default 1000)
- * @returns Array of cards, each card is a 2D grid. 0 = free center space.
- * @throws Error if shouldCancel() returns true
+ * @param cardType - 'bingo' or 'bingote'
+ * @returns 2D array (rows x columns) with numbers, 0 = free space
  */
-export function generateCardsInChunks(
-  cardSize: number,
-  maxNumber: number,
-  count: number,
-  onProgress: (current: number, total: number) => void,
-  shouldCancel: () => boolean,
-  chunkSize: number = 1000
-): number[][][] {
-  const allCards: number[][][] = [];
-  const totalCells = cardSize * cardSize;
-  const hasFreeCenter = cardSize % 2 === 1;
-  const centerIndex = hasFreeCenter ? Math.floor(totalCells / 2) : -1;
+export function generateCardByType(cardType: CardType): number[][] {
+  const config = getCardTypeConfig(cardType);
+  const { columns, rows, ranges, freeSpacePosition } = config;
 
-  let generated = 0;
-
-  while (generated < count) {
-    // Check if cancelled before starting next chunk
-    if (shouldCancel()) {
-      throw new Error('Card generation cancelled by user');
-    }
-
-    // Generate one chunk
-    const remaining = count - generated;
-    const currentChunkSize = Math.min(chunkSize, remaining);
-
-    for (let i = 0; i < currentChunkSize; i++) {
-      const numbers = pickUniqueNumbers(maxNumber, totalCells, centerIndex);
-
-      // Convert flat array to 2D grid
-      const grid: number[][] = [];
-      for (let row = 0; row < cardSize; row++) {
-        const rowCells: number[] = [];
-        for (let col = 0; col < cardSize; col++) {
-          const index = row * cardSize + col;
-          rowCells.push(numbers[index]);
-        }
-        grid.push(rowCells);
-      }
-
-      allCards.push(grid);
-    }
-
-    generated += currentChunkSize;
-
-    // Report progress after chunk completion
-    onProgress(generated, count);
+  // Generate numbers for each column from its designated range
+  const columnNumbers: number[][] = [];
+  for (let col = 0; col < columns; col++) {
+    const range = ranges[col];
+    // If this column contains the free space, we need one less number
+    const hasFreeSpace = freeSpacePosition.col === col;
+    const count = hasFreeSpace ? rows - 1 : rows;
+    columnNumbers.push(pickFromRange(range.min, range.max, count));
   }
 
-  return allCards;
+  // Build grid row by row
+  const grid: number[][] = [];
+  for (let row = 0; row < rows; row++) {
+    const rowCells: number[] = [];
+    for (let col = 0; col < columns; col++) {
+      if (row === freeSpacePosition.row && col === freeSpacePosition.col) {
+        // Free space
+        rowCells.push(0);
+      } else {
+        // Get the appropriate number from this column
+        // Adjust index for columns with free space
+        let idx = row;
+        if (freeSpacePosition.col === col && row > freeSpacePosition.row) {
+          idx = row - 1; // Skip past the free space position
+        }
+        rowCells.push(columnNumbers[col][idx]);
+      }
+    }
+    grid.push(rowCells);
+  }
+
+  return grid;
 }
 
 /**
@@ -119,8 +78,7 @@ export function generateCardsInChunks(
  */
 export interface GenerateAndSaveInput {
   bunchId: string;
-  cardSize: number;
-  maxNumber: number;
+  cardType: CardType;
   count: number;
   onProgress: (current: number, total: number) => void;
   shouldCancel: () => boolean;
@@ -139,17 +97,12 @@ export async function generateAndSaveCardsInChunks(
 ): Promise<number> {
   const {
     bunchId,
-    cardSize,
-    maxNumber,
+    cardType,
     count,
     onProgress,
     shouldCancel,
     chunkSize = 1000,
   } = input;
-
-  const totalCells = cardSize * cardSize;
-  const hasFreeCenter = cardSize % 2 === 1;
-  const centerIndex = hasFreeCenter ? Math.floor(totalCells / 2) : -1;
 
   let generated = 0;
 
@@ -167,18 +120,7 @@ export async function generateAndSaveCardsInChunks(
     const chunkCards: CreateBunchCardData[] = [];
 
     for (let i = 0; i < currentChunkSize; i++) {
-      const numbers = pickUniqueNumbers(maxNumber, totalCells, centerIndex);
-
-      // Convert flat array to 2D grid
-      const grid: number[][] = [];
-      for (let row = 0; row < cardSize; row++) {
-        const rowCells: number[] = [];
-        for (let col = 0; col < cardSize; col++) {
-          const idx = row * cardSize + col;
-          rowCells.push(numbers[idx]);
-        }
-        grid.push(rowCells);
-      }
+      const grid = generateCardByType(cardType);
 
       chunkCards.push({
         bunchId,
@@ -197,155 +139,10 @@ export async function generateAndSaveCardsInChunks(
     onProgress(generated, count);
   }
 
+  // Update the bunch with final card count
+  await cardBunchRepository.updateCardCount(bunchId, generated);
+
   return generated;
-}
-
-/**
- * Standard BINGO column ranges (75-ball bingo)
- */
-const BINGO_COLUMNS = [
-  { min: 1, max: 15 },   // B: 1-15
-  { min: 16, max: 30 },  // I: 16-30
-  { min: 31, max: 45 },  // N: 31-45 (with free center)
-  { min: 46, max: 60 },  // G: 46-60
-  { min: 61, max: 75 },  // O: 61-75
-];
-
-/**
- * Pick N unique random numbers from a range
- */
-function pickFromRange(min: number, max: number, count: number): number[] {
-  const pool: number[] = [];
-  for (let i = min; i <= max; i++) {
-    pool.push(i);
-  }
-
-  // Shuffle
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-
-  return pool.slice(0, count);
-}
-
-/**
- * Generate a standard 5x5 BINGO card with proper column ranges
- * Each column has numbers from its designated range
- * Center cell is free space (0)
- */
-function generateBingoCard(): number[][] {
-  const grid: number[][] = [];
-  const cardSize = 5;
-
-  // Generate numbers for each column
-  const columns: number[][] = [];
-  for (let col = 0; col < cardSize; col++) {
-    const range = BINGO_COLUMNS[col];
-    const count = col === 2 ? 4 : 5; // N column has 4 numbers + free space
-    columns.push(pickFromRange(range.min, range.max, count));
-  }
-
-  // Build grid row by row, but pull from columns
-  for (let row = 0; row < cardSize; row++) {
-    const rowCells: number[] = [];
-    for (let col = 0; col < cardSize; col++) {
-      if (row === 2 && col === 2) {
-        // Center cell is free space
-        rowCells.push(0);
-      } else {
-        // Adjust index for N column (skip center)
-        let idx = row;
-        if (col === 2 && row > 2) {
-          idx = row - 1; // After center, use indices 0,1,2,3 for rows 0,1,3,4
-        }
-        rowCells.push(columns[col][idx]);
-      }
-    }
-    grid.push(rowCells);
-  }
-
-  return grid;
-}
-
-/**
- * Pick N unique random numbers from 1 to max (legacy - for non-standard cards)
- * If centerIndex is provided, that position gets 0 (free space)
- */
-function pickUniqueNumbers(
-  max: number,
-  count: number,
-  centerIndex: number
-): number[] {
-  // For standard 5x5 / 75-ball bingo, use proper column ranges
-  if (count === 25 && max === 75) {
-    // Flatten the bingo card to match expected format
-    const card = generateBingoCard();
-    return card.flat();
-  }
-
-  // Legacy behavior for non-standard configurations
-  const pool: number[] = [];
-  for (let i = 1; i <= max; i++) {
-    pool.push(i);
-  }
-
-  // Shuffle pool
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-
-  // Pick first 'count' numbers
-  const picked = pool.slice(0, count);
-
-  // If there's a center, replace that position with 0
-  if (centerIndex >= 0 && centerIndex < picked.length) {
-    picked[centerIndex] = 0;
-  }
-
-  return picked;
-}
-
-/**
- * Create a new card bunch (generates cards automatically)
- */
-export async function createCardBunch(input: CreateCardBunchInput): Promise<CardBunch> {
-  const cards = generateCards(input.cardSize, input.maxNumber, input.count);
-
-  const data: CreateCardBunchData = {
-    name: input.name,
-    cardSize: input.cardSize,
-    maxNumber: input.maxNumber,
-    cards,
-  };
-
-  return cardBunchRepository.create(data);
-}
-
-/**
- * Input for saving pre-generated cards
- */
-export interface SaveCardBunchInput {
-  name: string;
-  cardSize: number;
-  maxNumber: number;
-  cards: number[][][];
-}
-
-/**
- * Save a card bunch with pre-generated cards
- * Use this when cards have already been generated (e.g., with generateCardsInChunks)
- */
-export async function saveCardBunch(input: SaveCardBunchInput): Promise<CardBunch> {
-  const data: CreateCardBunchData = {
-    name: input.name,
-    cardSize: input.cardSize,
-    maxNumber: input.maxNumber,
-    cards: input.cards,
-  };
-
-  return cardBunchRepository.create(data);
 }
 
 /**
@@ -356,18 +153,18 @@ export async function getCardBunches(): Promise<CardBunch[]> {
 }
 
 /**
- * Get card bunches by dimensions
+ * Get card bunches by card type
  */
-export async function getCardBunchesByDimensions(
-  cardSize: number,
-  maxNumber: number
-): Promise<CardBunch[]> {
-  return cardBunchRepository.findByDimensions(cardSize, maxNumber);
+export async function getCardBunchesByType(cardType: CardType): Promise<CardBunch[]> {
+  return cardBunchRepository.findByCardType(cardType);
 }
 
 /**
- * Delete a card bunch
+ * Delete a card bunch and its associated cards
  */
 export async function deleteCardBunch(id: string): Promise<boolean> {
+  // First delete all associated BunchCards
+  await bunchCardRepository.deleteByBunchId(id);
+  // Then delete the bunch itself
   return cardBunchRepository.delete(id);
 }

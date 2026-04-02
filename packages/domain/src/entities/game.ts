@@ -37,6 +37,7 @@ export interface Game {
   id: string;
   name: string;
   cardType: CardType;
+  cardBunchId?: string;        // Reference to pre-generated CardBunch
   scheduledAt: Date;
   status: GameStatus;
   createdBy: string;
@@ -53,6 +54,7 @@ export interface Game {
 export interface CreateGameData {
   name: string;
   cardType: CardType;
+  cardBunchId?: string;
   scheduledAt: Date;
   createdBy: string;
   isPaid: boolean;
@@ -63,6 +65,7 @@ export interface CreateGameData {
 export interface UpdateGameData {
   name?: string;
   cardType?: CardType;
+  cardBunchId?: string;
   scheduledAt?: Date;
   status?: GameStatus;
   isPaid?: boolean;

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flujo de Entrega de Cartones - Bingo App</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      line-height: 1.6;
+      color: #333;
+    }
+    h1 {
+      color: #2c3e50;
+      border-bottom: 3px solid #3498db;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #2980b9;
+      margin-top: 40px;
+      border-left: 4px solid #3498db;
+      padding-left: 15px;
+    }
+    h3 {
+      color: #34495e;
+      margin-top: 25px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #3498db;
+      color: white;
+    }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    .screen-mock {
+      background-color: #f4f4f4;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      padding: 15px;
+      font-family: monospace;
+      white-space: pre;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+    .flow-arrow {
+      background-color: #e8f4fc;
+      padding: 10px 15px;
+      border-radius: 5px;
+      margin: 15px 0;
+      font-family: monospace;
+    }
+    .highlight {
+      background-color: #fff3cd;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .important {
+      background-color: #d4edda;
+      border-left: 4px solid #28a745;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 40px 0;
+    }
+    @media print {
+      body { padding: 20px; }
+      h2 { page-break-before: auto; }
+      .screen-mock { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>Flujo de Entrega de Cartones</h1>
+<p><strong>Bingo App</strong> - Documento de Implementación</p>
+
+<hr>
+
+<h2>Resumen General</h2>
+<p>Los cartones se asignan a nivel de <strong>Juego</strong>, no de Ronda. El jugador selecciona sus cartones una vez al unirse al juego y puede cambiarlos entre rondas si lo desea.</p>
+
+<hr>
+
+<h2>Parámetros de Configuración</h2>
+<table>
+  <tr>
+    <th>Parámetro</th>
+    <th>Descripción</th>
+    <th>Valor por defecto</th>
+  </tr>
+  <tr>
+    <td>Tiempo de selección</td>
+    <td>Segundos para elegir cartones</td>
+    <td>60s</td>
+  </tr>
+  <tr>
+    <td>Cartones a entregar</td>
+    <td>Cantidad de cartones que ve el jugador</td>
+    <td>5</td>
+  </tr>
+  <tr>
+    <td>Cartones a seleccionar</td>
+    <td>Máximo que puede elegir</td>
+    <td>2</td>
+  </tr>
+</table>
+
+<hr>
+
+<h2>Pantallas del Jugador</h2>
+
+<h3>Lista de Juegos</h3>
+<ul>
+  <li>Muestra todos los juegos programados</li>
+  <li>Indica si el jugador ya está inscrito en cada juego</li>
+  <li>El jugador puede estar inscrito en múltiples juegos</li>
+</ul>
+
+<h3>Detalle del Juego</h3>
+<ul>
+  <li>Información del juego (nombre, fecha, rondas)</li>
+  <li>Botón <strong>"Mis Cartones"</strong> (deshabilitado si no está inscrito)</li>
+  <li>Botón <strong>"Unirse"</strong> / <strong>"Desinscribirse"</strong></li>
+</ul>
+
+<hr>
+
+<h2>Flujo Principal</h2>
+
+<h3>1. Jugador se Une al Juego</h3>
+
+<div class="flow-arrow">
+[Lista de Juegos] → Toca "Unirse" → [Pantalla de Selección de Cartones]
+</div>
+
+<ol>
+  <li>El jugador toca "Unirse" en un juego</li>
+  <li>Se registra como participante</li>
+  <li><strong>Inmediatamente</strong> va a la pantalla de selección de cartones</li>
+</ol>
+
+<h3>2. Selección de Cartones (Primera vez)</h3>
+
+<div class="screen-mock">
+┌─────────────────────────────────┐
+│  Selecciona tus cartones        │
+│  Tiempo restante: 0:45          │
+│  Seleccionados: 2/3             │
+├─────────────────────────────────┤
+│                                 │
+│   [Confirmar Selección]         │
+│                                 │
+├─────────────────────────────────┤
+│ ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐│
+│ │  1  │ │  2  │ │  3  │ │  4  ││
+│ │  ✓  │ │  ✓  │ │     │ │     ││
+│ └─────┘ └─────┘ └─────┘ └─────┘│
+│       (deslizar horizontal)     │
+└─────────────────────────────────┘
+</div>
+
+<ul>
+  <li><strong>Mínimo</strong>: 1 cartón</li>
+  <li><strong>Máximo</strong>: Según configuración</li>
+  <li>El temporizador corre desde que aparece la pantalla</li>
+</ul>
+
+<h3>3. Si el Tiempo se Agota</h3>
+
+<table>
+  <tr>
+    <th>Situación</th>
+    <th>Resultado</th>
+  </tr>
+  <tr>
+    <td>Primera selección (sin cartones previos)</td>
+    <td>Sistema asigna automáticamente el máximo permitido</td>
+  </tr>
+  <tr>
+    <td>Cambiando cartones (ya tenía)</td>
+    <td>Se mantienen los cartones anteriores</td>
+  </tr>
+</table>
+
+<h3>4. Confirmación</h3>
+
+<div class="screen-mock">
+┌─────────────────────────────────┐
+│                                 │
+│     ¡Cartones seleccionados!    │
+│                                 │
+│           [Aceptar]             │
+│                                 │
+└─────────────────────────────────┘
+</div>
+
+<p>Después de aceptar → Vuelve a la <strong>lista de juegos</strong></p>
+
+<hr>
+
+<h2>Ver y Cambiar Cartones</h2>
+
+<h3>Pantalla "Mis Cartones"</h3>
+
+<div class="screen-mock">
+┌─────────────────────────────────┐
+│  Mis Cartones                   │
+├─────────────────────────────────┤
+│                                 │
+│      [Cambiar Cartones]         │
+│   (deshabilitado durante ronda) │
+│                                 │
+├─────────────────────────────────┤
+│ ┌─────┐ ┌─────┐ ┌─────┐        │
+│ │  1  │ │  2  │ │  3  │        │
+│ └─────┘ └─────┘ └─────┘        │
+│       (deslizar horizontal)     │
+└─────────────────────────────────┘
+</div>
+
+<h3>Cambiar Cartones</h3>
+<ul>
+  <li><strong>Permitido</strong>: Cuando NO hay ronda activa</li>
+  <li>Al tocar "Cambiar Cartones":
+    <ol>
+      <li>Se entregan cartones <strong>nuevos</strong> (aleatorios)</li>
+      <li>Inicia el temporizador nuevamente</li>
+      <li>Los cartones anteriores se liberan</li>
+    </ol>
+  </li>
+</ul>
+
+<hr>
+
+<h2>Durante el Juego</h2>
+
+<h3>Cuando Inicia una Ronda</h3>
+
+<div class="flow-arrow">
+[Cualquier pantalla] → Ronda inicia → [Pantalla de Juego automáticamente]
+</div>
+
+<ul>
+  <li>La pantalla cambia <strong>automáticamente</strong> a la pantalla de juego</li>
+  <li>El jugador ve sus cartones y puede marcar números</li>
+  <li><strong>"Cambiar Cartones" está deshabilitado</strong> durante la ronda</li>
+</ul>
+
+<h3>Si el Jugador Reabre la App</h3>
+<ul>
+  <li>Si hay ronda activa → Va <strong>directo a la pantalla de juego</strong></li>
+  <li>Si no hay ronda activa → Va a la lista de juegos</li>
+</ul>
+
+<div class="important">
+<strong>Jugador Sin Cartones Cuando Inicia Ronda:</strong><br>
+El jugador es <strong>excluido de esa ronda</strong> pero puede seleccionar cartones para la siguiente.
+</div>
+
+<hr>
+
+<h2>Fin de Ronda</h2>
+
+<h3>Pantalla de Resultados</h3>
+
+<div class="screen-mock">
+┌─────────────────────────────────┐
+│      ¡Ronda Terminada!          │
+├─────────────────────────────────┤
+│                                 │
+│  Ganador: A1B2                  │
+│  Patrón: Línea Horizontal       │
+│  Números cantados: 23           │
+│                                 │
+├─────────────────────────────────┤
+│         [Continuar]             │
+└─────────────────────────────────┘
+</div>
+
+<ul>
+  <li><strong>Sin ganador</strong>: Muestra "Sin ganador"</li>
+  <li><strong>Múltiples ganadores</strong>: Muestra todos los códigos (ej: "A1B2, C3D4")</li>
+</ul>
+
+<p>Después de "Continuar" → Va al <strong>detalle del juego</strong></p>
+
+<h3>Entre Rondas</h3>
+<ul>
+  <li>El jugador está en la pantalla de <strong>detalle del juego</strong></li>
+  <li>Puede ver sus cartones en "Mis Cartones"</li>
+  <li>Puede <strong>cambiar cartones</strong> si desea</li>
+  <li>Usa los <strong>mismos cartones</strong> para todas las rondas (opcional cambiar)</li>
+</ul>
+
+<hr>
+
+<h2>Fin del Juego</h2>
+
+<div class="screen-mock">
+┌─────────────────────────────────┐
+│      ¡Juego Finalizado!         │
+├─────────────────────────────────┤
+│                                 │
+│   Resumen de todas las rondas   │
+│   Ganadores, patrones, etc.     │
+│                                 │
+├─────────────────────────────────┤
+│         [Aceptar]               │
+└─────────────────────────────────┘
+</div>
+
+<p>Después de aceptar → Va a la <strong>lista de juegos</strong></p>
+
+<hr>
+
+<h2>Desinscribirse del Juego</h2>
+<ul>
+  <li><strong>Juegos gratuitos</strong>: Puede salirse en cualquier momento</li>
+  <li>Los cartones seleccionados se liberan al salirse</li>
+</ul>
+
+<hr>
+
+<h2>Resumen de Estados</h2>
+
+<table>
+  <tr>
+    <th>Estado del Jugador</th>
+    <th>"Mis Cartones"</th>
+    <th>"Cambiar Cartones"</th>
+  </tr>
+  <tr>
+    <td>No inscrito</td>
+    <td>Deshabilitado</td>
+    <td>-</td>
+  </tr>
+  <tr>
+    <td>Inscrito, sin cartones</td>
+    <td>Abre selección con timer</td>
+    <td>-</td>
+  </tr>
+  <tr>
+    <td>Inscrito, con cartones, sin ronda activa</td>
+    <td>Ver cartones</td>
+    <td>Habilitado</td>
+  </tr>
+  <tr>
+    <td>Inscrito, con cartones, ronda activa</td>
+    <td>En pantalla de juego</td>
+    <td>Deshabilitado</td>
+  </tr>
+</table>
+
+<hr>
+
+<h2>Conexión Perdida</h2>
+<ul>
+  <li>El temporizador <strong>sigue corriendo</strong> en el servidor</li>
+  <li>Si reconecta antes del timeout: puede continuar seleccionando</li>
+  <li>Si el tiempo expira mientras está desconectado: aplican las reglas de auto-asignación</li>
+</ul>
+
+<hr>
+
+<p style="text-align: center; color: #888; margin-top: 50px;">
+  <em>Documento de implementación - Flujo de Cartones - Bingo App</em>
+</p>
+
+</body>
+</html>

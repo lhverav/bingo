@@ -1,10 +1,11 @@
 import { getSession } from "@/lib/actions/auth";
 import { redirect, notFound } from "next/navigation";
-import { getGameById } from "@bingo/game-core";
+import { getGameById, getCardBunches } from "@bingo/game-core";
 import { updateGameAction } from "@/lib/actions/games";
 import Link from "next/link";
 import { ALL_CARD_TYPES, CARD_TYPE_LABELS } from "@bingo/domain";
 import PaymentFields from "../../crear/PaymentFields";
+import GameCardBunchSelector from "../../crear/GameCardBunchSelector";
 
 function formatDateForInput(date: Date): string {
   const d = new Date(date);
@@ -26,6 +27,7 @@ export default async function EditarJuegoPage({
   }
 
   const game = await getGameById(params.id);
+  const cardBunches = await getCardBunches();
 
   if (!game) {
     notFound();
@@ -76,6 +78,8 @@ export default async function EditarJuegoPage({
             BINGO: 5x5 (numeros 1-75) | BINGOTE: 7x5 (numeros 1-103)
           </small>
         </div>
+
+        <GameCardBunchSelector bunches={cardBunches} defaultValue={game.cardBunchId} />
 
         <div className="form-group">
           <label htmlFor="scheduledAt">Fecha y Hora Programada</label>

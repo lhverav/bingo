@@ -14,6 +14,7 @@ export class GameMapper {
       id: doc._id.toString(),
       name: doc.name,
       cardType: doc.cardType,
+      cardBunchId: doc.cardBunchId?.toString(),
       scheduledAt: doc.scheduledAt,
       status: doc.status,
       createdBy: doc.createdBy.toString(),
@@ -33,6 +34,7 @@ export class GameMapper {
     return {
       name: data.name,
       cardType: data.cardType,
+      cardBunchId: data.cardBunchId,
       scheduledAt: data.scheduledAt,
       status: 'scheduled',
       createdBy: data.createdBy,
@@ -51,6 +53,7 @@ export class GameMapper {
 
     if (data.name !== undefined) update.name = data.name;
     if (data.cardType !== undefined) update.cardType = data.cardType;
+    if (data.cardBunchId !== undefined) update.cardBunchId = data.cardBunchId;
     if (data.scheduledAt !== undefined) update.scheduledAt = data.scheduledAt;
     if (data.status !== undefined) update.status = data.status;
     if (data.isPaid !== undefined) update.isPaid = data.isPaid;

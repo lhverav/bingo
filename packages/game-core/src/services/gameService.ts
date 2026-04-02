@@ -19,6 +19,7 @@ import { gameRepository, roundRepository } from '../repositories';
 export interface CreateGameInput {
   name: string;
   cardType: CardType;
+  cardBunchId?: string;
   scheduledAt: Date;
   createdBy: string;
   isPaid: boolean;
@@ -32,6 +33,7 @@ export interface CreateGameInput {
 export interface UpdateGameInput {
   name?: string;
   cardType?: CardType;
+  cardBunchId?: string;
   scheduledAt?: Date;
   isPaid?: boolean;
   pricePerCard?: number;
@@ -62,6 +64,7 @@ export async function createGame(data: CreateGameInput): Promise<Game> {
   const createData: CreateGameData = {
     name: data.name,
     cardType: data.cardType,
+    cardBunchId: data.cardBunchId,
     scheduledAt: data.scheduledAt,
     createdBy: data.createdBy,
     isPaid: data.isPaid,
@@ -150,6 +153,7 @@ export async function updateGame(
   const updateData: UpdateGameData = {};
   if (data.name !== undefined) updateData.name = data.name;
   if (data.cardType !== undefined) updateData.cardType = data.cardType;
+  if (data.cardBunchId !== undefined) updateData.cardBunchId = data.cardBunchId;
   if (data.scheduledAt !== undefined) updateData.scheduledAt = data.scheduledAt;
   if (data.isPaid !== undefined) updateData.isPaid = data.isPaid;
   if (data.pricePerCard !== undefined) updateData.pricePerCard = data.pricePerCard;
