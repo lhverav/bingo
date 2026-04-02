@@ -4,7 +4,8 @@
       "Edit(ARCHITECTURE_MIGRATION_PLAN.md)",
       "Edit(**/ARCHITECTURE_MIGRATION_PLAN.md)",
       "Write(ARCHITECTURE_MIGRATION_PLAN.md)",
-      "Write(**/ARCHITECTURE_MIGRATION_PLAN.md)"
+      "Write(**/ARCHITECTURE_MIGRATION_PLAN.md)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

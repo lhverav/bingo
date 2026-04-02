@@ -17,6 +17,7 @@ export class GamePlayerMapper {
       playerCode: doc.playerCode,
       status: doc.status,
       cardIds: doc.cardIds.map((id) => id.toString()),
+      lockedCardIds: doc.lockedCardIds?.map((id) => id.toString()) || [],
       hasPaid: doc.hasPaid,
       paidAt: doc.paidAt,
       cardsLocked: doc.cardsLocked,
@@ -37,6 +38,7 @@ export class GamePlayerMapper {
       playerCode: data.playerCode,
       status: 'joined',
       cardIds: [],
+      lockedCardIds: [],
       hasPaid: false,
       cardsLocked: false,
       joinedAt: new Date(),
@@ -52,6 +54,7 @@ export class GamePlayerMapper {
 
     if (data.status !== undefined) update.status = data.status;
     if (data.cardIds !== undefined) update.cardIds = data.cardIds;
+    if (data.lockedCardIds !== undefined) update.lockedCardIds = data.lockedCardIds;
     if (data.hasPaid !== undefined) update.hasPaid = data.hasPaid;
     if (data.paidAt !== undefined) update.paidAt = data.paidAt;
     if (data.cardsLocked !== undefined) update.cardsLocked = data.cardsLocked;

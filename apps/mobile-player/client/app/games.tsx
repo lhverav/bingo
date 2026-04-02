@@ -11,6 +11,8 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { serverConfig } from "@/config/server";
+import { useGame } from "@/contexts";
+import { useGameLifecycleEvents } from "@/hooks";
 
 interface Round {
   id: string;
@@ -41,17 +43,16 @@ const STATUS_LABELS: Record<string, string> = {
   scheduled: 'Programado',
   active: 'En Curso',
   finished: 'Finalizado',
-  cancelled: 'Cancelado',
 };
 
 const STATUS_COLORS: Record<string, string> = {
   scheduled: '#3498db',
   active: '#27ae60',
   finished: '#95a5a6',
-  cancelled: '#e74c3c',
 };
 
 export default function GamesScreen() {
+  const { isGameJoined, getJoinedGameInfo } = useGame();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,6 +79,18 @@ export default function GamesScreen() {
   useEffect(() => {
     fetchGames();
   }, [fetchGames]);
+
+  // Listen for game lifecycle events (created, deleted, etc.) and refresh list
+  useGameLifecycleEvents({
+    onGameCreated: () => {
+      console.log('[games.tsx] Game created, refreshing list');
+      fetchGames();
+    },
+    onGameStatusChanged: () => {
+      console.log('[games.tsx] Game status changed, refreshing list');
+      fetchGames();
+    },
+  });
 
   // Handle Android hardware back button - use useFocusEffect
   useFocusEffect(
@@ -125,6 +138,22 @@ export default function GamesScreen() {
     });
   }, []);
 
+  const handleJoinGame = useCallback((gameId: string) => {
+    router.push({
+      pathname: "/join-game",
+      params: { gameId },
+    });
+  }, []);
+
+  const handleViewCards = useCallback((gameId: string) => {
+    // Navigate to card-selection with gameId to view/change cards
+    console.log("[games.tsx] handleViewCards called with gameId:", gameId);
+    router.push({
+      pathname: "/card-selection",
+      params: { gameId },
+    });
+  }, []);
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -169,78 +198,114 @@ export default function GamesScreen() {
             </Text>
           </View>
         ) : (
-          games.map((game) => (
-            <View key={game.id} style={styles.gameCard}>
-              <TouchableOpacity
-                style={styles.gameHeader}
-                onPress={() => handleGamePress(game.id)}
-              >
-                <View style={styles.gameInfo}>
-                  <Text style={styles.gameName}>{game.name}</Text>
-                  <View style={styles.gameMetaRow}>
-                    <View style={[styles.badge, { backgroundColor: '#3498db' }]}>
-                      <Text style={styles.badgeText}>
-                        {CARD_TYPE_LABELS[game.cardType]}
-                      </Text>
-                    </View>
-                    <View style={[
-                      styles.badge,
-                      { backgroundColor: STATUS_COLORS[game.status] || '#95a5a6' }
-                    ]}>
-                      <Text style={styles.badgeText}>
-                        {STATUS_LABELS[game.status] || game.status}
-                      </Text>
+          games.map((game) => {
+            const joined = isGameJoined(game.id);
+            const joinedInfo = getJoinedGameInfo(game.id);
+
+            return (
+              <View key={game.id} style={styles.gameCard}>
+                <View style={styles.gameHeader}>
+                  <View style={styles.gameInfo}>
+                    <Text style={styles.gameName}>{game.name}</Text>
+                    <View style={styles.gameMetaRow}>
+                      <View style={[styles.badge, { backgroundColor: '#3498db' }]}>
+                        <Text style={styles.badgeText}>
+                          {CARD_TYPE_LABELS[game.cardType]}
+                        </Text>
+                      </View>
+                      <View style={[
+                        styles.badge,
+                        { backgroundColor: STATUS_COLORS[game.status] || '#95a5a6' }
+                      ]}>
+                        <Text style={styles.badgeText}>
+                          {STATUS_LABELS[game.status] || game.status}
+                        </Text>
+                      </View>
+                      {joined && (
+                        <View style={[styles.badge, { backgroundColor: '#27ae60' }]}>
+                          <Text style={styles.badgeText}>
+                            Unido: {joinedInfo?.playerCode}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>
-                <Text style={styles.expandIcon}>
-                  {expandedGameId === game.id ? '▲' : '▼'}
-                </Text>
-              </TouchableOpacity>
 
-              {expandedGameId === game.id && game.rounds && (
-                <View style={styles.roundsList}>
-                  {game.rounds.length === 0 ? (
-                    <Text style={styles.noRoundsText}>No hay rondas disponibles</Text>
+                {/* Action buttons */}
+                <View style={styles.gameActions}>
+                  {joined ? (
+                    <>
+                      <TouchableOpacity
+                        style={styles.cardsButton}
+                        onPress={() => handleViewCards(game.id)}
+                      >
+                        <Text style={styles.cardsButtonText}>Mis Cartones</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.expandButton}
+                        onPress={() => handleGamePress(game.id)}
+                      >
+                        <Text style={styles.expandButtonText}>
+                          {expandedGameId === game.id ? 'Ocultar Rondas' : 'Ver Rondas'}
+                        </Text>
+                      </TouchableOpacity>
+                    </>
                   ) : (
-                    game.rounds
-                      .filter(r => r.status === 'en_progreso')
-                      .map((round) => (
-                        <TouchableOpacity
-                          key={round.id}
-                          style={styles.roundCard}
-                          onPress={() => handleJoinRound(round.id)}
-                        >
-                          <View style={styles.roundInfo}>
-                            <Text style={styles.roundName}>
-                              {round.order}. {round.name}
-                            </Text>
-                            {round.patternName && (
-                              <Text style={styles.roundPattern}>
-                                Patron: {round.patternName}
-                              </Text>
-                            )}
-                            {round.isPaid && (
-                              <Text style={styles.roundPrice}>
-                                {round.pricePerCard} {round.currency}/carton
-                              </Text>
-                            )}
-                          </View>
-                          <View style={styles.joinButton}>
-                            <Text style={styles.joinButtonText}>Unirse</Text>
-                          </View>
-                        </TouchableOpacity>
-                      ))
-                  )}
-                  {game.rounds.filter(r => r.status === 'en_progreso').length === 0 && (
-                    <Text style={styles.noRoundsText}>
-                      No hay rondas en curso
-                    </Text>
+                    <TouchableOpacity
+                      style={styles.joinGameButton}
+                      onPress={() => handleJoinGame(game.id)}
+                    >
+                      <Text style={styles.joinGameButtonText}>Unirse al Juego</Text>
+                    </TouchableOpacity>
                   )}
                 </View>
-              )}
-            </View>
-          ))
+
+                {/* Rounds list (only for joined games) */}
+                {joined && expandedGameId === game.id && game.rounds && (
+                  <View style={styles.roundsList}>
+                    {game.rounds.length === 0 ? (
+                      <Text style={styles.noRoundsText}>No hay rondas disponibles</Text>
+                    ) : (
+                      game.rounds
+                        .filter(r => r.status === 'en_progreso')
+                        .map((round) => (
+                          <TouchableOpacity
+                            key={round.id}
+                            style={styles.roundCard}
+                            onPress={() => handleJoinRound(round.id)}
+                          >
+                            <View style={styles.roundInfo}>
+                              <Text style={styles.roundName}>
+                                {round.order}. {round.name}
+                              </Text>
+                              {round.patternName && (
+                                <Text style={styles.roundPattern}>
+                                  Patron: {round.patternName}
+                                </Text>
+                              )}
+                              {round.isPaid && (
+                                <Text style={styles.roundPrice}>
+                                  {round.pricePerCard} {round.currency}/carton
+                                </Text>
+                              )}
+                            </View>
+                            <View style={styles.joinButton}>
+                              <Text style={styles.joinButtonText}>Jugar</Text>
+                            </View>
+                          </TouchableOpacity>
+                        ))
+                    )}
+                    {game.rounds.filter(r => r.status === 'en_progreso').length === 0 && (
+                      <Text style={styles.noRoundsText}>
+                        No hay rondas en curso
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -414,5 +479,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
     color: "#333",
+  },
+  gameActions: {
+    flexDirection: "row",
+    padding: 12,
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+  },
+  joinGameButton: {
+    flex: 1,
+    backgroundColor: "#FFD700",
+    paddingVertical: 12,
+    borderRadius: 20,
+    alignItems: "center",
+  },
+  joinGameButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  cardsButton: {
+    flex: 1,
+    backgroundColor: "#3498db",
+    paddingVertical: 12,
+    borderRadius: 20,
+    alignItems: "center",
+  },
+  cardsButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  expandButton: {
+    flex: 1,
+    backgroundColor: "#f0f0f0",
+    paddingVertical: 12,
+    borderRadius: 20,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  expandButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
   },
 });

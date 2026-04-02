@@ -15,6 +15,17 @@ import {
   CardsAutoAssignedEvent,
   NotificationEvent,
   SocketError,
+  // Game-level card selection events
+  GameCardsDeliveredEvent,
+  GameCardsConfirmedEvent,
+  GameCardsAutoAssignedEvent,
+  GameCardsErrorEvent,
+  GameCardsCurrentEvent,
+  // Game lifecycle events
+  GameCreatedEvent,
+  GameLifecycleEvent,
+  RoundCreatedEvent,
+  RoundLifecycleEvent,
 } from '@/services/socketEventStream';
 
 // =============================================================================
@@ -47,6 +58,21 @@ export interface UseGameJoinHandlers {
   onGameJoinError?: (error: GameJoinErrorEvent) => void;
   onLeftGame?: (event: LeftGameEvent) => void;
   onGameLeaveError?: (error: GameLeaveErrorEvent) => void;
+}
+
+export interface UseGameCardHandlers {
+  onGameCardsDelivered?: (event: GameCardsDeliveredEvent) => void;
+  onGameCardsConfirmed?: (event: GameCardsConfirmedEvent) => void;
+  onGameCardsAutoAssigned?: (event: GameCardsAutoAssignedEvent) => void;
+  onGameCardsError?: (error: GameCardsErrorEvent) => void;
+  onGameCardsCurrent?: (event: GameCardsCurrentEvent) => void;
+}
+
+export interface UseGameLifecycleHandlers {
+  onGameCreated?: (event: GameCreatedEvent) => void;
+  onGameStatusChanged?: (event: GameLifecycleEvent) => void;
+  onRoundCreated?: (event: RoundCreatedEvent) => void;
+  onRoundStatusChanged?: (event: RoundLifecycleEvent) => void;
 }
 
 // =============================================================================
@@ -246,6 +272,101 @@ export function useGameJoinEvents(handlers: UseGameJoinHandlers): void {
 }
 
 /**
+ * Hook to subscribe to game-level card selection events
+ */
+export function useGameCardEvents(handlers: UseGameCardHandlers): void {
+  const handlersRef = useRef(handlers);
+  handlersRef.current = handlers;
+
+  useEffect(() => {
+    const subscriptions: Subscription[] = [];
+
+    // Subscribe to game cards delivered
+    subscriptions.push(
+      socketEventStream.onGameCardsDelivered$.subscribe((event) => {
+        handlersRef.current.onGameCardsDelivered?.(event);
+      })
+    );
+
+    // Subscribe to game cards confirmed
+    subscriptions.push(
+      socketEventStream.onGameCardsConfirmed$.subscribe((event) => {
+        handlersRef.current.onGameCardsConfirmed?.(event);
+      })
+    );
+
+    // Subscribe to game cards auto-assigned
+    subscriptions.push(
+      socketEventStream.onGameCardsAutoAssigned$.subscribe((event) => {
+        handlersRef.current.onGameCardsAutoAssigned?.(event);
+      })
+    );
+
+    // Subscribe to game cards error
+    subscriptions.push(
+      socketEventStream.onGameCardsError$.subscribe((error) => {
+        handlersRef.current.onGameCardsError?.(error);
+      })
+    );
+
+    // Subscribe to game cards current (view)
+    subscriptions.push(
+      socketEventStream.onGameCardsCurrent$.subscribe((event) => {
+        handlersRef.current.onGameCardsCurrent?.(event);
+      })
+    );
+
+    return () => {
+      subscriptions.forEach(sub => sub.unsubscribe());
+    };
+  }, []);
+}
+
+/**
+ * Hook to subscribe to game lifecycle events (game created, started, etc.)
+ */
+export function useGameLifecycleEvents(handlers: UseGameLifecycleHandlers): void {
+  const handlersRef = useRef(handlers);
+  handlersRef.current = handlers;
+
+  useEffect(() => {
+    const subscriptions: Subscription[] = [];
+
+    // Subscribe to game created
+    subscriptions.push(
+      socketEventStream.onGameCreated$.subscribe((event) => {
+        handlersRef.current.onGameCreated?.(event);
+      })
+    );
+
+    // Subscribe to game status changes (started/finished/cancelled)
+    subscriptions.push(
+      socketEventStream.onGameStatusChanged$.subscribe((event) => {
+        handlersRef.current.onGameStatusChanged?.(event);
+      })
+    );
+
+    // Subscribe to round created
+    subscriptions.push(
+      socketEventStream.onRoundCreated$.subscribe((event) => {
+        handlersRef.current.onRoundCreated?.(event);
+      })
+    );
+
+    // Subscribe to round status changes (updated/deleted)
+    subscriptions.push(
+      socketEventStream.onRoundStatusChanged$.subscribe((event) => {
+        handlersRef.current.onRoundStatusChanged?.(event);
+      })
+    );
+
+    return () => {
+      subscriptions.forEach(sub => sub.unsubscribe());
+    };
+  }, []);
+}
+
+/**
  * Hook providing socket emit functions
  * These functions are stable references (won't cause re-renders)
  */
@@ -274,6 +395,19 @@ export function useSocketEmit() {
     socketEventStream.leaveRound();
   }, []);
 
+  // Game-level card selection
+  const requestGameCards = useCallback((playerId: string) => {
+    socketEventStream.requestGameCards(playerId);
+  }, []);
+
+  const selectGameCards = useCallback((playerId: string, selectedCardIds: string[]) => {
+    socketEventStream.selectGameCards(playerId, selectedCardIds);
+  }, []);
+
+  const viewGameCards = useCallback((playerId: string) => {
+    socketEventStream.viewGameCards(playerId);
+  }, []);
+
   const emit = useCallback(<T = unknown>(event: string, data?: T) => {
     socketEventStream.emit(event, data);
   }, []);
@@ -285,6 +419,9 @@ export function useSocketEmit() {
     requestCards,
     selectCards,
     leaveRound,
+    requestGameCards,
+    selectGameCards,
+    viewGameCards,
     emit,
   };
 }
@@ -323,6 +460,20 @@ export function useRoundSocket(handlers: UseRoundEventsHandlers) {
  */
 export function useGameJoinSocket(handlers: UseGameJoinHandlers) {
   useGameJoinEvents(handlers);
+  const emitters = useSocketEmit();
+  const isConnected = useConnectionState();
+
+  return {
+    ...emitters,
+    isConnected,
+  };
+}
+
+/**
+ * Combined hook for game-level card selection operations
+ */
+export function useGameCardSocket(handlers: UseGameCardHandlers) {
+  useGameCardEvents(handlers);
   const emitters = useSocketEmit();
   const isConnected = useConnectionState();
 

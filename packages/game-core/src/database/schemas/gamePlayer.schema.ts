@@ -13,10 +13,13 @@ export interface GamePlayerDocument extends Document {
   gameId: mongoose.Types.ObjectId;
   mobileUserId?: mongoose.Types.ObjectId;
   playerCode: string;
-  status: 'joined' | 'cards_selected' | 'playing';
+  status: 'joined' | 'selecting' | 'cards_selected' | 'playing';
 
   // Current cards (can be changed before each round)
   cardIds: mongoose.Types.ObjectId[];
+
+  // Temporarily locked cards during selection
+  lockedCardIds: mongoose.Types.ObjectId[];
 
   // Payment tracking (for paid games)
   hasPaid: boolean;
@@ -54,12 +57,18 @@ const GamePlayerSchema = new Schema<GamePlayerDocument>(
     },
     status: {
       type: String,
-      enum: ['joined', 'cards_selected', 'playing'],
+      enum: ['joined', 'selecting', 'cards_selected', 'playing'],
       default: 'joined',
     },
 
     // Current cards
     cardIds: [{
+      type: Schema.Types.ObjectId,
+      ref: 'BunchCard',
+    }],
+
+    // Temporarily locked cards during selection
+    lockedCardIds: [{
       type: Schema.Types.ObjectId,
       ref: 'BunchCard',
     }],

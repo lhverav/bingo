@@ -39,10 +39,12 @@ export function registerRoundEvents(io: Server, socket: Socket) {
 
       // Get round and pattern info
       const round = await roundRepository.findById(roundId);
-      let patternName: string | null = null;
+      let roundPattern: string | null = null;
+      let patternCells: boolean[][] | null = null;
       if (round?.patternId) {
         const pattern = await patternRepository.findById(round.patternId);
-        patternName = pattern?.name || null;
+        roundPattern = pattern?.name || null;
+        patternCells = pattern?.cells || null;
       }
 
       // Join a socket room for this round
@@ -53,7 +55,7 @@ export function registerRoundEvents(io: Server, socket: Socket) {
       (socket as any).roundId = roundId;
       (socket as any).playerCode = result.player.playerCode;
 
-      // Send confirmation to the player with pattern name
+      // Send confirmation to the player with pattern info
       socket.emit("player:joined", {
         player: {
           id: result.player.id,
@@ -61,7 +63,8 @@ export function registerRoundEvents(io: Server, socket: Socket) {
           status: result.player.status,
         },
         isReconnect: result.isReconnect,
-        patternName,
+        roundPattern,
+        patternCells,
       });
 
       // Notify others in the round (only for new players, not reconnects)

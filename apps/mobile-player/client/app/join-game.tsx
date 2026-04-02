@@ -2,12 +2,12 @@ import { StyleSheet, Text, View, ActivityIndicator, BackHandler } from "react-na
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useSocket, useGame, useAuth } from "@/contexts";
-import { useRoundSocket, useConnectionState } from "@/hooks";
+import { useGameJoinSocket, useConnectionState } from "@/hooks";
 
-export default function JoinRoundScreen() {
-  const { roundId } = useLocalSearchParams<{ roundId: string }>();
+export default function JoinGameScreen() {
+  const { gameId } = useLocalSearchParams<{ gameId: string }>();
   const { reconnect } = useSocket();
-  const { setRoundInfo, clearGame, setRoundPattern } = useGame();
+  const { setGameInfo, clearGame } = useGame();
   const { user } = useAuth();
   const isConnected = useConnectionState();
 
@@ -15,38 +15,35 @@ export default function JoinRoundScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const joinAttemptedRef = useRef(false);
 
-  // Use RxJS-based round event hooks
-  const { joinRound } = useRoundSocket({
-    onJoinedRound: (data) => {
-      console.log("[join-round.tsx] Player joined (RxJS):", data);
+  // Use RxJS-based game join event hooks
+  const { joinGame } = useGameJoinSocket({
+    onJoinedGame: (data) => {
+      console.log("[join-game.tsx] Player joined game:", JSON.stringify(data, null, 2));
+      console.log("[join-game.tsx] player object:", JSON.stringify(data.player, null, 2));
+      console.log("[join-game.tsx] player.id:", data.player.id);
+      console.log("[join-game.tsx] typeof player.id:", typeof data.player.id);
 
       // Store in game context
-      if (roundId) {
-        setRoundInfo(roundId, data.player.id, data.player.playerCode);
-      }
-
-      // Set the round pattern and cells
-      if (data.roundPattern) {
-        setRoundPattern(data.roundPattern, data.patternCells || undefined);
+      if (gameId) {
+        const playerId = data.player.id || data.player._id;
+        console.log("[join-game.tsx] Storing playerId:", playerId);
+        if (!playerId) {
+          console.error("[join-game.tsx] ERROR: No playerId found in response!");
+        }
+        setGameInfo(gameId, playerId || '', data.player.playerCode, data.game.cardType);
       }
 
       setStatus("joined");
 
-      // Navigate based on player status
-      if (data.player.status === "ready") {
-        router.replace({
-          pathname: "/game",
-          params: { roundId },
-        });
-      } else {
-        router.replace({
-          pathname: "/card-selection",
-          params: { roundId },
-        });
-      }
+      // Navigate to card selection with gameId
+      // The player needs to select their cards for this game
+      router.replace({
+        pathname: "/card-selection",
+        params: { gameId },
+      });
     },
-    onError: (error) => {
-      console.error("[join-round.tsx] Server error (RxJS):", error.message);
+    onGameJoinError: (error) => {
+      console.error("[join-game.tsx] Game join error:", error.message);
       setStatus("error");
       setErrorMessage(error.message);
     },
@@ -54,37 +51,37 @@ export default function JoinRoundScreen() {
 
   // Main effect: setup, connect, and join
   useEffect(() => {
-    if (!roundId) {
+    if (!gameId) {
       setStatus("error");
-      setErrorMessage("No se especificó la ronda");
+      setErrorMessage("No se especificó el juego");
       return;
     }
 
-    // Clear any previous game state before joining new round
+    // Clear any previous game state before joining new game
     clearGame();
     joinAttemptedRef.current = false;
 
-    // Use reconnect for FRESH socket connection (clears all listeners and state)
+    // Use reconnect for FRESH socket connection
     reconnect();
-  }, [roundId, reconnect, clearGame]);
+  }, [gameId, reconnect, clearGame]);
 
   // Join effect: handles joining once connected
   useEffect(() => {
-    if (!roundId || !isConnected) return;
+    if (!gameId || !isConnected) return;
     if (joinAttemptedRef.current) return;
 
     // Perform join
-    console.log("[join-round.tsx] Joining round (RxJS):", roundId);
+    console.log("[join-game.tsx] Joining game:", gameId);
     joinAttemptedRef.current = true;
     setStatus("joining");
-    joinRound(roundId, user?.id);
-  }, [roundId, isConnected, joinRound, user?.id]);
+    joinGame(gameId, user?.id);
+  }, [gameId, isConnected, joinGame, user?.id]);
 
-  // Handle Android hardware back button - use useFocusEffect
+  // Handle Android hardware back button
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        router.replace("/(tabs)");
+        router.replace("/games");
         return true;
       };
       const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
@@ -96,9 +93,9 @@ export default function JoinRoundScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>
-          {errorMessage || "Error al unirse a la ronda"}
+          {errorMessage || "Error al unirse al juego"}
         </Text>
-        <Text style={styles.backLink} onPress={() => router.replace("/(tabs)")}>
+        <Text style={styles.backLink} onPress={() => router.replace("/games")}>
           Volver
         </Text>
       </View>
@@ -110,7 +107,7 @@ export default function JoinRoundScreen() {
       <ActivityIndicator size="large" color="#FFD700" />
       <Text style={styles.statusText}>
         {status === "connecting" && "Conectando..."}
-        {status === "joining" && "Uniéndose a la ronda..."}
+        {status === "joining" && "Uniéndose al juego..."}
         {status === "joined" && "Cargando cartones..."}
       </Text>
     </View>

@@ -1,6 +1,8 @@
+import { ReactNode } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, RegistrationProvider, SocketProvider, GameProvider } from '@/contexts';
+import { useRoundStartNotification } from '@/hooks';
 
 /**
  * Root Layout - Navigation Architecture
@@ -19,14 +21,26 @@ import { AuthProvider, RegistrationProvider, SocketProvider, GameProvider } from
  * and redirecting to the appropriate flow. Using router.replace()
  * ensures no back-navigation between flows.
  */
+
+/**
+ * Wrapper component that enables hooks inside the layout.
+ * Used to listen for round notifications.
+ */
+function AppContent({ children }: { children: ReactNode }) {
+  // Listen for round start notifications and auto-navigate
+  useRoundStartNotification();
+  return <>{children}</>;
+}
+
 export default function RootLayout() {
   return (
     <AuthProvider>
       <RegistrationProvider>
         <SocketProvider>
           <GameProvider>
-            <StatusBar style="auto" />
-            <Stack
+            <AppContent>
+              <StatusBar style="auto" />
+              <Stack
               screenOptions={{
                 headerShown: false,
                 // Disable gestures to prevent swipe-back between flows
@@ -130,7 +144,17 @@ export default function RootLayout() {
                   headerBackVisible: false,
                 }}
               />
+
+              {/* Join Game - Game-level join flow */}
+              <Stack.Screen
+                name="join-game"
+                options={{
+                  title: 'Unirse a Juego',
+                  headerShown: false,
+                }}
+              />
             </Stack>
+            </AppContent>
           </GameProvider>
         </SocketProvider>
       </RegistrationProvider>

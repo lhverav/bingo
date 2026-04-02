@@ -1,5 +1,14 @@
 import { Server, Socket } from "socket.io";
-import { joinGame, leaveGame, getGameById } from "@bingo/game-core";
+import {
+  joinGame,
+  leaveGame,
+  getGameById,
+  requestGameCards,
+  selectGameCards,
+  handleGameCardTimeout,
+  getGamePlayerById,
+  getPlayerGameCards,
+} from "@bingo/game-core";
 
 /**
  * Register game-related socket events
@@ -30,14 +39,19 @@ export function registerGameEvents(io: Server, socket: Socket) {
       (socket as any).gameId = gameId;
 
       // Send success response
-      socket.emit("game:joined", {
+      const responseData = {
         player: result.player,
         game,
         isReconnect: result.isReconnect,
         message: result.isReconnect
           ? "¡Bienvenido de nuevo!"
           : "¡Te has unido al juego exitosamente!",
-      });
+      };
+
+      console.log("[game:join] Sending response:", JSON.stringify(responseData.player, null, 2));
+      console.log("[game:join] player.id:", result.player.id);
+
+      socket.emit("game:joined", responseData);
 
       console.log(
         `[game:join] Player ${result.player.playerCode} joined game ${gameId} (reconnect: ${result.isReconnect})`
@@ -175,6 +189,136 @@ export function registerGameEvents(io: Server, socket: Socket) {
       const message = error instanceof Error ? error.message : "Error al reclamar bingo";
       socket.emit("error", { message });
       console.error("bingo:claim error:", error);
+    }
+  });
+
+  // ============================================================================
+  // GAME-LEVEL CARD SELECTION EVENTS
+  // ============================================================================
+
+  /**
+   * Player requests cards (game-level)
+   * Input: { playerId?: string }
+   * Output: { player, cards, deadline, isChangingCards }
+   */
+  socket.on("game:cards:request", async (data: { playerId?: string }) => {
+    try {
+      const playerId = data.playerId || (socket as any).playerId;
+
+      if (!playerId) {
+        throw new Error("No has ingresado a un juego");
+      }
+
+      const result = await requestGameCards({ playerId });
+
+      socket.emit("game:cards:delivered", {
+        player: result.player,
+        cards: result.cards,
+        deadline: result.deadline.toISOString(),
+        isChangingCards: result.isChangingCards,
+        maxSelectable: result.maxSelectable,
+      });
+
+      console.log(
+        `[game:cards:request] Player ${result.player.playerCode} requested cards (changing: ${result.isChangingCards})`
+      );
+
+      // Set timeout for auto-assignment
+      const timeoutMs = result.deadline.getTime() - Date.now();
+      if (timeoutMs > 0) {
+        setTimeout(async () => {
+          try {
+            const player = await getGamePlayerById(playerId);
+            if (player && player.status === "selecting") {
+              const updated = await handleGameCardTimeout(playerId);
+              socket.emit("game:cards:autoAssigned", {
+                player: updated,
+                selectedCardIds: updated.cardIds,
+                keptPreviousCards: result.isChangingCards,
+              });
+              console.log(
+                `[game:cards:timeout] Player ${updated.playerCode} timed out (kept previous: ${result.isChangingCards})`
+              );
+            }
+          } catch (err) {
+            console.error("[game:cards:timeout] Error:", err);
+          }
+        }, timeoutMs);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al solicitar cartones";
+      socket.emit("game:cards:error", { message });
+      console.error("[game:cards:request] Error:", error);
+    }
+  });
+
+  /**
+   * Player selects cards (game-level)
+   * Input: { selectedCardIds: string[], playerId?: string }
+   * Output: { player, selectedCardIds }
+   */
+  socket.on("game:cards:selected", async (data: { selectedCardIds: string[]; playerId?: string }) => {
+    try {
+      const playerId = data.playerId || (socket as any).playerId;
+
+      if (!playerId) {
+        throw new Error("No has ingresado a un juego");
+      }
+
+      const player = await selectGameCards({
+        playerId,
+        selectedCardIds: data.selectedCardIds,
+      });
+
+      socket.emit("game:cards:confirmed", {
+        player,
+        selectedCardIds: player.cardIds,
+      });
+
+      console.log(
+        `[game:cards:selected] Player ${player.playerCode} selected ${player.cardIds.length} cards`
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al seleccionar cartones";
+      socket.emit("game:cards:error", { message });
+      console.error("[game:cards:selected] Error:", error);
+    }
+  });
+
+  /**
+   * Player views their current cards (game-level) - no selection flow
+   * Input: { playerId?: string }
+   * Output: { player, cards, hasCards }
+   */
+  socket.on("game:cards:view", async (data: { playerId?: string }) => {
+    try {
+      const playerId = data.playerId || (socket as any).playerId;
+
+      if (!playerId) {
+        throw new Error("No has ingresado a un juego");
+      }
+
+      const player = await getGamePlayerById(playerId);
+      if (!player) {
+        throw new Error("Jugador no encontrado");
+      }
+
+      // Get the player's current cards (if any)
+      const cards = await getPlayerGameCards(playerId);
+
+      socket.emit("game:cards:current", {
+        player,
+        cards,
+        hasCards: player.cardIds.length > 0,
+      });
+
+      console.log(
+        `[game:cards:view] Player ${player.playerCode} viewing ${cards.length} cards`
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Error al cargar cartones";
+      socket.emit("game:cards:error", { message });
+      console.error("[game:cards:view] Error:", error);
     }
   });
 }

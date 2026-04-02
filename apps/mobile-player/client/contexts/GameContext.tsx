@@ -50,6 +50,7 @@ interface GameState {
 interface GameContextValue extends GameState {
   // Actions
   setRoundInfo: (roundId: string, playerId: string, playerCode: string) => void;
+  setGameInfo: (gameId: string, playerId: string, playerCode: string, cardType: 'bingo' | 'bingote') => void;
   setCards: (cards: Card[], deadline: Date) => void;
   setSelectedCards: (cardIds: string[]) => void;
   setRoundPattern: (pattern: string, patternCells?: boolean[][]) => void;
@@ -138,6 +139,19 @@ export function GameProvider({ children }: GameProviderProps) {
       roundId,
       playerId,
       playerCode,
+    }));
+  }, []);
+
+  const setGameInfo = useCallback((gameId: string, playerId: string, playerCode: string, cardType: 'bingo' | 'bingote') => {
+    setState(prev => ({
+      ...prev,
+      playerId,
+      playerCode,
+      cardType,
+      joinedGames: {
+        ...prev.joinedGames,
+        [gameId]: { playerId, playerCode },
+      },
     }));
   }, []);
 
@@ -232,6 +246,7 @@ export function GameProvider({ children }: GameProviderProps) {
   const value: GameContextValue = {
     ...state,
     setRoundInfo,
+    setGameInfo,
     setCards,
     setSelectedCards,
     setRoundPattern,

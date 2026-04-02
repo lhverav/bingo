@@ -47,6 +47,7 @@ export interface JoinedRoundEvent {
   };
   isReconnect: boolean;
   roundPattern: string | null;
+  patternCells: boolean[][] | null;
 }
 
 export interface CardsDeliveredEvent {
@@ -74,6 +75,34 @@ export interface NotificationEvent {
   gameName?: string;
   roundName?: string;
   cardType?: 'bingo' | 'bingote';
+}
+
+// Game lifecycle events (from host)
+export interface GameCreatedEvent {
+  gameId: string;
+  name: string;
+  cardType: 'bingo' | 'bingote';
+  scheduledAt: string;
+  timestamp: string;
+}
+
+export interface GameLifecycleEvent {
+  gameId: string;
+  timestamp: string;
+}
+
+export interface RoundCreatedEvent {
+  gameId: string;
+  roundId: string;
+  name: string;
+  order: number;
+  timestamp: string;
+}
+
+export interface RoundLifecycleEvent {
+  gameId: string;
+  roundId: string;
+  timestamp: string;
 }
 
 export interface JoinedGameEvent {
@@ -105,6 +134,52 @@ export interface LeftGameEvent {
 
 export interface GameLeaveErrorEvent {
   message: string;
+}
+
+// Game-level card selection events
+export interface GameCardsDeliveredEvent {
+  player: {
+    id: string;
+    playerCode: string;
+    status: string;
+  };
+  cards: Card[];
+  deadline: string;
+  isChangingCards: boolean;
+  maxSelectable: number;
+}
+
+export interface GameCardsConfirmedEvent {
+  player: {
+    id: string;
+    playerCode: string;
+    status: string;
+  };
+  selectedCardIds: string[];
+}
+
+export interface GameCardsAutoAssignedEvent {
+  player: {
+    id: string;
+    playerCode: string;
+    status: string;
+  };
+  selectedCardIds: string[];
+  keptPreviousCards: boolean;
+}
+
+export interface GameCardsErrorEvent {
+  message: string;
+}
+
+export interface GameCardsCurrentEvent {
+  player: {
+    id: string;
+    playerCode: string;
+    status: string;
+  };
+  cards: Card[];
+  hasCards: boolean;
 }
 
 // =============================================================================
@@ -140,6 +215,19 @@ export class SocketEventStream {
   private cardsConfirmed$ = new Subject<CardsConfirmedEvent>();
   private cardsAutoAssigned$ = new Subject<CardsAutoAssignedEvent>();
   private notification$ = new Subject<NotificationEvent>();
+
+  // Game-level card selection
+  private gameCardsDelivered$ = new Subject<GameCardsDeliveredEvent>();
+  private gameCardsConfirmed$ = new Subject<GameCardsConfirmedEvent>();
+  private gameCardsAutoAssigned$ = new Subject<GameCardsAutoAssignedEvent>();
+  private gameCardsError$ = new Subject<GameCardsErrorEvent>();
+  private gameCardsCurrent$ = new Subject<GameCardsCurrentEvent>();
+
+  // Game lifecycle events (from host)
+  private gameCreated$ = new Subject<GameCreatedEvent>();
+  private gameStatusChanged$ = new Subject<GameLifecycleEvent>();
+  private roundCreated$ = new Subject<RoundCreatedEvent>();
+  private roundStatusChanged$ = new Subject<RoundLifecycleEvent>();
 
   /**
    * Initialize the event stream with a socket instance
@@ -181,6 +269,20 @@ export class SocketEventStream {
       this.socket.off('cards:confirmed');
       this.socket.off('cards:autoAssigned');
       this.socket.off('notification');
+      // Game card events
+      this.socket.off('game:cards:delivered');
+      this.socket.off('game:cards:confirmed');
+      this.socket.off('game:cards:autoAssigned');
+      this.socket.off('game:cards:error');
+      this.socket.off('game:cards:current');
+      // Game lifecycle events
+      this.socket.off('game:created');
+      this.socket.off('game:deleted');
+      this.socket.off('game:started');
+      this.socket.off('game:finished');
+      this.socket.off('round:created');
+      this.socket.off('round:updated');
+      this.socket.off('round:deleted');
     }
 
     this.socket = null;
@@ -273,6 +375,68 @@ export class SocketEventStream {
     this.socket.on('notification', (data: NotificationEvent) => {
       console.log('[SocketEventStream] notification', data);
       this.notification$.next(data);
+    });
+
+    // Game-level card selection events
+    this.socket.on('game:cards:delivered', (data: GameCardsDeliveredEvent) => {
+      console.log('[SocketEventStream] game:cards:delivered', data);
+      this.gameCardsDelivered$.next(data);
+    });
+
+    this.socket.on('game:cards:confirmed', (data: GameCardsConfirmedEvent) => {
+      console.log('[SocketEventStream] game:cards:confirmed', data);
+      this.gameCardsConfirmed$.next(data);
+    });
+
+    this.socket.on('game:cards:autoAssigned', (data: GameCardsAutoAssignedEvent) => {
+      console.log('[SocketEventStream] game:cards:autoAssigned', data);
+      this.gameCardsAutoAssigned$.next(data);
+    });
+
+    this.socket.on('game:cards:error', (data: GameCardsErrorEvent) => {
+      console.error('[SocketEventStream] game:cards:error', data);
+      this.gameCardsError$.next(data);
+    });
+
+    this.socket.on('game:cards:current', (data: GameCardsCurrentEvent) => {
+      console.log('[SocketEventStream] game:cards:current', data);
+      this.gameCardsCurrent$.next(data);
+    });
+
+    // Game lifecycle events (from host broadcasts)
+    this.socket.on('game:created', (data: GameCreatedEvent) => {
+      console.log('[SocketEventStream] game:created', data);
+      this.gameCreated$.next(data);
+    });
+
+    this.socket.on('game:deleted', (data: GameLifecycleEvent) => {
+      console.log('[SocketEventStream] game:deleted', data);
+      this.gameStatusChanged$.next(data);
+    });
+
+    this.socket.on('game:started', (data: GameLifecycleEvent) => {
+      console.log('[SocketEventStream] game:started (lifecycle)', data);
+      this.gameStatusChanged$.next(data);
+    });
+
+    this.socket.on('game:finished', (data: GameLifecycleEvent) => {
+      console.log('[SocketEventStream] game:finished', data);
+      this.gameStatusChanged$.next(data);
+    });
+
+    this.socket.on('round:created', (data: RoundCreatedEvent) => {
+      console.log('[SocketEventStream] round:created', data);
+      this.roundCreated$.next(data);
+    });
+
+    this.socket.on('round:updated', (data: RoundLifecycleEvent) => {
+      console.log('[SocketEventStream] round:updated', data);
+      this.roundStatusChanged$.next(data);
+    });
+
+    this.socket.on('round:deleted', (data: RoundLifecycleEvent) => {
+      console.log('[SocketEventStream] round:deleted', data);
+      this.roundStatusChanged$.next(data);
     });
   }
 
@@ -427,6 +591,87 @@ export class SocketEventStream {
     );
   }
 
+  /**
+   * Observable for game cards delivered events (game-level)
+   */
+  get onGameCardsDelivered$(): Observable<GameCardsDeliveredEvent> {
+    return this.gameCardsDelivered$.asObservable().pipe(
+      share()
+    );
+  }
+
+  /**
+   * Observable for game cards confirmed events (game-level)
+   */
+  get onGameCardsConfirmed$(): Observable<GameCardsConfirmedEvent> {
+    return this.gameCardsConfirmed$.asObservable().pipe(
+      share()
+    );
+  }
+
+  /**
+   * Observable for game cards auto-assigned events (game-level)
+   */
+  get onGameCardsAutoAssigned$(): Observable<GameCardsAutoAssignedEvent> {
+    return this.gameCardsAutoAssigned$.asObservable().pipe(
+      share()
+    );
+  }
+
+  /**
+   * Observable for game cards error events (game-level)
+   */
+  get onGameCardsError$(): Observable<GameCardsErrorEvent> {
+    return this.gameCardsError$.asObservable().pipe(
+      share()
+    );
+  }
+
+  /**
+   * Observable for current cards view events (game-level)
+   */
+  get onGameCardsCurrent$(): Observable<GameCardsCurrentEvent> {
+    return this.gameCardsCurrent$.asObservable().pipe(
+      share()
+    );
+  }
+
+  /**
+   * Observable for game created events (from host broadcast)
+   */
+  get onGameCreated$(): Observable<GameCreatedEvent> {
+    return this.gameCreated$.asObservable().pipe(
+      share()
+    );
+  }
+
+  /**
+   * Observable for game status changes (started/finished/cancelled)
+   */
+  get onGameStatusChanged$(): Observable<GameLifecycleEvent> {
+    return this.gameStatusChanged$.asObservable().pipe(
+      share()
+    );
+  }
+
+  /**
+   * Observable for round created events (from host broadcast)
+   */
+  get onRoundCreated$(): Observable<RoundCreatedEvent> {
+    return this.roundCreated$.asObservable().pipe(
+      share()
+    );
+  }
+
+  /**
+   * Observable for round status changes (updated/deleted)
+   */
+  get onRoundStatusChanged$(): Observable<RoundLifecycleEvent> {
+    return this.roundStatusChanged$.asObservable().pipe(
+      share()
+    );
+  }
+
   // =============================================================================
   // SOCKET EMITTERS
   // =============================================================================
@@ -483,6 +728,27 @@ export class SocketEventStream {
    */
   leaveRound(): void {
     this.emit('player:leave');
+  }
+
+  /**
+   * Request cards for game-level selection
+   */
+  requestGameCards(playerId: string): void {
+    this.emit('game:cards:request', { playerId });
+  }
+
+  /**
+   * Select cards for game-level
+   */
+  selectGameCards(playerId: string, selectedCardIds: string[]): void {
+    this.emit('game:cards:selected', { playerId, selectedCardIds });
+  }
+
+  /**
+   * View current cards for game-level (no selection flow)
+   */
+  viewGameCards(playerId: string): void {
+    this.emit('game:cards:view', { playerId });
   }
 }
 

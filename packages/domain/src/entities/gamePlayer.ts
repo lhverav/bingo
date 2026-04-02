@@ -8,10 +8,11 @@
  * - Once a round starts, cards are locked until round ends
  */
 
-export type GamePlayerStatus = 'joined' | 'cards_selected' | 'playing';
+export type GamePlayerStatus = 'joined' | 'selecting' | 'cards_selected' | 'playing';
 
 export const GAME_PLAYER_STATUS_LABELS: Record<GamePlayerStatus, string> = {
   joined: 'Unido',
+  selecting: 'Seleccionando Cartones',
   cards_selected: 'Cartones Seleccionados',
   playing: 'Jugando',
 };
@@ -28,6 +29,9 @@ export interface GamePlayer {
 
   // Current cards (can be changed before each round)
   cardIds: string[];
+
+  // Temporarily locked cards during selection (released when selection confirmed)
+  lockedCardIds: string[];
 
   // Payment tracking (for paid games)
   hasPaid: boolean;                  // Has the player paid for this game?
@@ -57,6 +61,7 @@ export interface CreateGamePlayerData {
 export interface UpdateGamePlayerData {
   status?: GamePlayerStatus;
   cardIds?: string[];
+  lockedCardIds?: string[];
   hasPaid?: boolean;
   paidAt?: Date;
   cardsLocked?: boolean;

@@ -184,13 +184,13 @@ app.post("/notify", (req, res) => {
       console.log(`Game finished: ${data?.gameId}`);
       break;
 
-    case "GAME_CANCELLED":
-      // Notify all clients that a game has been cancelled
-      io.emit("game:cancelled", {
+    case "GAME_DELETED":
+      // Notify all clients that a game has been deleted
+      io.emit("game:deleted", {
         gameId: data?.gameId,
         timestamp,
       });
-      console.log(`Game cancelled: ${data?.gameId}`);
+      console.log(`Game deleted: ${data?.gameId}`);
       break;
 
     case "ROUND_CREATED":

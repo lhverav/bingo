@@ -85,20 +85,20 @@ class GamePlayerRepository {
   }
 
   /**
-   * Lock free cards for selection (temporary)
+   * Update player for card request - locks cards, sets deadline, status='selecting'
    */
-  async lockFreeCards(
+  async updateForCardRequest(
     id: string,
-    cardIds: string[],
-    deadline: Date
+    lockedCardIds: string[],
+    selectionDeadline: Date
   ): Promise<GamePlayer | null> {
     await connectToDatabase();
     const doc = await GamePlayerModel.findByIdAndUpdate(
       id,
       {
-        freeCardsLocked: cardIds,
-        freeSelectionDeadline: deadline,
-        status: 'joined', // Still in joined status while selecting
+        lockedCardIds,
+        selectionDeadline,
+        status: 'selecting',
       },
       { new: true }
     );
@@ -106,9 +106,9 @@ class GamePlayerRepository {
   }
 
   /**
-   * Confirm free card selection
+   * Update player selection - confirms cards, clears locked, status='cards_selected'
    */
-  async confirmFreeCards(
+  async updateSelection(
     id: string,
     selectedCardIds: string[]
   ): Promise<GamePlayer | null> {
@@ -116,35 +116,10 @@ class GamePlayerRepository {
     const doc = await GamePlayerModel.findByIdAndUpdate(
       id,
       {
-        freeCardIds: selectedCardIds,
-        freeCardsLocked: [],
-        freeSelectionDeadline: null,
+        cardIds: selectedCardIds,
+        lockedCardIds: [],
+        selectionDeadline: null,
         status: 'cards_selected',
-      },
-      { new: true }
-    );
-    return doc ? GamePlayerMapper.toDomain(doc) : null;
-  }
-
-  /**
-   * Add paid round cards
-   */
-  async addPaidRoundCards(
-    id: string,
-    roundId: string,
-    cardIds: string[]
-  ): Promise<GamePlayer | null> {
-    await connectToDatabase();
-    const doc = await GamePlayerModel.findByIdAndUpdate(
-      id,
-      {
-        $push: {
-          paidRoundCards: {
-            roundId,
-            cardIds,
-            purchasedAt: new Date(),
-          },
-        },
       },
       { new: true }
     );

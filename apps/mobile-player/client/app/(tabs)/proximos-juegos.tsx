@@ -82,9 +82,9 @@ export default function ProximosJuegosScreen() {
     }
   }, [leaveGame, user?.id]);
 
-  const handleGameJoined = useCallback((gameId: string, playerCode: string) => {
-    console.log("Game joined:", gameId, "Code:", playerCode);
-    addJoinedGame(gameId, "", playerCode);
+  const handleGameJoined = useCallback((gameId: string, playerId: string, playerCode: string) => {
+    console.log("Game joined:", gameId, "PlayerId:", playerId, "Code:", playerCode);
+    addJoinedGame(gameId, playerId, playerCode);
     // Close modal and stay on the same page - user can use "MIS CARTONES" button
     setLobbyModalVisible(false);
     setSelectedGameId(null);

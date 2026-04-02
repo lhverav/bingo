@@ -29,7 +29,7 @@ interface GameLobbyModalProps {
   visible: boolean;
   gameId: string | null;
   onClose: () => void;
-  onJoined: (gameId: string, playerCode: string) => void;
+  onJoined: (gameId: string, playerId: string, playerCode: string) => void;
 }
 
 export function GameLobbyModal({
@@ -52,13 +52,14 @@ export function GameLobbyModal({
   const { joinGame, isConnected: socketConnected } = useGameJoinSocket({
     onJoinedGame: (data) => {
       console.log("[GameLobbyModal] Player joined game:", data);
+      console.log("[GameLobbyModal] Player ID:", data.player.id);
 
       setGame(data.game);
       setPlayer(data.player);
       setStatus("joined");
 
-      // Notify parent about successful join
-      onJoined(data.game.id, data.player.playerCode);
+      // Notify parent about successful join (including playerId)
+      onJoined(data.game.id, data.player.id, data.player.playerCode);
     },
     onGameJoinError: (error) => {
       console.error("[GameLobbyModal] Game join error:", error.message);

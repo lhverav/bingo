@@ -127,6 +127,25 @@ export async function deleteGameAction(formData: FormData) {
 
   try {
     await deleteGame(id);
+
+    // Notify mobile players about game deletion
+    try {
+      await fetch(`${process.env.MOBILE_SERVER_URL || 'http://localhost:3001'}/notify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "GAME_DELETED",
+          data: {
+            gameId: id,
+          },
+        }),
+      });
+    } catch (notifyError) {
+      console.error("Error notifying mobile players:", notifyError);
+    }
+
     revalidatePath("/host/juegos");
   } catch (error) {
     const message =

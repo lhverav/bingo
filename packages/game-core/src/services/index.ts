@@ -107,6 +107,16 @@ export {
   countPlayersInGame,
   updateGamePlayerStatus,
   getJoinedGames,
+  // Card selection
+  requestGameCards,
+  selectGameCards,
+  handleGameCardTimeout,
+  getPlayerGameCards,
 } from './gamePlayerService';
 
-export type { JoinGameInput } from './gamePlayerService';
+export type {
+  JoinGameInput,
+  RequestGameCardsInput,
+  RequestGameCardsResult,
+  SelectGameCardsInput,
+} from './gamePlayerService';
