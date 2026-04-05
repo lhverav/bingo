@@ -15,8 +15,8 @@ export const serverConfig = {
   /** Base server URL for Socket.io and API calls */
   baseUrl: SERVER_URL,
 
-  /** API endpoint base */
-  apiUrl: `${SERVER_URL}/api`,
+  /** API endpoint base (no /api prefix - server routes are at root) */
+  apiUrl: SERVER_URL,
 
   /** OAuth endpoint */
   oauthUrl: `${SERVER_URL}/auth/google`,

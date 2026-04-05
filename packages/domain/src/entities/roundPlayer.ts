@@ -17,5 +17,7 @@ export interface CreateRoundPlayerData {
   mobileUserId?: string;
   playerCode: string;
   lockedCardIds?: string[];        // Optional: empty when first joining
+  selectedCardIds?: string[];      // Optional: set directly if using game-level cards
   selectionDeadline?: Date;        // Optional: set when cards are requested
+  status?: RoundPlayerStatus;      // Optional: defaults to 'joined', set to 'ready' if using game-level cards
 }

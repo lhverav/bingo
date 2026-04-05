@@ -130,6 +130,7 @@ app.post("/notify", (req, res) => {
     case "ROUND_ENDED":
       // Notify all players that the round has ended with summary
       if (data?.roundId) {
+        // Notify players in the round room about game ending
         io.to(`round:${data.roundId}`).emit("game:ending", {
           roundId: data.roundId,
           summary: {
@@ -140,6 +141,14 @@ app.post("/notify", (req, res) => {
           },
           timestamp,
         });
+
+        // Also emit round:updated globally so "Juegos en Curso" list refreshes
+        io.emit("round:updated", {
+          roundId: data.roundId,
+          status: "finalizada",
+          timestamp,
+        });
+
         console.log(`Round ${data.roundId} ended, notified players`);
       }
       break;

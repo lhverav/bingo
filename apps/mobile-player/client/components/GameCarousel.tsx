@@ -42,6 +42,13 @@ export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGam
     loadGames();
   }, [loadGames]);
 
+  // Reset currentIndex when games array shrinks
+  useEffect(() => {
+    if (currentIndex >= games.length && games.length > 0) {
+      setCurrentIndex(games.length - 1);
+    }
+  }, [games.length, currentIndex]);
+
   // Listen for real-time game events
   useEffect(() => {
     if (!socket) return;
@@ -156,6 +163,20 @@ export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGam
   }
 
   const currentGame = games[currentIndex];
+
+  // Guard against undefined currentGame (can happen during state transitions)
+  if (!currentGame) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.sectionTitle}>Proximos Juegos</Text>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FFD700" />
+          <Text style={styles.loadingText}>Actualizando...</Text>
+        </View>
+      </View>
+    );
+  }
+
   const joinedInfo = joinedGames[currentGame.id];
   const isJoined = !!joinedInfo;
 

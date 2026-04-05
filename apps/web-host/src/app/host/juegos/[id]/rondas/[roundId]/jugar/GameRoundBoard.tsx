@@ -46,6 +46,7 @@ export default function GameRoundBoard({
   const [players, setPlayers] = useState<RoundPlayer[]>(initialPlayers);
   const [winners, setWinners] = useState<WinnerInfo[]>([]);
   const [showPostWinnerWarning, setShowPostWinnerWarning] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
 
   const config = CARD_TYPE_CONFIG[cardType];
 
@@ -75,7 +76,7 @@ export default function GameRoundBoard({
   const availableNumbers = allNumbers.filter((n) => !drawnNumbers.includes(n));
 
   const drawRandomNumber = async () => {
-    if (availableNumbers.length === 0 || isFinished) return;
+    if (availableNumbers.length === 0 || isFinished || isDrawing) return;
 
     // If there are winners and warning not yet shown, show warning first
     if (winners.length > 0 && !showPostWinnerWarning) {
@@ -86,6 +87,7 @@ export default function GameRoundBoard({
     const randomIndex = Math.floor(Math.random() * availableNumbers.length);
     const number = availableNumbers[randomIndex];
 
+    setIsDrawing(true);
     try {
       const response = await fetch(`/api/rounds/${roundId}/draw`, {
         method: "POST",
@@ -115,15 +117,20 @@ export default function GameRoundBoard({
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setIsDrawing(false);
     }
   };
 
   const handleContinueDrawing = async () => {
     setShowPostWinnerWarning(false);
 
+    if (isDrawing) return;
+
     const randomIndex = Math.floor(Math.random() * availableNumbers.length);
     const number = availableNumbers[randomIndex];
 
+    setIsDrawing(true);
     try {
       const response = await fetch(`/api/rounds/${roundId}/draw`, {
         method: "POST",
@@ -148,6 +155,8 @@ export default function GameRoundBoard({
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setIsDrawing(false);
     }
   };
 
@@ -225,10 +234,10 @@ export default function GameRoundBoard({
           <>
             <button
               onClick={drawRandomNumber}
-              disabled={availableNumbers.length === 0 || isPending}
+              disabled={availableNumbers.length === 0 || isPending || isDrawing}
               className={`btn-draw ${winners.length > 0 ? "has-winner" : ""}`}
             >
-              {isPending ? "Sacando..." : "Sacar Número"}
+              {isDrawing ? "Sacando..." : "Sacar Número"}
               {winners.length > 0 && " (Hay ganador)"}
             </button>
             <button onClick={endRound} disabled={isPending} className="btn-end">

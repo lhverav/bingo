@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getScheduledGames, getGame, getMyJoinedGames } from "../controllers/games.controller";
+import { getScheduledGames, getGame, getMyJoinedGames, getActiveRounds } from "../controllers/games.controller";
 
 const router = Router();
 
@@ -8,6 +8,12 @@ const router = Router();
  * Get all upcoming scheduled games with their rounds
  */
 router.get("/", getScheduledGames);
+
+/**
+ * GET /games/active-rounds
+ * Get all active rounds (for "Juegos en Curso" tab)
+ */
+router.get("/active-rounds", getActiveRounds);
 
 /**
  * GET /games/joined/:mobileUserId

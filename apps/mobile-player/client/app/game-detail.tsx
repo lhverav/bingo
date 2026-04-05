@@ -36,7 +36,7 @@ export default function GameDetailScreen() {
     onLeftGame: (data) => {
       console.log("[game-detail] Left game:", data);
       removeJoinedGame(data.gameId);
-      router.replace("/(tabs)/mis-juegos");
+      router.replace("/main");
     },
     onGameLeaveError: (error) => {
       console.error("[game-detail] Leave game error:", error.message);
@@ -74,7 +74,7 @@ export default function GameDetailScreen() {
     useCallback(() => {
       const onBackPress = () => {
         console.log("[game-detail] Back button pressed, navigating to mis-juegos");
-        router.replace("/(tabs)/mis-juegos");
+        router.replace("/main");
         return true; // Prevent default behavior (app exit)
       };
 
@@ -128,37 +128,6 @@ export default function GameDetailScreen() {
     }
   };
 
-  // Bottom navigation component (reusable)
-  const BottomNavBar = () => (
-    <View style={styles.bottomNav}>
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() => router.replace("/(tabs)/proximos-juegos")}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="calendar-outline" size={26} color="#888" />
-        <Text style={styles.navLabel}>Proximos</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() => router.replace("/(tabs)/mis-juegos")}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="game-controller" size={26} color="#FFD700" />
-        <Text style={[styles.navLabel, styles.navLabelActive]}>Mis Juegos</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.navItem}
-        onPress={() => router.replace("/(tabs)/perfil")}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="person-outline" size={26} color="#888" />
-        <Text style={styles.navLabel}>Perfil</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   if (loading) {
     return (
@@ -167,7 +136,6 @@ export default function GameDetailScreen() {
           <ActivityIndicator size="large" color="#FFD700" />
           <Text style={styles.loadingText}>Cargando juego...</Text>
         </View>
-        <BottomNavBar />
       </View>
     );
   }
@@ -181,11 +149,10 @@ export default function GameDetailScreen() {
           <TouchableOpacity style={styles.retryButton} onPress={loadGame}>
             <Text style={styles.retryButtonText}>Reintentar</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/(tabs)/mis-juegos")}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.replace("/main")}>
             <Text style={styles.backButtonText}>Volver</Text>
           </TouchableOpacity>
         </View>
-        <BottomNavBar />
       </View>
     );
   }
@@ -198,7 +165,7 @@ export default function GameDetailScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Header with back button */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backArrow} onPress={() => router.replace("/(tabs)/mis-juegos")}>
+        <TouchableOpacity style={styles.backArrow} onPress={() => router.replace("/main")}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{game.name}</Text>
@@ -308,8 +275,6 @@ export default function GameDetailScreen() {
         </View>
       )}
     </ScrollView>
-
-    <BottomNavBar />
   </View>
   );
 }
@@ -599,33 +564,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#D32F2F",
-  },
-  bottomNav: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#ddd",
-    paddingBottom: 34,
-    paddingTop: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 8,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-  },
-  navLabel: {
-    fontSize: 12,
-    color: "#666",
-    marginTop: 6,
-  },
-  navLabelActive: {
-    color: "#333",
-    fontWeight: "700",
   },
 });

@@ -51,7 +51,7 @@ interface GameContextValue extends GameState {
   // Actions
   setRoundInfo: (roundId: string, playerId: string, playerCode: string) => void;
   setGameInfo: (gameId: string, playerId: string, playerCode: string, cardType: 'bingo' | 'bingote') => void;
-  setCards: (cards: Card[], deadline: Date) => void;
+  setCards: (cards: Card[], deadline: Date | null) => void;
   setSelectedCards: (cardIds: string[]) => void;
   setRoundPattern: (pattern: string, patternCells?: boolean[][]) => void;
   setCardType: (cardType: 'bingo' | 'bingote') => void;
@@ -155,7 +155,7 @@ export function GameProvider({ children }: GameProviderProps) {
     }));
   }, []);
 
-  const setCards = useCallback((cards: Card[], deadline: Date) => {
+  const setCards = useCallback((cards: Card[], deadline: Date | null) => {
     setState(prev => ({
       ...prev,
       cards,

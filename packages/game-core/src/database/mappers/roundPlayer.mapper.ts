@@ -32,9 +32,9 @@ export class RoundPlayerMapper {
       roundId: data.roundId,
       mobileUserId: data.mobileUserId,
       playerCode: data.playerCode,
-      status: 'joined',
+      status: data.status || 'joined',
       lockedCardIds: data.lockedCardIds || [],
-      selectedCardIds: [],
+      selectedCardIds: data.selectedCardIds || [],
       selectionDeadline: data.selectionDeadline,
       joinedAt: new Date(),
     };

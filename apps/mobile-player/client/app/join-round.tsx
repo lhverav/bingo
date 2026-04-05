@@ -84,7 +84,7 @@ export default function JoinRoundScreen() {
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        router.replace("/(tabs)");
+        router.replace("/main");
         return true;
       };
       const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
@@ -98,7 +98,7 @@ export default function JoinRoundScreen() {
         <Text style={styles.errorText}>
           {errorMessage || "Error al unirse a la ronda"}
         </Text>
-        <Text style={styles.backLink} onPress={() => router.replace("/(tabs)")}>
+        <Text style={styles.backLink} onPress={() => router.replace("/main")}>
           Volver
         </Text>
       </View>

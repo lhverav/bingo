@@ -91,7 +91,7 @@ export default function CardSelectionScreen() {
         [
           {
             text: "OK",
-            onPress: () => router.replace("/(tabs)/proximos-juegos"),
+            onPress: () => router.replace("/main"),
           },
         ]
       );
@@ -133,7 +133,7 @@ export default function CardSelectionScreen() {
         [
           {
             text: "OK",
-            onPress: () => router.replace("/(tabs)/proximos-juegos"),
+            onPress: () => router.replace("/main"),
           },
         ]
       );
@@ -146,7 +146,7 @@ export default function CardSelectionScreen() {
       Alert.alert("Tiempo Agotado", message, [
         {
           text: "OK",
-          onPress: () => router.replace("/(tabs)/proximos-juegos"),
+          onPress: () => router.replace("/main"),
         },
       ]);
     },
@@ -267,7 +267,7 @@ export default function CardSelectionScreen() {
   };
 
   const handleGoBack = () => {
-    router.replace("/(tabs)/proximos-juegos");
+    router.replace("/main");
   };
 
   // =========================================================================

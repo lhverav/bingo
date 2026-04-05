@@ -14,8 +14,9 @@ import { useRoundStartNotification } from '@/hooks';
  *    - Screens: login, register, profile setup
  *
  * 2. APP FLOW (authenticated users):
- *    - index -> (tabs)/* screens
- *    - Screens: tabs, game-detail, join-round, card-selection, game
+ *    - index -> /main screen (with Chrome-style internal tabs)
+ *    - Main tabs: "Proximos Juegos" and "Juegos en Curso"
+ *    - Game screens: game-detail, join-round, card-selection, game
  *
  * The root index.tsx acts as a navigation guard, checking auth state
  * and redirecting to the appropriate flow. Using router.replace()
@@ -80,9 +81,9 @@ export default function RootLayout() {
               {/* APP FLOW - Only for authenticated users       */}
               {/* ============================================== */}
 
-              {/* Main Tab Navigation */}
+              {/* Main Screen with internal tabs */}
               <Stack.Screen
-                name="(tabs)"
+                name="main"
                 options={{
                   headerShown: false,
                   // Prevent back gesture to auth screens
@@ -90,7 +91,14 @@ export default function RootLayout() {
                 }}
               />
 
-              {/* Legacy home screen - redirect to tabs */}
+              {/* Legacy screens - kept for backwards compatibility */}
+              <Stack.Screen
+                name="(tabs)"
+                options={{
+                  headerShown: false,
+                  gestureEnabled: false,
+                }}
+              />
               <Stack.Screen
                 name="home"
                 options={{

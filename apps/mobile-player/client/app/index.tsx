@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts';
  *
  * This is the entry point of the app. It checks authentication state
  * and redirects to the appropriate flow:
- * - Authenticated users -> Main app (tabs)
+ * - Authenticated users -> Main screen with internal tabs
  * - Non-authenticated users -> Auth flow
  *
  * This ensures auth and app flows are completely isolated.
@@ -26,7 +26,7 @@ export default function RootIndex() {
 
   // Redirect based on auth state
   if (isAuthenticated) {
-    return <Redirect href="/(tabs)/proximos-juegos" />;
+    return <Redirect href="/main" />;
   }
 
   return <Redirect href="/(auth)" />;

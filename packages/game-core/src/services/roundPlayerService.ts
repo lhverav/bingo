@@ -1,5 +1,5 @@
 import { RoundPlayer, CreateRoundPlayerData, BunchCard, Round, Game, GeneralParameters } from '@bingo/domain';
-import { roundPlayerRepository, bunchCardRepository, roundRepository, gameRepository, generalParametersRepository } from '../repositories';
+import { roundPlayerRepository, bunchCardRepository, roundRepository, gameRepository, generalParametersRepository, gamePlayerRepository } from '../repositories';
 
 /**
  * RoundPlayer service - Business logic for player operations in rounds
@@ -118,8 +118,11 @@ export interface JoinRoundResult {
 }
 
 /**
- * Join a round - creates player record only (no cards yet)
+ * Join a round - creates player record
  * Returns existing player if mobileUserId already joined this round
+ *
+ * NEW: If user has game-level cards (GamePlayer.cardIds), use those directly
+ * and mark the RoundPlayer as 'ready' - skipping round-level card selection
  */
 export async function joinRound(input: JoinRoundInput): Promise<JoinRoundResult> {
   const context = await getRoundContext(input.roundId);
@@ -127,7 +130,7 @@ export async function joinRound(input: JoinRoundInput): Promise<JoinRoundResult>
     throw new Error('Ronda no encontrada');
   }
 
-  const { round } = context;
+  const { round, game } = context;
 
   if (round.status !== 'en_progreso') {
     throw new Error('La ronda no esta disponible para unirse');
@@ -146,17 +149,39 @@ export async function joinRound(input: JoinRoundInput): Promise<JoinRoundResult>
     }
   }
 
-  // Generate unique player code
-  const playerCode = await generateUniquePlayerCode(input.roundId);
+  // Check if user has game-level cards (GamePlayer with cardIds)
+  let gameLevelCardIds: string[] = [];
+  let gamePlayerCode: string | null = null;
 
-  // Create the player (no cards yet, status: 'joined')
+  if (input.mobileUserId) {
+    const gamePlayer = await gamePlayerRepository.findByGameAndMobileUser(
+      game.id,
+      input.mobileUserId
+    );
+
+    if (gamePlayer && gamePlayer.cardIds.length > 0) {
+      // User has game-level cards - use them for this round
+      gameLevelCardIds = gamePlayer.cardIds;
+      gamePlayerCode = gamePlayer.playerCode;
+      console.log(`[joinRound] User has ${gameLevelCardIds.length} game-level cards, using them for round`);
+    }
+  }
+
+  // Use game-level player code if available, otherwise generate new one
+  const playerCode = gamePlayerCode || await generateUniquePlayerCode(input.roundId);
+
+  // Create the player with or without cards
   const createData: CreateRoundPlayerData = {
     roundId: input.roundId,
     mobileUserId: input.mobileUserId,
     playerCode,
-    // No lockedCardIds - cards come later via requestCards()
-    // No selectionDeadline - set when cards are requested
   };
+
+  // If user has game-level cards, set them directly and mark as 'ready'
+  if (gameLevelCardIds.length > 0) {
+    createData.selectedCardIds = gameLevelCardIds;
+    createData.status = 'ready';
+  }
 
   const player = await roundPlayerRepository.create(createData);
 

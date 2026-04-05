@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getUpcomingGames, getGameById, roundRepository, patternRepository, getJoinedGames } from "@bingo/game-core";
+import { getUpcomingGames, getGameById, roundRepository, patternRepository, getJoinedGames, gameRepository } from "@bingo/game-core";
 import { Game, Round, GamePlayer } from "@bingo/domain";
 
 /**
@@ -163,5 +163,68 @@ export async function getMyJoinedGames(req: Request, res: Response) {
   } catch (error) {
     console.error("Error getting joined games:", error);
     res.status(500).json({ error: "Error al obtener juegos unidos" });
+  }
+}
+
+/**
+ * Active round info for "Juegos en Curso" tab
+ */
+export interface ActiveRoundInfo {
+  id: string;
+  name: string;
+  order: number;
+  status: string;
+  patternName?: string;
+  gameName: string;
+  gameId: string;
+  cardType: "bingo" | "bingote";
+}
+
+/**
+ * Get all active rounds (rounds with status 'en_progreso')
+ */
+export async function getActiveRounds(req: Request, res: Response) {
+  try {
+    // Get all active games
+    const games = await gameRepository.findByStatus("active");
+
+    const activeRounds: ActiveRoundInfo[] = [];
+
+    for (const game of games) {
+      // Get rounds for this game that are in progress
+      const rounds = await roundRepository.findByGameId(game.id);
+      const activeGameRounds = rounds.filter((r) => r.status === "en_progreso");
+
+      // Get patterns for this game's card type
+      const patterns = await patternRepository.findByCardType(game.cardType);
+      const patternMap = new Map(patterns.map((p) => [p.id, p]));
+
+      for (const round of activeGameRounds) {
+        const pattern = patternMap.get(round.patternId);
+        activeRounds.push({
+          id: round.id,
+          name: round.name,
+          order: round.order,
+          status: round.status,
+          patternName: pattern?.name,
+          gameName: game.name,
+          gameId: game.id,
+          cardType: game.cardType,
+        });
+      }
+    }
+
+    // Sort by game name and round order
+    activeRounds.sort((a, b) => {
+      if (a.gameName !== b.gameName) {
+        return a.gameName.localeCompare(b.gameName);
+      }
+      return a.order - b.order;
+    });
+
+    res.json(activeRounds);
+  } catch (error) {
+    console.error("Error getting active rounds:", error);
+    res.status(500).json({ error: "Error al obtener rondas activas" });
   }
 }

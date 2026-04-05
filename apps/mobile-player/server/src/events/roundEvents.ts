@@ -5,6 +5,7 @@ import {
   selectCards,
   handleTimeout,
   getPlayerById,
+  getPlayerCards,
   roundRepository,
   patternRepository,
 } from "@bingo/game-core";
@@ -55,16 +56,25 @@ export function registerRoundEvents(io: Server, socket: Socket) {
       (socket as any).roundId = roundId;
       (socket as any).playerCode = result.player.playerCode;
 
-      // Send confirmation to the player with pattern info
+      // If player is already ready (has game-level cards), fetch the card data
+      let cards: { id: string; cells: number[][] }[] = [];
+      if (result.player.status === "ready" && result.player.selectedCardIds.length > 0) {
+        const playerCards = await getPlayerCards(result.player.id);
+        cards = playerCards.map((c) => ({ id: c.id, cells: c.cells }));
+      }
+
+      // Send confirmation to the player with pattern info and cards (if ready)
       socket.emit("player:joined", {
         player: {
           id: result.player.id,
           playerCode: result.player.playerCode,
           status: result.player.status,
+          selectedCardIds: result.player.selectedCardIds,
         },
         isReconnect: result.isReconnect,
         roundPattern,
         patternCells,
+        cards, // Include cards if player is ready
       });
 
       // Notify others in the round (only for new players, not reconnects)
