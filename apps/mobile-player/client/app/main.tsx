@@ -62,6 +62,9 @@ export default function MainScreen() {
   const [loadingRounds, setLoadingRounds] = useState(false);
   const [refreshingRounds, setRefreshingRounds] = useState(false);
 
+  // Refresh trigger for GameCarousel (increments when game events occur)
+  const [gamesRefreshTrigger, setGamesRefreshTrigger] = useState(0);
+
   // Currently playing round (inline game view)
   const [playingRound, setPlayingRound] = useState<ActiveRound | null>(null);
 
@@ -85,17 +88,21 @@ export default function MainScreen() {
     },
   });
 
-  // Listen for game lifecycle events to refresh active rounds
+  // Listen for game lifecycle events to refresh lists
+  // Always fetch regardless of tab - data will be ready when user switches
   useGameLifecycleEvents({
+    onGameCreated: () => {
+      console.log("[main] Game created, triggering games refresh");
+      setGamesRefreshTrigger((prev) => prev + 1);
+    },
     onGameStatusChanged: () => {
-      if (activeTab === "en-curso") {
-        fetchActiveRounds();
-      }
+      console.log("[main] Game status changed, refreshing lists");
+      fetchActiveRounds();
+      setGamesRefreshTrigger((prev) => prev + 1);
     },
     onRoundStatusChanged: () => {
-      if (activeTab === "en-curso") {
-        fetchActiveRounds();
-      }
+      console.log("[main] Round status changed, refreshing active rounds");
+      fetchActiveRounds();
     },
   });
 
@@ -264,6 +271,7 @@ export default function MainScreen() {
               onLeaveGame={handleLeaveGame}
               onSelectCards={handleSelectCards}
               joinedGames={joinedGames}
+              refreshTrigger={gamesRefreshTrigger}
             />
           </ScrollView>
         ) : playingRound ? (
@@ -273,6 +281,7 @@ export default function MainScreen() {
             roundName={playingRound.name}
             gameName={playingRound.gameName}
             patternName={playingRound.patternName}
+            cardType={playingRound.cardType}
             onExit={handleExitRound}
           />
         ) : (

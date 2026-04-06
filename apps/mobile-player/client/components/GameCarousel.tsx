@@ -14,9 +14,10 @@ interface GameCarouselProps {
   onLeaveGame: (gameId: string) => void;
   onSelectCards: (gameId: string) => void;
   joinedGames: Record<string, JoinedGameInfo>;
+  refreshTrigger?: number; // Increments when external refresh is needed
 }
 
-export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGames }: GameCarouselProps) {
+export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGames, refreshTrigger }: GameCarouselProps) {
   const [games, setGames] = useState<GameWithRounds[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -42,6 +43,14 @@ export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGam
     loadGames();
   }, [loadGames]);
 
+  // Refresh games when external trigger changes (e.g., game created event from another tab)
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      console.log("[GameCarousel] External refresh triggered");
+      loadGames();
+    }
+  }, [refreshTrigger, loadGames]);
+
   // Reset currentIndex when games array shrinks
   useEffect(() => {
     if (currentIndex >= games.length && games.length > 0) {
@@ -51,7 +60,12 @@ export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGam
 
   // Listen for real-time game events
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      console.log("[GameCarousel] Socket not available yet");
+      return;
+    }
+
+    console.log("[GameCarousel] Setting up socket listeners, connected:", socket.connected);
 
     const handleGameCreated = () => {
       console.log("🎮 New game created, refreshing list...");

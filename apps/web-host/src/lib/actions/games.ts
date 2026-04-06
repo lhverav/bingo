@@ -49,7 +49,9 @@ export async function createGameAction(formData: FormData) {
 
     // Notify mobile players about new game
     try {
-      await fetch(`${process.env.MOBILE_SERVER_URL || 'http://localhost:3001'}/notify`, {
+      const notifyUrl = `${process.env.MOBILE_SERVER_URL || 'http://localhost:3001'}/notify`;
+      console.log(`[games] Sending GAME_CREATED notification to ${notifyUrl}`);
+      const notifyResponse = await fetch(notifyUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -64,8 +66,9 @@ export async function createGameAction(formData: FormData) {
           },
         }),
       });
+      console.log(`[games] GAME_CREATED notification response:`, notifyResponse.status);
     } catch (notifyError) {
-      console.error("Error notifying mobile players:", notifyError);
+      console.error("[games] Error notifying mobile players:", notifyError);
     }
   } catch (error) {
     const message =

@@ -8,6 +8,7 @@ import {
   Modal,
   Pressable,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import { useState, useCallback, useRef, useEffect } from "react";
 import * as Haptics from "expo-haptics";
@@ -22,6 +23,19 @@ const PATTERN_LABELS: Record<string, string> = {
   diagonal: "Diagonal",
   completo: "Carton Completo",
   figura_especial: "Figura Especial",
+};
+
+// Layout constants for responsive design
+const CONTAINER_PADDING = 12; // matches container padding
+const SIDEBAR_WIDTH = 50; // width for mini cards sidebar
+const SIDEBAR_MARGIN = 16; // margin/gap between card and sidebar
+
+// Calculate available card width based on screen size
+const calculateCardWidth = (screenWidth: number, hasSidebar: boolean): number => {
+  if (!hasSidebar) {
+    return screenWidth - (CONTAINER_PADDING * 2);
+  }
+  return screenWidth - (CONTAINER_PADDING * 2) - SIDEBAR_WIDTH - SIDEBAR_MARGIN;
 };
 
 // Letter ranges for bingo (5x5) and bingote (7x5)
@@ -59,6 +73,7 @@ interface InlineGameViewProps {
   roundName: string;
   gameName: string;
   patternName?: string;
+  cardType: 'bingo' | 'bingote';
   onExit: () => void;
 }
 
@@ -67,6 +82,7 @@ export function InlineGameView({
   roundName,
   gameName,
   patternName,
+  cardType: propCardType,
   onExit,
 }: InlineGameViewProps) {
   const { user } = useAuth();
@@ -80,6 +96,10 @@ export function InlineGameView({
     roundPattern,
     patternCells,
     cardType,
+    drawnNumbers,
+    lastDrawn,
+    markedNumbers,
+    roundPlayStatus,
     setRoundInfo,
     setRoundPattern,
     setCards,
@@ -87,18 +107,26 @@ export function InlineGameView({
     setWinningCards,
     setIsWinner,
     clearGame,
+    addDrawnNumber,
+    markNumber,
+    setRoundPlayStatus,
   } = useGame();
 
   const isConnected = useConnectionState();
-
-  const [drawnNumbers, setDrawnNumbers] = useState<number[]>([]);
-  const [lastDrawn, setLastDrawn] = useState<number | null>(null);
-  const [markedNumbers, setMarkedNumbers] = useState<Record<string, number[]>>({});
-  const [gameStatus, setGameStatus] = useState<"joining" | "waiting" | "playing" | "ended">("joining");
   const [showPatternPopup, setShowPatternPopup] = useState(false);
   const [screenFrozen, setScreenFrozen] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const [screenWidth, setScreenWidth] = useState(Dimensions.get("window").width);
   const joinAttemptedRef = useRef(false);
+
+  // Listen for screen dimension changes (e.g., rotation)
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener("change", ({ window }) => {
+      setScreenWidth(window.width);
+    });
+    return () => subscription.remove();
+  }, []);
 
   // Animation for BINGO button
   const bingoButtonScale = useRef(new Animated.Value(1)).current;
@@ -106,12 +134,12 @@ export function InlineGameView({
   // Filter cards to only show selected ones
   const selectedCards = cards.filter((card) => selectedCardIds.includes(card.id));
 
-  // Play sound and vibration for ball announcement
+  // Play vibration for ball announcement
   const playBallNotification = useCallback(async () => {
     try {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
-      console.log("Notification feedback error:", error);
+      console.log("Haptic feedback error:", error);
     }
   }, []);
 
@@ -157,7 +185,7 @@ export function InlineGameView({
           setCards(data.cards, null);
           setSelectedCards(data.player.selectedCardIds || data.cards.map((c: { id: string }) => c.id));
         }
-        setGameStatus("waiting");
+        setRoundPlayStatus("waiting");
       } else {
         // Need to request cards - but for inline view, we expect game-level cards
         setJoinError("No tienes cartones seleccionados para este juego");
@@ -166,12 +194,12 @@ export function InlineGameView({
     onCardsDelivered: (data) => {
       console.log("[InlineGameView] Cards delivered:", data);
       setCards(data.cards, new Date(data.deadline));
-      setGameStatus("waiting");
+      setRoundPlayStatus("waiting");
     },
     onCardsConfirmed: (data) => {
       console.log("[InlineGameView] Cards confirmed:", data);
       setSelectedCards(data.selectedCardIds);
-      setGameStatus("waiting");
+      setRoundPlayStatus("waiting");
     },
     onError: (error) => {
       console.error("[InlineGameView] Error:", error.message);
@@ -183,13 +211,12 @@ export function InlineGameView({
   const { leaveRound } = useGameSocket({
     onGameStarted: () => {
       console.log("[InlineGameView] Game started");
-      setGameStatus("playing");
+      setRoundPlayStatus("playing");
     },
     onBallAnnounced: (event) => {
       console.log("[InlineGameView] Ball announced:", event.number);
-      setDrawnNumbers((prev) => [...prev, event.number]);
-      setLastDrawn(event.number);
-      setGameStatus("playing");
+      addDrawnNumber(event.number);
+      setRoundPlayStatus("playing");
       playBallNotification();
     },
     onWinnersDetected: (event) => {
@@ -198,37 +225,40 @@ export function InlineGameView({
     },
     onGameEnding: (event) => {
       console.log("[InlineGameView] Game ending");
-      setGameStatus("ended");
+      setRoundPlayStatus("ended");
     },
     onError: (error) => {
       console.error("[InlineGameView] Server error:", error.message);
     },
   });
 
-  // Join round on mount
+  // Join round on mount (only if not already playing)
   useEffect(() => {
-    if (!isConnected || joinAttemptedRef.current) return;
+    // Skip if not connected
+    if (!isConnected) return;
+
+    // Skip if already joined this round (status is waiting, playing, or ended)
+    if (roundPlayStatus !== "idle" && roundPlayStatus !== "joining") {
+      console.log("[InlineGameView] Already in round, status:", roundPlayStatus);
+      return;
+    }
+
+    // Skip if already attempted join in this session
+    if (joinAttemptedRef.current) return;
 
     joinAttemptedRef.current = true;
+    setRoundPlayStatus("joining");
     console.log("[InlineGameView] Joining round:", roundId, "user:", user?.id);
     joinRound(roundId, user?.id);
-  }, [isConnected, roundId, joinRound, user?.id]);
+  }, [isConnected, roundId, joinRound, user?.id, roundPlayStatus, setRoundPlayStatus]);
 
   const handleMarkNumber = useCallback(
     (cardId: string, number: number) => {
       if (screenFrozen) return;
       if (!drawnNumbers.includes(number)) return;
-
-      setMarkedNumbers((prev) => {
-        const cardMarks = prev[cardId] || [];
-        if (cardMarks.includes(number)) return prev;
-        return {
-          ...prev,
-          [cardId]: [...cardMarks, number],
-        };
-      });
+      markNumber(cardId, number);
     },
-    [drawnNumbers, screenFrozen]
+    [drawnNumbers, screenFrozen, markNumber]
   );
 
   const handleClaimBingo = useCallback(() => {
@@ -257,7 +287,7 @@ export function InlineGameView({
       return patternCells;
     }
 
-    const cols = cardType === 'bingote' ? 7 : 5;
+    const cols = propCardType === 'bingote' ? 7 : 5;
     const rows = 5;
     const mask: boolean[][] = Array(rows)
       .fill(null)
@@ -296,8 +326,8 @@ export function InlineGameView({
     return mask;
   };
 
-  // Joining state
-  if (gameStatus === "joining") {
+  // Joining state (idle or joining)
+  if (roundPlayStatus === "idle" || roundPlayStatus === "joining") {
     if (joinError) {
       return (
         <View style={styles.centerContainer}>
@@ -352,11 +382,11 @@ export function InlineGameView({
 
       {/* Status indicator */}
       <View style={styles.statusContainer}>
-        <View style={[styles.statusDot, gameStatus === "playing" ? styles.statusDotActive : styles.statusDotWaiting]} />
+        <View style={[styles.statusDot, roundPlayStatus === "playing" ? styles.statusDotActive : styles.statusDotWaiting]} />
         <Text style={styles.statusText}>
-          {gameStatus === "waiting" && "Esperando inicio..."}
-          {gameStatus === "playing" && "En juego"}
-          {gameStatus === "ended" && "Finalizado"}
+          {roundPlayStatus === "waiting" && "Esperando inicio..."}
+          {roundPlayStatus === "playing" && "En juego"}
+          {roundPlayStatus === "ended" && "Finalizado"}
         </Text>
       </View>
 
@@ -368,7 +398,7 @@ export function InlineGameView({
           <View style={styles.lastDrawnBall}>
             {lastDrawn !== null ? (
               <>
-                <Text style={styles.lastDrawnLetter}>{getLetterForNumber(lastDrawn, cardType)}</Text>
+                <Text style={styles.lastDrawnLetter}>{getLetterForNumber(lastDrawn, propCardType)}</Text>
                 <Text style={styles.lastDrawnNumber}>{lastDrawn}</Text>
               </>
             ) : (
@@ -390,7 +420,7 @@ export function InlineGameView({
             <View style={styles.drawnNumbersList}>
               {drawnNumbers.map((num, index) => (
                 <View key={index} style={styles.drawnNumberBadge}>
-                  <Text style={styles.drawnNumberLetter}>{getLetterForNumber(num, cardType)}</Text>
+                  <Text style={styles.drawnNumberLetter}>{getLetterForNumber(num, propCardType)}</Text>
                   <Text style={styles.drawnNumberText}>{num}</Text>
                 </View>
               ))}
@@ -433,32 +463,73 @@ export function InlineGameView({
         </Pressable>
       </Modal>
 
-      {/* Player's cards */}
-      <Text style={styles.sectionLabel}>Tus Cartones</Text>
-      <ScrollView
-        style={styles.cardsContainer}
-        contentContainerStyle={styles.cardsContent}
-      >
+      {/* Player's cards - Split View */}
+      <View style={styles.splitViewContainer}>
         {selectedCards.length === 0 ? (
           <Text style={styles.noCards}>Cargando cartones...</Text>
         ) : (
-          selectedCards.map((card) => (
-            <View key={card.id} style={styles.cardWrapper}>
+          <>
+            {/* Main Card (Focus) */}
+            <View style={[
+              styles.mainCardContainer,
+              // Full width if no sidebar needed
+              selectedCards.length === 1 && styles.mainCardContainerFull
+            ]}>
               <BingoCard
-                id={card.id}
-                cells={card.cells}
-                markedNumbers={markedNumbers[card.id] || []}
-                onMarkNumber={(number) => handleMarkNumber(card.id, number)}
-                disabled={gameStatus !== "playing" || screenFrozen}
+                id={selectedCards[activeCardIndex]?.id || ""}
+                cells={selectedCards[activeCardIndex]?.cells || []}
+                markedNumbers={markedNumbers[selectedCards[activeCardIndex]?.id] || []}
+                onMarkNumber={(number) => handleMarkNumber(selectedCards[activeCardIndex]?.id, number)}
+                disabled={roundPlayStatus !== "playing" || screenFrozen}
+                maxWidth={calculateCardWidth(screenWidth, selectedCards.length > 1)}
               />
             </View>
-          ))
-        )}
-      </ScrollView>
 
-      {/* BINGO button */}
-      {gameStatus === "playing" && !screenFrozen && (
-        <Animated.View style={{ transform: [{ scale: bingoButtonScale }] }}>
+            {/* Mini Cards Sidebar (Overview) */}
+            {selectedCards.length > 1 && (
+              <View style={styles.miniCardsSidebarContainer}>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {selectedCards.map((card, index) => {
+                    const markedCount = (markedNumbers[card.id] || []).length;
+                    const isActive = index === activeCardIndex;
+                    const isWinningCard = winningCardIds.includes(card.id);
+
+                    return (
+                      <TouchableOpacity
+                        key={card.id}
+                        style={[
+                          styles.miniCard,
+                          isActive && styles.miniCardActive,
+                          isWinningCard && styles.miniCardWinner,
+                        ]}
+                        onPress={() => setActiveCardIndex(index)}
+                      >
+                        <Text style={[styles.miniCardNumber, isActive && styles.miniCardNumberActive]}>
+                          {index + 1}
+                        </Text>
+                        <View style={styles.miniCardProgress}>
+                          <View
+                            style={[
+                              styles.miniCardProgressBar,
+                              { width: `${Math.min((markedCount / 24) * 100, 100)}%` }
+                            ]}
+                          />
+                        </View>
+                        <Text style={styles.miniCardCount}>{markedCount}</Text>
+                        {isWinningCard && <Text style={styles.miniCardWinnerBadge}>★</Text>}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+          </>
+        )}
+      </View>
+
+      {/* BINGO button - positioned at bottom */}
+      {roundPlayStatus === "playing" && !screenFrozen && (
+        <Animated.View style={[styles.bingoButtonContainer, { transform: [{ scale: bingoButtonScale }] }]}>
           <TouchableOpacity style={styles.bingoButton} onPress={handleClaimBingo}>
             <Text style={styles.bingoButtonText}>BINGO!!!</Text>
           </TouchableOpacity>
@@ -672,60 +743,120 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   drawnNumberBadge: {
-    minWidth: 32,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+    minWidth: 36,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: "#e0e0e0",
+    backgroundColor: "#f5f5f5",
     justifyContent: "center",
     alignItems: "center",
   },
   drawnNumberLetter: {
-    fontSize: 9,
-    fontWeight: "600",
-    color: "#888",
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#3498db",
   },
   drawnNumberText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "bold",
     color: "#333",
-    marginTop: -1,
   },
-  cardsContainer: {
+  // Split View Styles
+  splitViewContainer: {
     flex: 1,
-  },
-  cardsContent: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 10,
-    paddingBottom: 10,
+    alignItems: "flex-start",
+    paddingBottom: 85, // Space for BINGO button (lifted higher for device buttons)
   },
-  cardWrapper: {
+  mainCardContainer: {
+    flex: 1,
     alignItems: "center",
+    justifyContent: "flex-start",
+  },
+  mainCardContainerFull: {
+    // When there's only one card, center it with full width
+    paddingHorizontal: 0,
+  },
+  miniCardsSidebarContainer: {
+    width: SIDEBAR_WIDTH,
+    marginLeft: SIDEBAR_MARGIN,
+  },
+  miniCard: {
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 6,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#ddd",
+    width: SIDEBAR_WIDTH - 8, // account for margin
+  },
+  miniCardActive: {
+    borderColor: "#FFD700",
+    backgroundColor: "#fffef0",
+  },
+  miniCardWinner: {
+    borderColor: "#27ae60",
+    backgroundColor: "#e8f8e8",
+  },
+  miniCardNumber: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#666",
+  },
+  miniCardNumberActive: {
+    color: "#333",
+  },
+  miniCardProgress: {
+    width: "100%",
+    height: 4,
+    backgroundColor: "#ddd",
+    borderRadius: 2,
+    marginVertical: 4,
+    overflow: "hidden",
+  },
+  miniCardProgressBar: {
+    height: "100%",
+    backgroundColor: "#FFD700",
+    borderRadius: 2,
+  },
+  miniCardCount: {
+    fontSize: 10,
+    color: "#888",
+  },
+  miniCardWinnerBadge: {
+    fontSize: 12,
+    color: "#FFD700",
+    marginTop: 2,
   },
   noCards: {
     fontSize: 14,
     color: "#666",
     textAlign: "center",
     marginTop: 20,
+    flex: 1,
+  },
+  bingoButtonContainer: {
+    position: "absolute",
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: "center",
   },
   bingoButton: {
     backgroundColor: "#e74c3c",
-    paddingVertical: 14,
-    paddingHorizontal: 50,
-    borderRadius: 25,
-    alignSelf: "center",
-    marginVertical: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 40,
+    borderRadius: 20,
     shadowColor: "#c0392b",
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
-    shadowRadius: 5,
-    elevation: 6,
+    shadowRadius: 4,
+    elevation: 5,
   },
   bingoButtonText: {
     color: "#fff",
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "bold",
   },
   homeButton: {

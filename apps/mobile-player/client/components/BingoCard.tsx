@@ -24,6 +24,7 @@ interface BingoCardProps {
   onMarkNumber?: (number: number) => void;
   disabled?: boolean;
   compact?: boolean; // For smaller display in selection screen
+  maxWidth?: number; // Optional max width constraint
 }
 
 export default function BingoCard({
@@ -36,17 +37,22 @@ export default function BingoCard({
   onMarkNumber,
   disabled = false,
   compact = false,
+  maxWidth,
 }: BingoCardProps) {
   // Auto-detect card type from cells if not provided
   const detectedType: CardType = cardType || (cells[0]?.length === 7 ? 'bingote' : 'bingo');
   const config = CARD_CONFIG[detectedType];
 
-  // Calculate cell size based on card type and compact mode
+  // Calculate cell size based on card type, compact mode, and maxWidth
   const screenWidth = Dimensions.get('window').width;
-  const maxCardWidth = compact ? screenWidth * 0.42 : screenWidth - 60;
-  const cellSize = compact
-    ? Math.floor((maxCardWidth - 20) / config.columns) - 3
-    : Math.floor((maxCardWidth - 20) / config.columns) - 4;
+  const defaultMaxWidth = compact ? screenWidth * 0.42 : screenWidth - 40;
+  // Use explicit maxWidth if provided, otherwise fall back to default
+  const maxCardWidth = maxWidth || defaultMaxWidth;
+  // Account for card padding (10px each side = 20px total) and gap between cells (3px * columns)
+  const cardPadding = 20;
+  const cellGap = 3 * (config.columns - 1);
+  const availableWidth = maxCardWidth - cardPadding - cellGap;
+  const cellSize = Math.floor(availableWidth / config.columns);
   const fontSize = compact ? 12 : (cellSize > 35 ? 16 : 14);
   const headerFontSize = compact ? 10 : 14;
 
@@ -65,10 +71,14 @@ export default function BingoCard({
   const isSelectable = !!onSelect;
   const isMarkable = !!onMarkNumber;
 
+  // Calculate the actual card width based on cell sizes
+  const actualCardWidth = (cellSize * config.columns) + cellGap + cardPadding;
+
   return (
     <TouchableOpacity
       style={[
         styles.card,
+        { maxWidth: actualCardWidth },
         selected && styles.cardSelected,
         disabled && styles.cardDisabled,
       ]}

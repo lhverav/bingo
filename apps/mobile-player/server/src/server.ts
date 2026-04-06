@@ -154,17 +154,21 @@ app.post("/notify", (req, res) => {
       break;
 
     case "ROUND_STARTED":
-      // Broadcast to all connected clients
-      io.emit("notification", {
-        type: "ROUND_STARTED",
-        message: "¡Nueva ronda disponible!",
+      // Emit round:updated so "Juegos en Curso" list refreshes
+      io.emit("round:updated", {
+        gameId: data?.gameId,
         roundId: data?.roundId,
+        status: "en_progreso",
         timestamp,
       });
+      console.log(`Round ${data?.roundId} started in game ${data?.gameId}`);
       break;
 
     case "GAME_CREATED":
       // Notify all clients about new scheduled game
+      console.log(`[server] GAME_CREATED received, emitting game:created to all clients`);
+      const connectedSockets = io.sockets.sockets.size;
+      console.log(`[server] Connected clients: ${connectedSockets}`);
       io.emit("game:created", {
         gameId: data?.gameId,
         name: data?.name,
@@ -172,7 +176,7 @@ app.post("/notify", (req, res) => {
         scheduledAt: data?.scheduledAt,
         timestamp,
       });
-      console.log(`New game created: ${data?.name} (${data?.gameId})`);
+      console.log(`[server] New game created: ${data?.name} (${data?.gameId})`);
       break;
 
     case "GAME_STARTED":

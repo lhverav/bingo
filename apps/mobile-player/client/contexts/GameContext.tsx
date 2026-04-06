@@ -28,6 +28,8 @@ interface JoinedGameInfo {
   playerId: string;
 }
 
+type RoundPlayStatus = "idle" | "joining" | "waiting" | "playing" | "ended";
+
 interface GameState {
   roundId: string | null;
   playerId: string | null;
@@ -45,6 +47,11 @@ interface GameState {
   gameSummary: GameSummary | null;
   // Joined games tracking
   joinedGames: Record<string, JoinedGameInfo>;
+  // Round play state (persists across tab switches)
+  drawnNumbers: number[];
+  lastDrawn: number | null;
+  markedNumbers: Record<string, number[]>; // cardId -> marked numbers
+  roundPlayStatus: RoundPlayStatus;
 }
 
 interface GameContextValue extends GameState {
@@ -64,6 +71,11 @@ interface GameContextValue extends GameState {
   removeJoinedGame: (gameId: string) => void;
   isGameJoined: (gameId: string) => boolean;
   getJoinedGameInfo: (gameId: string) => JoinedGameInfo | null;
+  // Round play state management
+  addDrawnNumber: (number: number) => void;
+  setLastDrawn: (number: number | null) => void;
+  markNumber: (cardId: string, number: number) => void;
+  setRoundPlayStatus: (status: RoundPlayStatus) => void;
 }
 
 // =============================================================================
@@ -91,6 +103,11 @@ const initialState: GameState = {
   cardType: null,
   gameSummary: null,
   joinedGames: {},
+  // Round play state
+  drawnNumbers: [],
+  lastDrawn: null,
+  markedNumbers: {},
+  roundPlayStatus: "idle",
 };
 
 interface GameProviderProps {
@@ -212,6 +229,11 @@ export function GameProvider({ children }: GameProviderProps) {
       ...initialState,
       // Preserve joined games when clearing round state
       joinedGames: prev.joinedGames,
+      // Reset round play state
+      drawnNumbers: [],
+      lastDrawn: null,
+      markedNumbers: {},
+      roundPlayStatus: "idle",
     }));
   }, []);
 
@@ -243,6 +265,47 @@ export function GameProvider({ children }: GameProviderProps) {
     return state.joinedGames[gameId] || null;
   }, [state.joinedGames]);
 
+  // Round play state actions
+  const addDrawnNumber = useCallback((number: number) => {
+    setState(prev => ({
+      ...prev,
+      drawnNumbers: prev.drawnNumbers.includes(number)
+        ? prev.drawnNumbers
+        : [...prev.drawnNumbers, number],
+      lastDrawn: number,
+    }));
+  }, []);
+
+  const setLastDrawn = useCallback((number: number | null) => {
+    setState(prev => ({
+      ...prev,
+      lastDrawn: number,
+    }));
+  }, []);
+
+  const markNumber = useCallback((cardId: string, number: number) => {
+    setState(prev => {
+      const cardMarks = prev.markedNumbers[cardId] || [];
+      if (cardMarks.includes(number)) {
+        return prev; // Already marked
+      }
+      return {
+        ...prev,
+        markedNumbers: {
+          ...prev.markedNumbers,
+          [cardId]: [...cardMarks, number],
+        },
+      };
+    });
+  }, []);
+
+  const setRoundPlayStatus = useCallback((status: RoundPlayStatus) => {
+    setState(prev => ({
+      ...prev,
+      roundPlayStatus: status,
+    }));
+  }, []);
+
   const value: GameContextValue = {
     ...state,
     setRoundInfo,
@@ -259,6 +322,11 @@ export function GameProvider({ children }: GameProviderProps) {
     removeJoinedGame,
     isGameJoined,
     getJoinedGameInfo,
+    // Round play state
+    addDrawnNumber,
+    setLastDrawn,
+    markNumber,
+    setRoundPlayStatus,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
