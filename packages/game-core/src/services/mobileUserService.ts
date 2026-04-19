@@ -109,6 +109,33 @@ export async function loginWithEmail(
 }
 
 /**
+ * Login with phone number (for SMS-verified returning users)
+ * Returns null if phone not found
+ */
+export async function loginWithPhoneNumber(
+  phone: string
+): Promise<AuthResult | null> {
+  const user = await mobileUserRepository.findByPhone(phone);
+
+  if (!user) {
+    return null;
+  }
+
+  // Update last login
+  await mobileUserRepository.updateLastLogin(user.id);
+
+  // Generate token
+  const token = generateToken(user.id);
+  const expiresAt = getExpirationDate();
+
+  return {
+    user: MobileUserMapper.toSafeUser(user),
+    token,
+    expiresAt,
+  };
+}
+
+/**
  * Login or check OAuth user
  * Returns user if exists, null if new user (needs registration)
  */

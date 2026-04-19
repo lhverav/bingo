@@ -61,6 +61,7 @@ export type { JoinRoundInput, JoinRoundResult, RequestCardsInput, RequestCardsRe
 export {
   register,
   loginWithEmail,
+  loginWithPhoneNumber,
   loginWithOAuth,
   verifyToken,
   getMobileUserById,

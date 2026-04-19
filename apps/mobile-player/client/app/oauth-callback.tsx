@@ -5,7 +5,7 @@
  * after successful Google OAuth authentication.
  *
  * Integration with auth flow:
- * - For NEW users: Store OAuth data in RegistrationContext and continue to profile flow
+ * - For NEW users: Initialize AuthFlowContext at birthdate step and continue profile flow
  * - For RETURNING users: Log them in directly with AuthContext
  */
 
@@ -19,7 +19,7 @@ import { checkOAuthUser } from "@/api/auth";
 export default function OAuthCallbackScreen() {
   const { email, name, googleId, error } = useLocalSearchParams();
   const { login } = useAuth();
-  const { updateData } = useRegistration();
+  const { initializeFlowAt } = useAuthFlow();
 
   useEffect(() => {
     console.log("🎯 OAuth Callback Screen Mounted");
@@ -67,8 +67,9 @@ export default function OAuthCallbackScreen() {
           router.replace("/");
         }, 1500);
       } else if (result.isNewUser) {
-        // New user - continue to profile completion flow
-        updateData({
+        // New user - initialize AuthFlow at birthdate step (index 1 in register:google)
+        // This allows profile screens to use nextStep() properly
+        initializeFlowAt('register', 'google', 1, {
           oauthEmail: email,
           oauthProvider: "google",
           oauthId: googleId,

@@ -106,7 +106,9 @@ export class MobileUserRepository {
    */
   async phoneExists(phone: string): Promise<boolean> {
     await connectToDatabase();
+    console.log('[mobileUserRepo] phoneExists query for:', phone);
     const count = await MobileUserModel.countDocuments({ phone });
+    console.log('[mobileUserRepo] countDocuments result:', count);
     return count > 0;
   }
 

@@ -32,6 +32,8 @@ export async function connectToDatabase() {
     return cached.conn;
   }
 
+  console.log('[game-core] Connecting to MongoDB:', MONGODB_URI);
+
   if (!cached.promise) {
     cached.promise = mongoose.connect(MONGODB_URI).then((m) => m);
   }
