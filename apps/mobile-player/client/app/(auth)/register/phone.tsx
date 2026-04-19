@@ -1,66 +1,86 @@
 import { useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
-import { router } from 'expo-router';
-import { formStyles } from '@/constants/authStyles';
+import { View, StyleSheet } from 'react-native';
+import { useAuthFlow } from '@/contexts/AuthFlowContext';
 import AuthInput from '@/components/auth/AuthInput';
-import AuthButton from '@/components/auth/AuthButton';
-import { useRegistration } from '@/contexts/RegistrationContext';
+import AuthScreenTemplate from '@/components/auth/AuthScreenTemplate';
+import CountryCodePicker from '@/components/auth/CountryCodePicker';
 import { validate } from '@/utils/validation';
+import { spacing } from '@/constants/authStyles';
 
 export default function PhoneInputScreen() {
-  const { updateData } = useRegistration();
-  const [phone, setPhone] = useState('');
+  const { updateData, nextStep } = useAuthFlow();
+  const [countryCode, setCountryCode] = useState('+57');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleNext = async () => {
+  const fullPhone = `${countryCode}${phoneNumber.replace(/\D/g, '')}`;
+  const isValid = phoneNumber.replace(/\D/g, '').length >= 10;
+
+  const handleSubmit = async () => {
     // Validate phone
-    const validation = validate('phone', phone);
+    const validation = validate('phone', fullPhone);
     if (!validation.valid) {
       setError(validation.message || 'Número inválido');
       return;
     }
 
-    // Store in context
-    updateData({ phone });
-
     setLoading(true);
+    setError('');
+
     try {
       // TODO: Send SMS code via API
-      // await sendSmsCode(phone);
+      // await sendSmsCode(fullPhone);
 
-      // Navigate to verification screen
-      router.push('/(auth)/register/sms-verification');
+      // Store in context and navigate to SMS verification
+      updateData({ phone: fullPhone });
+      nextStep();
     } catch (err) {
-      setError('Error al enviar el código. Intenta de nuevo.');
+      const errorMessage = err instanceof Error ? err.message : 'Error al enviar el código. Intenta de nuevo.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView style={formStyles.container}>
-      <View style={formStyles.content}>
-        <Text style={formStyles.title}>Ingresa tu número de teléfono</Text>
-        <Text style={formStyles.subtitle}>
-          Te enviaremos un código de verificación.
-        </Text>
+    <AuthScreenTemplate
+      title="Ingresa tu número de teléfono"
+      subtitle="Te enviaremos un código de verificación por SMS."
+      onSubmit={handleSubmit}
+      buttonDisabled={!isValid || loading}
+      showProgress={false}
+      loading={loading}
+    >
+      <View style={styles.phoneContainer}>
+        <CountryCodePicker value={countryCode} onChange={setCountryCode} />
 
-        <AuthInput
-          value={phone}
-          onChangeText={(text) => {
-            setPhone(text);
-            setError('');
-          }}
-          error={error}
-          inputType="phone"
-          placeholder="+1234567890"
-        />
-
-        <AuthButton onPress={handleNext} disabled={loading}>
-          {loading ? 'Enviando...' : 'Siguiente'}
-        </AuthButton>
+        <View style={styles.phoneInputWrapper}>
+          <AuthInput
+            value={phoneNumber}
+            onChangeText={(text) => {
+              // Only allow numbers
+              const cleaned = text.replace(/\D/g, '');
+              setPhoneNumber(cleaned);
+              setError('');
+            }}
+            error={error}
+            inputType="phone"
+            placeholder="300 123 4567"
+          />
+        </View>
       </View>
-    </ScrollView>
+    </AuthScreenTemplate>
   );
 }
+
+const styles = StyleSheet.create({
+  phoneContainer: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'flex-start',
+  },
+  phoneInputWrapper: {
+    flex: 1,
+  },
+});

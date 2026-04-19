@@ -1,8 +1,13 @@
-import { ReactNode } from 'react';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { AuthProvider, RegistrationProvider, SocketProvider, GameProvider } from '@/contexts';
-import { useRoundStartNotification } from '@/hooks';
+import { ReactNode } from "react";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import {
+  AuthProvider,
+  RegistrationProvider,
+  SocketProvider,
+  GameProvider,
+} from "@/contexts";
+import { useRoundStartNotification } from "@/hooks";
 
 /**
  * Root Layout - Navigation Architecture
@@ -42,126 +47,126 @@ export default function RootLayout() {
             <AppContent>
               <StatusBar style="auto" />
               <Stack
-              screenOptions={{
-                headerShown: false,
-                // Disable gestures to prevent swipe-back between flows
-                gestureEnabled: false,
-              }}
-            >
-              {/* Root Navigation Guard */}
-              <Stack.Screen
-                name="index"
-                options={{
-                  headerShown: false,
-                }}
-              />
-
-              {/* ============================================== */}
-              {/* AUTH FLOW - Only for unauthenticated users    */}
-              {/* ============================================== */}
-              <Stack.Screen
-                name="(auth)"
-                options={{
-                  headerShown: false,
-                  // Prevent back gesture to app screens
+                screenOptions={{
+                  headerShown: true,
+                  // Disable gestures to prevent swipe-back between flows
                   gestureEnabled: false,
                 }}
-              />
+              >
+                {/* Root Navigation Guard */}
+                <Stack.Screen
+                  name="index"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-              {/* OAuth Callback - Bridge between auth flows */}
-              <Stack.Screen
-                name="oauth-callback"
-                options={{
-                  title: 'Autenticando...',
-                  headerShown: false,
-                }}
-              />
+                {/* ============================================== */}
+                {/* AUTH FLOW - Only for unauthenticated users    */}
+                {/* ============================================== */}
+                <Stack.Screen
+                  name="(auth)"
+                  options={{
+                    headerShown: false,
+                    // Prevent back gesture to app screens
+                    gestureEnabled: false,
+                  }}
+                />
 
-              {/* ============================================== */}
-              {/* APP FLOW - Only for authenticated users       */}
-              {/* ============================================== */}
+                {/* OAuth Callback - Bridge between auth flows */}
+                <Stack.Screen
+                  name="oauth-callback"
+                  options={{
+                    title: "Autenticando...",
+                    headerShown: false,
+                  }}
+                />
 
-              {/* Main Screen with internal tabs */}
-              <Stack.Screen
-                name="main"
-                options={{
-                  headerShown: false,
-                  // Prevent back gesture to auth screens
-                  gestureEnabled: false,
-                }}
-              />
+                {/* ============================================== */}
+                {/* APP FLOW - Only for authenticated users       */}
+                {/* ============================================== */}
 
-              {/* Legacy screens - kept for backwards compatibility */}
-              <Stack.Screen
-                name="(tabs)"
-                options={{
-                  headerShown: false,
-                  gestureEnabled: false,
-                }}
-              />
-              <Stack.Screen
-                name="home"
-                options={{
-                  headerShown: false,
-                }}
-              />
+                {/* Main Screen with internal tabs */}
+                <Stack.Screen
+                  name="main"
+                  options={{
+                    headerShown: false,
+                    // Prevent back gesture to auth screens
+                    gestureEnabled: false,
+                  }}
+                />
 
-              {/* Game Detail - Full screen from Mis Juegos */}
-              <Stack.Screen
-                name="game-detail"
-                options={{
-                  headerShown: false,
-                }}
-              />
+                {/* Legacy screens - kept for backwards compatibility */}
+                <Stack.Screen
+                  name="(tabs)"
+                  options={{
+                    headerShown: false,
+                    gestureEnabled: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="home"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-              {/* Game List - Browse and join games */}
-              <Stack.Screen
-                name="games"
-                options={{
-                  headerShown: false,
-                }}
-              />
+                {/* Game Detail - Full screen from Mis Juegos */}
+                <Stack.Screen
+                  name="game-detail"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-              {/* Game Lobby - Wait for round to start */}
-              <Stack.Screen
-                name="game-lobby"
-                options={{
-                  headerShown: false,
-                }}
-              />
+                {/* Game List - Browse and join games */}
+                <Stack.Screen
+                  name="games"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-              {/* Game Flow Screens */}
-              <Stack.Screen
-                name="join-round"
-                options={{
-                  title: 'Unirse a Ronda',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="card-selection"
-                options={{
-                  title: 'Seleccionar Cartones',
-                  headerBackVisible: false,
-                }}
-              />
-              <Stack.Screen
-                name="game"
-                options={{
-                  title: 'Juego',
-                  headerBackVisible: false,
-                }}
-              />
+                {/* Game Lobby - Wait for round to start */}
+                <Stack.Screen
+                  name="game-lobby"
+                  options={{
+                    headerShown: false,
+                  }}
+                />
 
-              {/* Join Game - Game-level join flow */}
-              <Stack.Screen
-                name="join-game"
-                options={{
-                  title: 'Unirse a Juego',
-                  headerShown: false,
-                }}
-              />
-            </Stack>
+                {/* Game Flow Screens */}
+                <Stack.Screen
+                  name="join-round"
+                  options={{
+                    title: "Unirse a Ronda",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="card-selection"
+                  options={{
+                    title: "Seleccionar Cartones",
+                    headerBackVisible: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="game"
+                  options={{
+                    title: "Juego",
+                    headerBackVisible: false,
+                  }}
+                />
+
+                {/* Join Game - Game-level join flow */}
+                <Stack.Screen
+                  name="join-game"
+                  options={{
+                    title: "Unirse a Juego",
+                    headerShown: false,
+                  }}
+                />
+              </Stack>
             </AppContent>
           </GameProvider>
         </SocketProvider>

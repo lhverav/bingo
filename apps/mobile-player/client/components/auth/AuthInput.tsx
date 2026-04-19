@@ -1,4 +1,5 @@
-import { View, TextInput, Text, StyleSheet, TextInputProps } from 'react-native';
+import { useState } from 'react';
+import { View, TextInput, Text, TouchableOpacity, StyleSheet, TextInputProps } from 'react-native';
 import { colors, borderRadius, spacing, fontSize } from '@/constants/authStyles';
 
 interface AuthInputProps extends TextInputProps {
@@ -6,6 +7,7 @@ interface AuthInputProps extends TextInputProps {
   onChangeText: (text: string) => void;
   error?: string;
   inputType?: 'email' | 'password' | 'phone' | 'text';
+  showPasswordToggle?: boolean;
 }
 
 export default function AuthInput({
@@ -13,8 +15,12 @@ export default function AuthInput({
   onChangeText,
   error,
   inputType = 'text',
+  showPasswordToggle = true,
   ...rest
 }: AuthInputProps) {
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const isPassword = inputType === 'password';
+
   const getKeyboardType = () => {
     switch (inputType) {
       case 'email':
@@ -28,16 +34,33 @@ export default function AuthInput({
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={[styles.input, error && styles.inputError]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholderTextColor={colors.textSecondary}
-        secureTextEntry={inputType === 'password'}
-        keyboardType={getKeyboardType()}
-        autoCapitalize={inputType === 'email' ? 'none' : 'sentences'}
-        {...rest}
-      />
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={[
+            styles.input,
+            error && styles.inputError,
+            isPassword && showPasswordToggle && styles.inputWithToggle,
+          ]}
+          value={value}
+          onChangeText={onChangeText}
+          placeholderTextColor={colors.textSecondary}
+          secureTextEntry={isPassword && !passwordVisible}
+          keyboardType={getKeyboardType()}
+          autoCapitalize={inputType === 'email' ? 'none' : 'sentences'}
+          {...rest}
+        />
+        {isPassword && showPasswordToggle && (
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => setPasswordVisible(!passwordVisible)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={styles.toggleIcon}>
+              {passwordVisible ? '👁' : '👁‍🗨'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
@@ -46,6 +69,10 @@ export default function AuthInput({
 const styles = StyleSheet.create({
   container: {
     marginBottom: spacing.md,
+  },
+
+  inputWrapper: {
+    position: 'relative',
   },
 
   input: {
@@ -58,8 +85,25 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
 
+  inputWithToggle: {
+    paddingRight: 50,
+  },
+
   inputError: {
     borderColor: colors.error,
+  },
+
+  toggleButton: {
+    position: 'absolute',
+    right: spacing.lg,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  toggleIcon: {
+    fontSize: 20,
   },
 
   errorText: {

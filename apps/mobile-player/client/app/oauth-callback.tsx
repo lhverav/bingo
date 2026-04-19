@@ -13,7 +13,7 @@ import { useEffect } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRegistration } from "@/contexts/RegistrationContext";
+import { useAuthFlow } from "@/contexts/AuthFlowContext";
 import { checkOAuthUser } from "@/api/auth";
 
 export default function OAuthCallbackScreen() {

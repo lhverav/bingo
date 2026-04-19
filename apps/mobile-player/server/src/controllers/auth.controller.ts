@@ -15,6 +15,8 @@ import {
   loginWithEmail,
   loginWithOAuth,
   checkEmailExists,
+  checkPhoneExists,
+  loginWithPhoneNumber,
 } from "@bingo/game-core";
 
 // Deep link base URL for mobile app
@@ -256,6 +258,71 @@ export async function checkEmail(req: Request, res: Response) {
     return res.status(500).json({
       error: 'INTERNAL_ERROR',
       message: 'Error al verificar email',
+    });
+  }
+}
+
+/**
+ * Check if phone exists (for smart detection)
+ * POST /auth/check-phone
+ */
+export async function checkPhone(req: Request, res: Response) {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Teléfono es requerido',
+      });
+    }
+
+    console.log('[checkPhone] Checking phone:', phone);
+    const exists = await checkPhoneExists(phone);
+    console.log('[checkPhone] Result:', exists);
+
+    return res.json({ exists });
+  } catch (err) {
+    const error = err as Error;
+    console.error('Check phone error:', error.message);
+    return res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Error al verificar teléfono',
+    });
+  }
+}
+
+/**
+ * Login with phone number (for returning users after SMS verification)
+ * POST /auth/login-phone
+ */
+export async function loginWithPhone(req: Request, res: Response) {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Teléfono es requerido',
+      });
+    }
+
+    const result = await loginWithPhoneNumber(phone);
+
+    if (!result) {
+      return res.status(404).json({
+        error: 'USER_NOT_FOUND',
+        message: 'No existe una cuenta con este teléfono',
+      });
+    }
+
+    return res.json(result);
+  } catch (err) {
+    const error = err as Error;
+    console.error('Login with phone error:', error.message);
+    return res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Error al iniciar sesión',
     });
   }
 }

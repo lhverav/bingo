@@ -1,86 +1,147 @@
-import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
-import { formStyles, entryStyles, spacing } from '@/constants/authStyles';
-import AuthInput from '@/components/auth/AuthInput';
-import AuthButton from '@/components/auth/AuthButton';
-import { useRegistration } from '@/contexts/RegistrationContext';
-import { validate } from '@/utils/validation';
+import { useAuthFlow } from '@/contexts/AuthFlowContext';
+import { useAuth } from '@/contexts/AuthContext';
+import AuthScreenTemplate from '@/components/auth/AuthScreenTemplate';
+import OtpInput from '@/components/auth/OtpInput';
+import { checkPhoneExists, loginWithPhone } from '@/api/auth';
+import { colors, spacing, fontSize } from '@/constants/authStyles';
 
 export default function SmsVerificationScreen() {
-  const { data, updateData } = useRegistration();
+  const { data, updateData, nextStep, flow, completeFlow } = useAuthFlow();
+  const { login } = useAuth();
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleVerify = async () => {
-    // Validate code
-    const validation = validate('verificationCode', code);
-    if (!validation.valid) {
-      setError(validation.message || 'Código inválido');
+  // Format phone for display
+  const formatPhoneDisplay = (phone: string) => {
+    if (!phone) return '';
+    // Simple formatting: +57 300 123 4567
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length > 10) {
+      const countryCode = phone.slice(0, phone.length - 10);
+      const number = phone.slice(-10);
+      return `${countryCode} ${number.slice(0, 3)} ${number.slice(3, 6)} ${number.slice(6)}`;
+    }
+    return phone;
+  };
+
+  const handleVerify = useCallback(async (verificationCode?: string) => {
+    const codeToVerify = verificationCode || code;
+
+    if (codeToVerify.length !== 6) {
+      setError('Ingresa el código de 6 dígitos');
       return;
     }
 
     setLoading(true);
-    try {
-      // TODO: Verify SMS code via API
-      // await verifySmsCode(data.phone, code);
+    setError('');
 
-      // Mark phone as verified in context
+    try {
+      // TODO: Actually verify SMS code via API
+      // For now, we accept any 6-digit code
+      // await verifySmsCode(data.phone, codeToVerify);
+
+      // Mark phone as verified
       updateData({ phoneVerified: true });
 
-      // Navigate to profile completion
-      router.push('/(auth)/profile/birthdate');
+      // SMART DETECTION: Check if phone already exists in database
+      console.log('[sms-verification] data.phone value:', data.phone);
+      const phoneExists = await checkPhoneExists(data.phone || '');
+      console.log('[sms-verification] Phone exists check:', phoneExists);
+
+      if (phoneExists) {
+        // Existing user - auto-login (regardless of login/register path)
+        console.log('[sms-verification] Phone exists, auto-login');
+        const authResult = await loginWithPhone(data.phone || '');
+        await login(authResult.user, authResult.token, authResult.expiresAt);
+        completeFlow();
+      } else {
+        // New user - continue to profile completion (regardless of login/register path)
+        console.log('[sms-verification] New phone, continuing to profile');
+        nextStep();
+      }
     } catch (err) {
-      setError('Código incorrecto. Intenta de nuevo.');
+      const errorMessage = err instanceof Error ? err.message : 'Error al verificar. Intenta de nuevo.';
+      console.error('[sms-verification] Error:', errorMessage);
+      setError(errorMessage);
+      setCode(''); // Clear on error
     } finally {
       setLoading(false);
     }
-  };
+  }, [code, data.phone, updateData, nextStep, completeFlow, login]);
+
+  const handleAutoComplete = useCallback((completedCode: string) => {
+    // Auto-verify when code is completed sequentially
+    handleVerify(completedCode);
+  }, [handleVerify]);
 
   const handleResend = async () => {
-    // TODO: Resend SMS code
-    // await sendSmsCode(data.phone);
+    setError('');
+    setCode('');
+
+    try {
+      // TODO: Resend SMS code via API
+      // await sendSmsCode(data.phone);
+      console.log('[sms-verification] Resending code to', data.phone);
+    } catch (err) {
+      setError('Error al reenviar el código');
+    }
+  };
+
+  const handleEditPhone = () => {
+    router.back();
   };
 
   return (
-    <ScrollView style={formStyles.container}>
-      <View style={formStyles.content}>
-        <Text style={formStyles.title}>Ingresa el código de verificación</Text>
-        <Text style={formStyles.subtitle}>
-          Enviamos un código a {data.phone}
-        </Text>
-
-        <AuthInput
+    <AuthScreenTemplate
+      title="Ingresa el código de verificación"
+      subtitle={`Enviamos un código a ${formatPhoneDisplay(data.phone || '')}`}
+      buttonText={loading ? 'Verificando...' : 'Verificar'}
+      onSubmit={() => handleVerify()}
+      buttonDisabled={code.length !== 6 || loading}
+      showProgress={false}
+      loading={loading}
+    >
+      <View style={styles.content}>
+        <OtpInput
+          length={6}
           value={code}
-          onChangeText={(text) => {
-            setCode(text);
-            setError('');
-          }}
+          onChange={setCode}
+          onComplete={handleAutoComplete}
           error={error}
-          inputType="phone"
-          placeholder="123456"
-          maxLength={6}
+          disabled={loading}
         />
 
-        <AuthButton onPress={handleVerify} disabled={loading}>
-          {loading ? 'Verificando...' : 'Verificar'}
-        </AuthButton>
-
-        {/* Resend Code Link */}
-        <View style={[entryStyles.loginContainer, { marginTop: spacing.xl }]}>
-          <TouchableOpacity onPress={handleResend}>
-            <Text style={entryStyles.loginLink}>Reenviar el código</Text>
+        {/* Links */}
+        <View style={styles.linksContainer}>
+          <TouchableOpacity onPress={handleResend} disabled={loading}>
+            <Text style={styles.link}>Reenviar el código</Text>
           </TouchableOpacity>
-        </View>
 
-        {/* Edit Phone Link */}
-        <View style={[entryStyles.loginContainer, { marginTop: spacing.sm }]}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={entryStyles.loginLink}>Editar número de teléfono</Text>
+          <TouchableOpacity onPress={handleEditPhone} disabled={loading}>
+            <Text style={styles.link}>Editar número de teléfono</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </ScrollView>
+    </AuthScreenTemplate>
   );
 }
+
+const styles = StyleSheet.create({
+  content: {
+    gap: spacing.xl,
+  },
+  linksContainer: {
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  link: {
+    color: colors.primary,
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+  },
+});

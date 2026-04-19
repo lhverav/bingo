@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useState, useEffect, useCallback } from "react";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket } from "@/contexts/SocketContext";
@@ -23,6 +24,8 @@ import {
 import { GameCarousel } from "@/components/GameCarousel";
 import { GameLobbyModal } from "@/components/GameLobbyModal";
 import { InlineGameView } from "@/components/InlineGameView";
+import ProfileAvatar from "@/components/ProfileAvatar";
+import ProfileDrawer from "@/components/ProfileDrawer";
 import { serverConfig } from "@/config/server";
 
 const YOUTUBE_VIDEO_ID =
@@ -46,6 +49,10 @@ export default function MainScreen() {
   const { connect } = useSocket();
   const { joinedGames, addJoinedGame, removeJoinedGame } = useGame();
   const isConnected = useConnectionState();
+  const insets = useSafeAreaInsets();
+
+  // Profile drawer state
+  const [drawerVisible, setDrawerVisible] = useState(false);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>("proximos");
@@ -210,6 +217,17 @@ export default function MainScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Header with Profile Avatar */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <ProfileAvatar
+          name={user?.name || ''}
+          size={40}
+          onPress={() => setDrawerVisible(true)}
+        />
+        <Text style={styles.headerTitle}>Bingote de Oro</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
       {/* YouTube Video Player */}
       <View style={styles.videoContainer}>
         <YoutubePlayer
@@ -354,6 +372,11 @@ export default function MainScreen() {
         onJoined={handleGameJoined}
       />
 
+      {/* Profile Drawer */}
+      <ProfileDrawer
+        visible={drawerVisible}
+        onClose={() => setDrawerVisible(false)}
+      />
     </View>
   );
 }
@@ -367,9 +390,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    backgroundColor: "#fff",
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    textAlign: "center",
+  },
+  headerSpacer: {
+    width: 40,
+  },
   videoContainer: {
     alignItems: "center",
-    paddingTop: 40,
+    paddingTop: 8,
     paddingHorizontal: 16,
     backgroundColor: "#fff",
   },

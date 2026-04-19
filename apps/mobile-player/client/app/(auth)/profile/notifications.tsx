@@ -1,43 +1,44 @@
-import { View, Text, ScrollView } from 'react-native';
-import { router } from 'expo-router';
+import { View, Text, ScrollView, BackHandler } from 'react-native';
+import { useEffect } from 'react';
 import { formStyles, spacing } from '@/constants/authStyles';
 import AuthButton from '@/components/auth/AuthButton';
 import ProgressBar from '@/components/auth/ProgressBar';
-import { useRegistration } from '@/contexts/RegistrationContext';
+import { useAuthFlow, useFlowProgress } from '@/contexts/AuthFlowContext';
 
 export default function NotificationsScreen() {
-  const { clearData } = useRegistration();
+  const { completeFlow } = useAuthFlow();
+  const { profileCurrentStep, profileStepCount } = useFlowProgress();
+
+  // Block Android back button - account is already created, no going back
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Return true to prevent default back behavior
+      return true;
+    });
+    return () => backHandler.remove();
+  }, []);
 
   const handleActivate = async () => {
-    console.log("📱 handleActivate called");
+    console.log("[notifications] Activating notifications");
     // TODO: Request notification permissions
     // import * as Notifications from 'expo-notifications';
     // await Notifications.requestPermissionsAsync();
 
-    // Clear registration context
-    clearData();
-    console.log("📱 clearData done, navigating to tabs");
-
-    // Navigate to root - auth guard will redirect to tabs with clean stack
-    router.replace('/');
-    console.log("📱 Navigation to root executed");
+    completeFlow();
   };
 
   const handleSkip = () => {
-    console.log("📱 handleSkip called");
-    // Clear registration context
-    clearData();
-    console.log("📱 clearData done, navigating to root");
-
-    // Navigate to root - auth guard will redirect to tabs with clean stack
-    router.replace('/');
-    console.log("📱 Navigation to root executed");
+    console.log("[notifications] Skipping notifications");
+    completeFlow();
   };
 
   return (
     <ScrollView style={formStyles.container}>
-      <ProgressBar step={5} total={5} />
-      <View style={formStyles.content}>
+      <ProgressBar step={profileCurrentStep} total={profileStepCount} />
+
+      {/* No back button - account already created at this point */}
+
+      <View style={[formStyles.content, { paddingTop: spacing.xl }]}>
         <Text style={formStyles.title}>Activar las notificaciones</Text>
         <Text style={formStyles.subtitle}>
           Recibe alertas cuando haya nuevas rondas disponibles.

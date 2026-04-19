@@ -92,6 +92,52 @@ export async function checkEmailExists(email: string): Promise<boolean> {
 }
 
 /**
+ * Check if a phone number already exists in the system
+ */
+export async function checkPhoneExists(phone: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${AUTH_URL}/check-phone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to check phone');
+    }
+
+    const data = await response.json();
+    return data.exists;
+  } catch (error) {
+    console.error('Error checking phone:', error);
+    throw error;
+  }
+}
+
+/**
+ * Login with phone number (for returning users after SMS verification)
+ */
+export async function loginWithPhone(phone: string): Promise<LoginResponse> {
+  try {
+    const response = await fetch(`${AUTH_URL}/login-phone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Login failed');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error logging in with phone:', error);
+    throw error;
+  }
+}
+
+/**
  * Register a new user
  */
 export async function registerUser(userData: RegisterUserData): Promise<LoginResponse> {
@@ -119,24 +165,18 @@ export async function registerUser(userData: RegisterUserData): Promise<LoginRes
  * Login with email and password
  */
 export async function loginUser(email: string, password: string): Promise<LoginResponse> {
-  try {
-    const response = await fetch(`${AUTH_URL}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+  const response = await fetch(`${AUTH_URL}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Login failed');
-    }
-
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error logging in:', error);
-    throw error;
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Login failed');
   }
+
+  return await response.json();
 }
 
 /**

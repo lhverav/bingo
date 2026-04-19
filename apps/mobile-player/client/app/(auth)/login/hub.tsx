@@ -1,51 +1,80 @@
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, BackHandler } from 'react-native';
 import { router } from 'expo-router';
-import { formStyles, entryStyles, spacing } from '@/constants/authStyles';
+import { useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { hubStyles, entryStyles, spacing } from '@/constants/authStyles';
+import { useAuthFlow } from '@/contexts/AuthFlowContext';
 import AuthButton from '@/components/auth/AuthButton';
+import BackButton from '@/components/auth/BackButton';
 
 export default function LoginHubScreen() {
-  return (
-    <ScrollView style={formStyles.container}>
-      <View style={formStyles.content}>
-        <Text style={formStyles.title}>Iniciar sesión en Bingote de Oro</Text>
-        <Text style={formStyles.subtitle}>
-          Elige tu método de inicio de sesión
-        </Text>
+  const { startFlow } = useAuthFlow();
+  const insets = useSafeAreaInsets();
 
-        <View style={{ gap: spacing.md, marginTop: spacing.xl }}>
-          {/* Email Login */}
-          <AuthButton
-            variant="primary"
-            onPress={() => router.push('/(auth)/login/email')}
-          >
+  const handleBack = () => {
+    router.replace('/(auth)');
+  };
+
+  // Handle Android back button
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleBack();
+      return true;
+    });
+    return () => backHandler.remove();
+  }, []);
+
+  const handleEmailLogin = () => {
+    startFlow('login', 'email');
+  };
+
+  const handlePhoneLogin = () => {
+    startFlow('login', 'phone');
+  };
+
+  const handleGoogleLogin = () => {
+    startFlow('login', 'google');
+  };
+
+  return (
+    <View style={hubStyles.container}>
+      {/* Back Button */}
+      <BackButton onPress={handleBack} />
+
+      {/* Center Content - Logo, Title & Buttons */}
+      <View style={hubStyles.centerContent}>
+        {/* Logo */}
+        <View style={hubStyles.logoContainer}>
+          <Text style={entryStyles.logo}>BINGOTE</Text>
+          <Text style={entryStyles.logoSub}>DE ORO</Text>
+        </View>
+
+        {/* Title */}
+        <Text style={hubStyles.title}>Iniciar sesión en{'\n'}Bingote de Oro</Text>
+
+        {/* Auth Buttons */}
+        <View style={hubStyles.buttonsContainer}>
+          <AuthButton variant="primary" onPress={handleEmailLogin}>
             Continuar con tu email
           </AuthButton>
 
-          {/* Phone Login */}
-          <AuthButton
-            variant="outline"
-            onPress={() => router.push('/(auth)/register/phone')}
-          >
+          <AuthButton variant="outline" onPress={handlePhoneLogin}>
             Continuar con número de teléfono
           </AuthButton>
 
-          {/* Google OAuth Login */}
-          <AuthButton
-            variant="outline"
-            onPress={() => router.push('/(auth)/register/google-selector')}
-          >
+          <AuthButton variant="outline" onPress={handleGoogleLogin}>
             Continuar con Google
           </AuthButton>
         </View>
-
-        {/* Link to Register */}
-        <View style={[entryStyles.loginContainer, { marginTop: spacing.xxxl }]}>
-          <Text style={entryStyles.loginText}>¿No tienes una cuenta? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/register/hub')}>
-            <Text style={entryStyles.loginLink}>Registrarte</Text>
-          </TouchableOpacity>
-        </View>
       </View>
-    </ScrollView>
+
+      {/* Bottom Link */}
+      <View style={[hubStyles.bottomLink, { paddingBottom: insets.bottom + spacing.xxxl }]}>
+        <Text style={entryStyles.loginText}>¿No tienes una cuenta? </Text>
+        <TouchableOpacity onPress={() => router.replace('/(auth)/register/hub')}>
+          <Text style={entryStyles.loginLink}>Regístrate</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }

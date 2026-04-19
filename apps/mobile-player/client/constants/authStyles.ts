@@ -97,16 +97,24 @@ export const screenStyles = StyleSheet.create({
 // =============================================================================
 
 export const entryStyles = StyleSheet.create({
+  // Main container - full screen flex
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: spacing.xl,
   },
 
-  header: {
+  // Center content area - takes available space and centers content
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 60,
-    marginBottom: 40,
+    paddingHorizontal: spacing.xl,
+  },
+
+  // Logo wrapper
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.xxl,
   },
 
   logo: {
@@ -123,20 +131,22 @@ export const entryStyles = StyleSheet.create({
     letterSpacing: 8,
   },
 
-  welcomeText: {
-    fontSize: fontSize.xxl,
-    fontWeight: 'bold',
+  // Tagline below logo
+  tagline: {
+    fontSize: fontSize.lg,
     color: colors.text,
     textAlign: 'center',
-    lineHeight: 36,
+    lineHeight: 28,
   },
 
-  buttonsContainer: {
+  // Bottom buttons container - fixed at bottom
+  bottomButtons: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
     gap: spacing.md,
-    marginBottom: spacing.xxxl,
   },
 
-  // Primary gold button
+  // Primary gold register button
   registerButton: {
     backgroundColor: colors.primary,
     paddingVertical: spacing.lg,
@@ -150,7 +160,23 @@ export const entryStyles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // OAuth buttons (transparent with white border)
+  // Login button (outline style)
+  loginButton: {
+    backgroundColor: colors.transparent,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.text,
+  },
+
+  loginButtonText: {
+    color: colors.text,
+    fontSize: fontSize.md,
+    fontWeight: '600',
+  },
+
+  // OAuth buttons (transparent with white border) - used in hub screens
   oauthButton: {
     backgroundColor: colors.transparent,
     paddingVertical: spacing.lg,
@@ -166,7 +192,7 @@ export const entryStyles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Login link row
+  // Login link row - used in hub screens
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -194,6 +220,55 @@ export const entryStyles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     textDecorationLine: 'underline',
+  },
+});
+
+// =============================================================================
+// HUB SCREEN STYLES (Login/Register method selection)
+// =============================================================================
+
+export const hubStyles = StyleSheet.create({
+  // Main container - full screen flex
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+
+  // Center content area - logo, title, buttons
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+
+  // Logo wrapper
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.xxl,
+  },
+
+  // Title below logo
+  title: {
+    fontSize: fontSize.xl,
+    fontWeight: 'bold',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing.xxl,
+    lineHeight: 32,
+  },
+
+  // Buttons container
+  buttonsContainer: {
+    width: '100%',
+    gap: spacing.md,
+  },
+
+  // Bottom link container
+  bottomLink: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingTop: spacing.lg,
   },
 });
 

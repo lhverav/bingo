@@ -35,13 +35,18 @@ export const validationRules: Record<string, ValidationRule> = {
   email: {
     required: true,
     pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    message: 'Email invalido',
+    message: 'Email inválido',
   },
 
   password: {
     required: true,
-    minLength: 6,
-    message: 'Minimo 6 caracteres',
+    minLength: 10,
+    validator: (value: string) => {
+      const hasNumber = /\d/.test(value);
+      const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(value);
+      return hasNumber && hasSpecialChar;
+    },
+    message: 'La contraseña no cumple los requisitos',
   },
 
   phone: {
@@ -74,6 +79,48 @@ export const validationRules: Record<string, ValidationRule> = {
     message: 'Debes ser mayor de 18 anos',
   },
 };
+
+// =============================================================================
+// EMAIL FORMAT CHECK (for real-time validation)
+// =============================================================================
+
+export function isValidEmailFormat(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// =============================================================================
+// PASSWORD REQUIREMENTS CHECK
+// =============================================================================
+
+export interface PasswordRequirements {
+  minLength: boolean;
+  hasNumber: boolean;
+  hasSpecialChar: boolean;
+  allMet: boolean;
+}
+
+export function checkPasswordRequirements(password: string): PasswordRequirements {
+  const minLength = password.length >= 10;
+  const hasNumber = /\d/.test(password);
+  const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+
+  return {
+    minLength,
+    hasNumber,
+    hasSpecialChar,
+    allMet: minLength && hasNumber && hasSpecialChar,
+  };
+}
+
+export function getPasswordErrorMessage(requirements: PasswordRequirements): string {
+  const missing: string[] = [];
+  if (!requirements.minLength) missing.push('mínimo 10 caracteres');
+  if (!requirements.hasNumber) missing.push('al menos un número');
+  if (!requirements.hasSpecialChar) missing.push('al menos un carácter especial');
+
+  if (missing.length === 0) return '';
+  return `Falta: ${missing.join(', ')}`;
+}
 
 // =============================================================================
 // VALIDATE FUNCTION

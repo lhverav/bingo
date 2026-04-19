@@ -17,12 +17,12 @@ export default function PerfilScreen() {
 
   const handleLogout = async () => {
     Alert.alert(
-      "Cerrar Sesion",
-      "¿Estas seguro que deseas cerrar sesion?",
+      "Cerrar Sesión",
+      "¿Estás seguro que deseas cerrar sesión?",
       [
         { text: "Cancelar", style: "cancel" },
         {
-          text: "Cerrar Sesion",
+          text: "Cerrar Sesión",
           style: "destructive",
           onPress: async () => {
             try {
@@ -68,15 +68,15 @@ export default function PerfilScreen() {
     return (
       <View style={styles.notAuthContainer}>
         <Ionicons name="person-circle-outline" size={80} color="#ccc" />
-        <Text style={styles.notAuthTitle}>No has iniciado sesion</Text>
+        <Text style={styles.notAuthTitle}>No has iniciado sesión</Text>
         <Text style={styles.notAuthSubtitle}>
-          Inicia sesion para ver tu perfil
+          Inicia sesión para ver tu perfil
         </Text>
         <TouchableOpacity
           style={styles.loginButton}
           onPress={() => router.replace("/")}
         >
-          <Text style={styles.loginButtonText}>Iniciar Sesion</Text>
+          <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
         </TouchableOpacity>
       </View>
     );
@@ -105,7 +105,7 @@ export default function PerfilScreen() {
 
       {/* Profile Info */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Informacion Personal</Text>
+        <Text style={styles.sectionTitle}>Información Personal</Text>
 
         <View style={styles.infoCard}>
           {user.email && (
@@ -114,7 +114,7 @@ export default function PerfilScreen() {
                 <Ionicons name="mail-outline" size={20} color="#666" />
               </View>
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Correo electronico</Text>
+                <Text style={styles.infoLabel}>Correo electrónico</Text>
                 <Text style={styles.infoValue}>{user.email}</Text>
               </View>
             </View>
@@ -126,7 +126,7 @@ export default function PerfilScreen() {
                 <Ionicons name="call-outline" size={20} color="#666" />
               </View>
               <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Telefono</Text>
+                <Text style={styles.infoLabel}>Teléfono</Text>
                 <Text style={styles.infoValue}>{user.phone}</Text>
               </View>
             </View>
@@ -147,7 +147,7 @@ export default function PerfilScreen() {
               <Ionicons name="person-outline" size={20} color="#666" />
             </View>
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Genero</Text>
+              <Text style={styles.infoLabel}>Género</Text>
               <Text style={styles.infoValue}>{getGenderLabel(user.gender)}</Text>
             </View>
           </View>
@@ -198,7 +198,7 @@ export default function PerfilScreen() {
       {/* Logout Button */}
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Ionicons name="log-out-outline" size={20} color="#D32F2F" />
-        <Text style={styles.logoutButtonText}>Cerrar Sesion</Text>
+        <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
       </TouchableOpacity>
 
       {/* Version */}

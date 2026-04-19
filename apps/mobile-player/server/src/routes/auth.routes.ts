@@ -13,6 +13,8 @@ import {
   login,
   oauthGoogleLogin,
   checkEmail,
+  checkPhone,
+  loginWithPhone,
 } from "../controllers/auth.controller";
 
 const router = Router();
@@ -52,5 +54,17 @@ router.post("/oauth/google", oauthGoogleLogin);
  * POST /auth/check-email
  */
 router.post("/check-email", checkEmail);
+
+/**
+ * Check if phone exists (for smart detection)
+ * POST /auth/check-phone
+ */
+router.post("/check-phone", checkPhone);
+
+/**
+ * Login with phone (for returning users after SMS verification)
+ * POST /auth/login-phone
+ */
+router.post("/login-phone", loginWithPhone);
 
 export default router;

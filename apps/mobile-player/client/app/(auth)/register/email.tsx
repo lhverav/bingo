@@ -1,40 +1,64 @@
 import { useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
 import { router } from 'expo-router';
-import { formStyles } from '@/constants/authStyles';
+import { useAuthFlow } from '@/contexts/AuthFlowContext';
 import AuthInput from '@/components/auth/AuthInput';
-import AuthButton from '@/components/auth/AuthButton';
-import { useRegistration } from '@/contexts/RegistrationContext';
-import { validate } from '@/utils/validation';
+import AuthScreenTemplate from '@/components/auth/AuthScreenTemplate';
+import EmailExistsModal from '@/components/auth/EmailExistsModal';
+import { validate, isValidEmailFormat } from '@/utils/validation';
+import { checkEmailExists } from '@/api/auth';
 
 export default function EmailInputScreen() {
-  const { updateData } = useRegistration();
+  const { updateData, nextStep } = useAuthFlow();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showExistsModal, setShowExistsModal] = useState(false);
 
-  const handleNext = () => {
-    // Validate email
+  const isEmailValid = isValidEmailFormat(email);
+
+  const handleSubmit = async () => {
     const validation = validate('email', email);
     if (!validation.valid) {
       setError(validation.message || 'Email inválido');
       return;
     }
 
-    // Store in context
-    updateData({ email });
+    setLoading(true);
+    setError('');
 
-    // Navigate to password screen (no params needed!)
-    router.push('/(auth)/register/password');
+    try {
+      const exists = await checkEmailExists(email);
+      if (exists) {
+        setShowExistsModal(true);
+        setLoading(false);
+        return;
+      }
+
+      updateData({ email });
+      nextStep();
+    } catch (err) {
+      setError('Error al verificar el email. Intenta de nuevo.');
+      setLoading(false);
+    }
+  };
+
+  const handleGoToLogin = () => {
+    setShowExistsModal(false);
+    // Navigate to login with email pre-filled
+    updateData({ email });
+    router.replace('/(auth)/login/email');
   };
 
   return (
-    <ScrollView style={formStyles.container}>
-      <View style={formStyles.content}>
-        <Text style={formStyles.title}>¿Cuál es tu email?</Text>
-        <Text style={formStyles.subtitle}>
-          Lo necesitarás para iniciar sesión.
-        </Text>
-
+    <>
+      <AuthScreenTemplate
+        title="¿Cuál es tu email?"
+        subtitle="Lo necesitarás para iniciar sesión."
+        onSubmit={handleSubmit}
+        buttonDisabled={!isEmailValid || loading}
+        showProgress={false}
+        loading={loading}
+      >
         <AuthInput
           value={email}
           onChangeText={(text) => {
@@ -45,9 +69,14 @@ export default function EmailInputScreen() {
           inputType="email"
           placeholder="correo@ejemplo.com"
         />
+      </AuthScreenTemplate>
 
-        <AuthButton onPress={handleNext}>Siguiente</AuthButton>
-      </View>
-    </ScrollView>
+      <EmailExistsModal
+        visible={showExistsModal}
+        email={email}
+        onLogin={handleGoToLogin}
+        onClose={() => setShowExistsModal(false)}
+      />
+    </>
   );
 }

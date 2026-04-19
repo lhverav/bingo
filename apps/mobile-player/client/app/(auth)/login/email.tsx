@@ -1,18 +1,16 @@
 import { useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
-import { router } from 'expo-router';
-import { formStyles } from '@/constants/authStyles';
-import AuthInput from '@/components/auth/AuthInput';
-import AuthButton from '@/components/auth/AuthButton';
-import { useRegistration } from '@/contexts/RegistrationContext';
+import { View } from 'react-native';
+import { spacing } from '@/constants/authStyles';
+import { useAuthFlow } from '@/contexts/AuthFlowContext';
 import { useAuth } from '@/contexts/AuthContext';
+import AuthInput from '@/components/auth/AuthInput';
+import AuthScreenTemplate from '@/components/auth/AuthScreenTemplate';
 import { validate } from '@/utils/validation';
 import { loginUser } from '@/api/auth';
 
 export default function EmailLoginScreen() {
-  const { data } = useRegistration();
+  const { data, completeFlow } = useAuthFlow();
   const { login } = useAuth();
-  // Can prefill email from context (OAuth collision case)
   const [email, setEmail] = useState(data.email || '');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -20,31 +18,24 @@ export default function EmailLoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    // Validate email
     const emailValidation = validate('email', email);
     if (!emailValidation.valid) {
       setEmailError(emailValidation.message || 'Email inválido');
       return;
     }
 
-    // Validate password
-    const passwordValidation = validate('password', password);
-    if (!passwordValidation.valid) {
-      setPasswordError(passwordValidation.message || 'Contraseña requerida');
+    // For login, only check if password is provided (no format validation)
+    if (!password.trim()) {
+      setPasswordError('Contraseña requerida');
       return;
     }
 
     setLoading(true);
     try {
-      // Call the real login API
       const response = await loginUser(email, password);
-
-      // Store user and token in AuthContext
       await login(response.user, response.token, response.expiresAt);
-      console.log('✅ User logged in successfully');
-
-      // Navigate to root - auth guard will redirect to tabs with clean stack
-      router.replace('/');
+      console.log('[login/email] User logged in successfully');
+      completeFlow();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Email o contraseña incorrectos';
       setPasswordError(errorMessage);
@@ -54,13 +45,16 @@ export default function EmailLoginScreen() {
   };
 
   return (
-    <ScrollView style={formStyles.container}>
-      <View style={formStyles.content}>
-        <Text style={formStyles.title}>Ingresa tu contraseña</Text>
-        <Text style={formStyles.subtitle}>
-          Inicia sesión con tu email y contraseña.
-        </Text>
-
+    <AuthScreenTemplate
+      title="Ingresa tu contraseña"
+      subtitle="Inicia sesión con tu email y contraseña."
+      buttonText={loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+      onSubmit={handleLogin}
+      buttonDisabled={loading || !email || !password}
+      showProgress={false}
+      loading={loading}
+    >
+      <View style={{ gap: spacing.md }}>
         <AuthInput
           value={email}
           onChangeText={(text) => {
@@ -82,11 +76,7 @@ export default function EmailLoginScreen() {
           inputType="password"
           placeholder="Contraseña"
         />
-
-        <AuthButton onPress={handleLogin} disabled={loading}>
-          {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
-        </AuthButton>
       </View>
-    </ScrollView>
+    </AuthScreenTemplate>
   );
 }
