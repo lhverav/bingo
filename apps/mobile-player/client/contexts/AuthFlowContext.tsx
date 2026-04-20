@@ -79,11 +79,11 @@ const FLOW_STEPS: Record<string, string[]> = {
     '/(auth)/profile/name',       // Now includes terms
     '/(auth)/profile/notifications',
   ],
+  // Google OAuth: Browser handles account selection, oauth-callback initializes flow
   'register:google': [
-    '/(auth)/register/google-selector',
-    '/(auth)/profile/birthdate',
+    '/(auth)/profile/birthdate',      // Step 0 - oauth-callback starts here for new users
     '/(auth)/profile/gender',
-    '/(auth)/profile/name',       // Now includes terms
+    '/(auth)/profile/name',
     '/(auth)/profile/notifications',
   ],
 
@@ -101,9 +101,9 @@ const FLOW_STEPS: Record<string, string[]> = {
     '/(auth)/profile/name',
     '/(auth)/profile/notifications',
   ],
+  // Google OAuth: Same as register - browser handles selection, oauth-callback does smart detection
   'login:google': [
-    '/(auth)/register/google-selector',
-    '/(auth)/profile/birthdate',      // Smart detection: new user → register
+    '/(auth)/profile/birthdate',      // Step 0 - oauth-callback starts here for new users
     '/(auth)/profile/gender',
     '/(auth)/profile/name',
     '/(auth)/profile/notifications',

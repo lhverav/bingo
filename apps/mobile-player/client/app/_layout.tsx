@@ -7,6 +7,7 @@ import {
   SocketProvider,
   GameProvider,
 } from "@/contexts";
+import { AuthFlowProvider } from "@/contexts/AuthFlowContext";
 import { useRoundStartNotification } from "@/hooks";
 
 /**
@@ -42,9 +43,10 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <RegistrationProvider>
-        <SocketProvider>
-          <GameProvider>
-            <AppContent>
+        <AuthFlowProvider>
+          <SocketProvider>
+            <GameProvider>
+              <AppContent>
               <StatusBar style="auto" />
               <Stack
                 screenOptions={{
@@ -167,9 +169,10 @@ export default function RootLayout() {
                   }}
                 />
               </Stack>
-            </AppContent>
-          </GameProvider>
-        </SocketProvider>
+              </AppContent>
+            </GameProvider>
+          </SocketProvider>
+        </AuthFlowProvider>
       </RegistrationProvider>
     </AuthProvider>
   );

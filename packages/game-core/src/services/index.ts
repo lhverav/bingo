@@ -63,12 +63,16 @@ export {
   loginWithEmail,
   loginWithPhoneNumber,
   loginWithOAuth,
+  linkOAuthToAccount,
   verifyToken,
   getMobileUserById,
   updateProfile,
   checkEmailExists,
+  checkEmailWithAuthMethod,
   checkPhoneExists,
 } from './mobileUserService';
+
+export type { OAuthLoginResult, AuthMethod } from './mobileUserService';
 
 // Pattern services (CRUD + checking)
 export {

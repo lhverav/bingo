@@ -62,16 +62,27 @@ export interface OAuthCheckResponse {
     email?: string;
     suggestedName?: string;
   };
+  // Email conflict detection
+  emailExistsWithDifferentMethod?: boolean;
+  existingMethod?: 'email' | 'phone';
+  email?: string;
 }
 
 // =============================================================================
 // API FUNCTIONS
 // =============================================================================
 
+export type AuthMethod = 'email' | 'phone' | 'google' | 'facebook' | 'apple';
+
+export interface CheckEmailResult {
+  exists: boolean;
+  authMethod?: AuthMethod;
+}
+
 /**
- * Check if an email already exists in the system
+ * Check if an email already exists and get the auth method used
  */
-export async function checkEmailExists(email: string): Promise<boolean> {
+export async function checkEmailExists(email: string): Promise<CheckEmailResult> {
   try {
     const response = await fetch(`${AUTH_URL}/check-email`, {
       method: 'POST',
@@ -83,8 +94,7 @@ export async function checkEmailExists(email: string): Promise<boolean> {
       throw new Error('Failed to check email');
     }
 
-    const data = await response.json();
-    return data.exists;
+    return await response.json();
   } catch (error) {
     console.error('Error checking email:', error);
     throw error;
@@ -250,4 +260,27 @@ export async function checkOAuthUser(
     console.error('Error checking OAuth user:', error);
     throw error;
   }
+}
+
+/**
+ * Link OAuth provider to existing account (requires password verification)
+ */
+export async function linkOAuthToAccount(
+  email: string,
+  password: string,
+  oauthProvider: 'google' | 'facebook' | 'apple',
+  oauthProviderId: string
+): Promise<LoginResponse> {
+  const response = await fetch(`${AUTH_URL}/link-oauth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, oauthProvider, oauthProviderId }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to link account');
+  }
+
+  return await response.json();
 }

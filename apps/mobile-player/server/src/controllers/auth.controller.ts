@@ -14,7 +14,8 @@ import {
   register,
   loginWithEmail,
   loginWithOAuth,
-  checkEmailExists,
+  linkOAuthToAccount,
+  checkEmailWithAuthMethod,
   checkPhoneExists,
   loginWithPhoneNumber,
 } from "@bingo/game-core";
@@ -236,7 +237,7 @@ export async function oauthGoogleLogin(req: Request, res: Response) {
 }
 
 /**
- * Check if email exists
+ * Check if email exists and return auth method
  * POST /auth/check-email
  */
 export async function checkEmail(req: Request, res: Response) {
@@ -250,8 +251,8 @@ export async function checkEmail(req: Request, res: Response) {
       });
     }
 
-    const exists = await checkEmailExists(email);
-    return res.json({ exists });
+    const result = await checkEmailWithAuthMethod(email);
+    return res.json(result);
   } catch (err) {
     const error = err as Error;
     console.error('Check email error:', error.message);
@@ -323,6 +324,47 @@ export async function loginWithPhone(req: Request, res: Response) {
     return res.status(500).json({
       error: 'INTERNAL_ERROR',
       message: 'Error al iniciar sesión',
+    });
+  }
+}
+
+/**
+ * Link OAuth provider to existing account
+ * Requires password verification for security
+ * POST /auth/link-oauth
+ */
+export async function linkOAuth(req: Request, res: Response) {
+  try {
+    const { email, password, oauthProvider, oauthProviderId } = req.body;
+
+    if (!email || !password || !oauthProvider || !oauthProviderId) {
+      return res.status(400).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Email, contraseña y datos de OAuth son requeridos',
+      });
+    }
+
+    const result = await linkOAuthToAccount(
+      email,
+      password,
+      oauthProvider,
+      oauthProviderId
+    );
+
+    if (!result) {
+      return res.status(401).json({
+        error: 'INVALID_CREDENTIALS',
+        message: 'Contraseña incorrecta',
+      });
+    }
+
+    return res.json(result);
+  } catch (err) {
+    const error = err as Error;
+    console.error('Link OAuth error:', error.message);
+    return res.status(500).json({
+      error: 'INTERNAL_ERROR',
+      message: 'Error al vincular cuenta',
     });
   }
 }

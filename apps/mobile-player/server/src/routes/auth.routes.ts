@@ -15,6 +15,7 @@ import {
   checkEmail,
   checkPhone,
   loginWithPhone,
+  linkOAuth,
 } from "../controllers/auth.controller";
 
 const router = Router();
@@ -66,5 +67,11 @@ router.post("/check-phone", checkPhone);
  * POST /auth/login-phone
  */
 router.post("/login-phone", loginWithPhone);
+
+/**
+ * Link OAuth provider to existing account (requires password)
+ * POST /auth/link-oauth
+ */
+router.post("/link-oauth", linkOAuth);
 
 export default router;

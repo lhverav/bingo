@@ -136,35 +136,57 @@ export async function loginWithPhoneNumber(
 }
 
 /**
- * Login or check OAuth user
- * Returns user if exists, null if new user (needs registration)
+ * OAuth login result types
  */
-export async function loginWithOAuth(
-  data: OAuthData
-): Promise<{ user: AuthResult } | { isNewUser: true; oauthData: OAuthData }> {
-  const existingUser = await mobileUserRepository.findByOAuth(
+export type OAuthLoginResult =
+  | { user: AuthResult }
+  | { isNewUser: true; oauthData: OAuthData }
+  | { emailExistsWithDifferentMethod: true; existingMethod: 'email' | 'phone'; email: string };
+
+/**
+ * Login or check OAuth user
+ * Returns user if exists, conflict info if email exists via different method,
+ * or isNewUser flag if truly new user
+ */
+export async function loginWithOAuth(data: OAuthData): Promise<OAuthLoginResult> {
+  // 1. Check if user exists by OAuth provider + id
+  const existingOAuthUser = await mobileUserRepository.findByOAuth(
     data.provider,
     data.providerId
   );
 
-  if (existingUser) {
+  if (existingOAuthUser) {
     // Update last login
-    await mobileUserRepository.updateLastLogin(existingUser.id);
+    await mobileUserRepository.updateLastLogin(existingOAuthUser.id);
 
     // Generate token
-    const token = generateToken(existingUser.id);
+    const token = generateToken(existingOAuthUser.id);
     const expiresAt = getExpirationDate();
 
     return {
       user: {
-        user: MobileUserMapper.toSafeUser(existingUser),
+        user: MobileUserMapper.toSafeUser(existingOAuthUser),
         token,
         expiresAt,
       },
     };
   }
 
-  // New user - return OAuth data for registration flow
+  // 2. Check if email exists via different auth method
+  if (data.email) {
+    const existingEmailUser = await mobileUserRepository.findByEmail(data.email);
+    if (existingEmailUser) {
+      // Email exists but registered via different method
+      const existingMethod = existingEmailUser.passwordHash ? 'email' : 'phone';
+      return {
+        emailExistsWithDifferentMethod: true,
+        existingMethod,
+        email: data.email,
+      };
+    }
+  }
+
+  // 3. Truly new user - return OAuth data for registration flow
   return {
     isNewUser: true,
     oauthData: data,
@@ -213,10 +235,91 @@ export async function checkEmailExists(email: string): Promise<boolean> {
 }
 
 /**
+ * Auth method type for email check
+ */
+export type AuthMethod = 'email' | 'phone' | 'google' | 'facebook' | 'apple';
+
+/**
+ * Check if email exists and return the auth method used
+ */
+export async function checkEmailWithAuthMethod(
+  email: string
+): Promise<{ exists: boolean; authMethod?: AuthMethod }> {
+  const user = await mobileUserRepository.findByEmail(email);
+
+  if (!user) {
+    return { exists: false };
+  }
+
+  // Determine auth method
+  let authMethod: AuthMethod;
+  if (user.oauthProvider) {
+    authMethod = user.oauthProvider as AuthMethod;
+  } else if (user.passwordHash) {
+    authMethod = 'email';
+  } else if (user.phone) {
+    authMethod = 'phone';
+  } else {
+    authMethod = 'email'; // fallback
+  }
+
+  return { exists: true, authMethod };
+}
+
+/**
  * Check if phone exists
  */
 export async function checkPhoneExists(phone: string): Promise<boolean> {
   return mobileUserRepository.phoneExists(phone);
+}
+
+/**
+ * Link OAuth provider to existing account after password verification
+ * Returns AuthResult on success, null if password is invalid
+ */
+export async function linkOAuthToAccount(
+  email: string,
+  password: string,
+  oauthProvider: 'google' | 'facebook' | 'apple',
+  oauthProviderId: string
+): Promise<AuthResult | null> {
+  // Find user by email
+  const user = await mobileUserRepository.findByEmail(email);
+
+  if (!user || !user.passwordHash) {
+    return null;
+  }
+
+  // Verify password
+  const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+  if (!isPasswordValid) {
+    return null;
+  }
+
+  // Link OAuth to account
+  const updatedUser = await mobileUserRepository.linkOAuth(
+    user.id,
+    oauthProvider,
+    oauthProviderId
+  );
+
+  if (!updatedUser) {
+    return null;
+  }
+
+  // Update last login
+  await mobileUserRepository.updateLastLogin(updatedUser.id);
+
+  // Generate token
+  const token = generateToken(updatedUser.id);
+  const expiresAt = getExpirationDate();
+
+  return {
+    user: MobileUserMapper.toSafeUser(updatedUser),
+    token,
+    expiresAt,
+  };
 }
 
 // Helper functions

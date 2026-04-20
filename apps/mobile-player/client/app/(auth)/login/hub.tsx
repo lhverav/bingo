@@ -1,11 +1,12 @@
+import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, BackHandler } from 'react-native';
 import { router } from 'expo-router';
-import { useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { hubStyles, entryStyles, spacing } from '@/constants/authStyles';
 import { useAuthFlow } from '@/contexts/AuthFlowContext';
 import AuthButton from '@/components/auth/AuthButton';
 import BackButton from '@/components/auth/BackButton';
+import { initiateGoogleLogin } from '@/utils/googleOAuth';
 
 export default function LoginHubScreen() {
   const { startFlow } = useAuthFlow();
@@ -32,8 +33,18 @@ export default function LoginHubScreen() {
     startFlow('login', 'phone');
   };
 
-  const handleGoogleLogin = () => {
-    startFlow('login', 'google');
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      await initiateGoogleLogin();
+      // oauth-callback screen handles the return
+    } catch (error) {
+      console.error('Google OAuth error:', error);
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -62,8 +73,8 @@ export default function LoginHubScreen() {
             Continuar con número de teléfono
           </AuthButton>
 
-          <AuthButton variant="outline" onPress={handleGoogleLogin}>
-            Continuar con Google
+          <AuthButton variant="outline" onPress={handleGoogleLogin} disabled={googleLoading}>
+            {googleLoading ? 'Conectando...' : 'Continuar con Google'}
           </AuthButton>
         </View>
       </View>

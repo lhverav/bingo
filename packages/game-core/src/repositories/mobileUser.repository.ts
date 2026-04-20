@@ -120,6 +120,26 @@ export class MobileUserRepository {
     const result = await MobileUserModel.findByIdAndDelete(id);
     return result !== null;
   }
+
+  /**
+   * Link OAuth provider to existing user
+   */
+  async linkOAuth(
+    id: string,
+    provider: 'google' | 'facebook' | 'apple',
+    providerId: string
+  ): Promise<MobileUser | null> {
+    await connectToDatabase();
+    const doc = await MobileUserModel.findByIdAndUpdate(
+      id,
+      {
+        oauthProvider: provider,
+        oauthProviderId: providerId,
+      },
+      { new: true, runValidators: true }
+    );
+    return doc ? MobileUserMapper.toDomain(doc) : null;
+  }
 }
 
 // Singleton instance for convenience

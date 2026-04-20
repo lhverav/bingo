@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { spacing } from '@/constants/authStyles';
 import { useAuthFlow } from '@/contexts/AuthFlowContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,9 +10,11 @@ import { validate } from '@/utils/validation';
 import { loginUser } from '@/api/auth';
 
 export default function EmailLoginScreen() {
+  const { prefillEmail } = useLocalSearchParams<{ prefillEmail?: string }>();
   const { data, completeFlow } = useAuthFlow();
   const { login } = useAuth();
-  const [email, setEmail] = useState(data.email || '');
+  // Priority: URL param (from OAuth conflict) > AuthFlow data > empty
+  const [email, setEmail] = useState(prefillEmail || data.email || '');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -46,7 +49,7 @@ export default function EmailLoginScreen() {
 
   return (
     <AuthScreenTemplate
-      title="Ingresa tu contraseña"
+      title="Ingresar con email"
       subtitle="Inicia sesión con tu email y contraseña."
       buttonText={loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
       onSubmit={handleLogin}
