@@ -47,20 +47,22 @@ export default function DateScrollPicker({
   const dayScrollRef = useRef<ScrollView>(null);
   const monthScrollRef = useRef<ScrollView>(null);
   const yearScrollRef = useRef<ScrollView>(null);
+  const isInitializing = useRef(true);
 
   // Initial scroll to selected values
   useEffect(() => {
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       scrollToIndex(dayScrollRef, days.indexOf(selectedDay));
       scrollToIndex(monthScrollRef, selectedMonth - 1);
       scrollToIndex(yearScrollRef, years.indexOf(selectedYear));
-    }, 100);
-  }, []);
+      // Allow scroll events after initial positioning
+      setTimeout(() => {
+        isInitializing.current = false;
+      }, 100);
+    }, 50);
 
-  // Notify parent of changes
-  useEffect(() => {
-    onChange({ day: selectedDay, month: selectedMonth, year: selectedYear });
-  }, [selectedDay, selectedMonth, selectedYear]);
+    return () => clearTimeout(timer);
+  }, []);
 
   const scrollToIndex = (ref: React.RefObject<ScrollView>, index: number) => {
     ref.current?.scrollTo({
@@ -69,33 +71,54 @@ export default function DateScrollPicker({
     });
   };
 
+  // Called directly from scroll handler - no useEffect needed
+  const notifyChange = (day: number, month: number, year: number) => {
+    onChange({ day, month, year });
+  };
+
   const handleScrollEnd = (
     event: NativeSyntheticEvent<NativeScrollEvent>,
     items: any[],
-    setter: (value: any) => void,
-    isMonth?: boolean
+    type: 'day' | 'month' | 'year'
   ) => {
+    // Ignore during initialization
+    if (isInitializing.current) return;
+
     const y = event.nativeEvent.contentOffset.y;
     const index = Math.round(y / ITEM_HEIGHT);
     const clampedIndex = Math.max(0, Math.min(index, items.length - 1));
 
-    if (isMonth) {
-      setter(clampedIndex + 1); // Months are 1-indexed
+    let newDay = selectedDay;
+    let newMonth = selectedMonth;
+    let newYear = selectedYear;
+
+    if (type === 'day') {
+      const newValue = items[clampedIndex];
+      if (newValue === selectedDay) return;
+      newDay = newValue;
+      setSelectedDay(newValue);
+    } else if (type === 'month') {
+      const newValue = clampedIndex + 1;
+      if (newValue === selectedMonth) return;
+      newMonth = newValue;
+      setSelectedMonth(newValue);
     } else {
-      setter(items[clampedIndex]);
+      const newValue = items[clampedIndex];
+      if (newValue === selectedYear) return;
+      newYear = newValue;
+      setSelectedYear(newValue);
     }
+
+    notifyChange(newDay, newMonth, newYear);
   };
 
   const renderColumn = (
     items: any[],
     selectedValue: any,
     scrollRef: React.RefObject<ScrollView>,
-    setter: (value: any) => void,
-    isMonth?: boolean,
+    type: 'day' | 'month' | 'year',
     formatItem?: (item: any) => string
   ) => {
-    const getItemValue = (item: any) => isMonth ? items.indexOf(item) + 1 : item;
-
     return (
       <View style={styles.column}>
         <ScrollView
@@ -105,15 +128,14 @@ export default function DateScrollPicker({
           showsVerticalScrollIndicator={false}
           snapToInterval={ITEM_HEIGHT}
           decelerationRate="fast"
-          onMomentumScrollEnd={(e) => handleScrollEnd(e, items, setter, isMonth)}
+          onMomentumScrollEnd={(e) => handleScrollEnd(e, items, type)}
         >
           {/* Padding items at top */}
           <View style={styles.paddingItem} />
           <View style={styles.paddingItem} />
 
           {items.map((item, index) => {
-            const itemValue = getItemValue(item);
-            const isSelected = isMonth
+            const isSelected = type === 'month'
               ? (index + 1) === selectedValue
               : item === selectedValue;
 
@@ -144,9 +166,9 @@ export default function DateScrollPicker({
 
       {/* Columns */}
       <View style={styles.columnsContainer}>
-        {renderColumn(days, selectedDay, dayScrollRef, setSelectedDay)}
-        {renderColumn(months, selectedMonth, monthScrollRef, setSelectedMonth, true, (m) => m)}
-        {renderColumn(years, selectedYear, yearScrollRef, setSelectedYear)}
+        {renderColumn(days, selectedDay, dayScrollRef, 'day')}
+        {renderColumn(months, selectedMonth, monthScrollRef, 'month', (m) => m)}
+        {renderColumn(years, selectedYear, yearScrollRef, 'year')}
       </View>
 
       {/* Labels */}

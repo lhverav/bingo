@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { router } from 'expo-router';
 
 // =============================================================================
@@ -136,15 +136,21 @@ interface AuthFlowProviderProps {
 export function AuthFlowProvider({ children }: AuthFlowProviderProps) {
   const [state, setState] = useState<AuthFlowState>(initialState);
 
-  // Get steps for current flow
-  const getFlowKey = useCallback(() => {
+  // Get steps for current flow (memoized to prevent unnecessary re-renders)
+  const flowKey = useMemo(() => {
     if (!state.flow || !state.provider) return null;
     return `${state.flow}:${state.provider}`;
   }, [state.flow, state.provider]);
 
-  const steps = getFlowKey() ? FLOW_STEPS[getFlowKey()!] || [] : [];
+  const steps = useMemo(() => {
+    return flowKey ? FLOW_STEPS[flowKey] || [] : [];
+  }, [flowKey]);
+
   const totalSteps = steps.length;
   const isLastStep = state.currentStep >= totalSteps - 1;
+
+  // Keep getFlowKey for backward compatibility in other functions
+  const getFlowKey = useCallback(() => flowKey, [flowKey]);
 
   // Start a new flow
   const startFlow = useCallback((flow: AuthFlow, provider: AuthProvider) => {
@@ -322,7 +328,7 @@ export function AuthFlowProvider({ children }: AuthFlowProviderProps) {
     router.replace('/main');
   }, []);
 
-  const value: AuthFlowContextValue = {
+  const value = useMemo<AuthFlowContextValue>(() => ({
     ...state,
     totalSteps,
     steps,
@@ -337,7 +343,22 @@ export function AuthFlowProvider({ children }: AuthFlowProviderProps) {
     setError,
     reset,
     completeFlow,
-  };
+  }), [
+    state,
+    totalSteps,
+    steps,
+    isLastStep,
+    startFlow,
+    initializeFlowAt,
+    updateData,
+    nextStep,
+    prevStep,
+    goToStep,
+    setLoading,
+    setError,
+    reset,
+    completeFlow,
+  ]);
 
   return (
     <AuthFlowContext.Provider value={value}>

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { colors, borderRadius, spacing, fontSize } from '@/constants/authStyles';
 
@@ -8,7 +9,7 @@ interface AuthButtonProps {
   disabled?: boolean;
 }
 
-export default function AuthButton({
+function AuthButton({
   children,
   onPress,
   variant = 'primary',
@@ -25,6 +26,7 @@ export default function AuthButton({
       ]}
       onPress={onPress}
       disabled={disabled}
+      activeOpacity={0.8}
     >
       <Text
         style={[
@@ -40,6 +42,8 @@ export default function AuthButton({
     </TouchableOpacity>
   );
 }
+
+export default memo(AuthButton);
 
 const styles = StyleSheet.create({
   button: {

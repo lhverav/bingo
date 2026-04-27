@@ -38,6 +38,7 @@ export default function EmailInputScreen() {
       }
 
       updateData({ email });
+      setLoading(false);
       nextStep();
     } catch (err) {
       setError('Error al verificar el email. Intenta de nuevo.');
