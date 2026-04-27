@@ -45,16 +45,16 @@ export default function BingoCard({
 
   // Calculate cell size based on card type, compact mode, and maxWidth
   const screenWidth = Dimensions.get('window').width;
-  const defaultMaxWidth = compact ? screenWidth * 0.42 : screenWidth - 40;
+  const defaultMaxWidth = compact ? screenWidth * 0.45 : screenWidth - 20;
   // Use explicit maxWidth if provided, otherwise fall back to default
   const maxCardWidth = maxWidth || defaultMaxWidth;
-  // Account for card padding (10px each side = 20px total) and gap between cells (3px * columns)
-  const cardPadding = 20;
-  const cellGap = 3 * (config.columns - 1);
+  // Account for card padding (6px each side = 12px total) and gap between cells (2px * columns)
+  const cardPadding = 12;
+  const cellGap = 2 * (config.columns - 1);
   const availableWidth = maxCardWidth - cardPadding - cellGap;
   const cellSize = Math.floor(availableWidth / config.columns);
-  const fontSize = compact ? 12 : (cellSize > 35 ? 16 : 14);
-  const headerFontSize = compact ? 10 : 14;
+  const fontSize = compact ? 12 : (cellSize > 40 ? 18 : cellSize > 30 ? 16 : 14);
+  const headerFontSize = compact ? 10 : 13;
 
   const handlePress = () => {
     if (onSelect && !disabled) {
@@ -150,13 +150,13 @@ export default function BingoCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 10,
+    borderRadius: 8,
+    padding: 6,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowRadius: 3,
+    elevation: 3,
     borderWidth: 2,
     borderColor: "#ddd",
     position: "relative",
@@ -187,19 +187,19 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   grid: {
-    gap: 3,
+    gap: 2,
   },
   row: {
     flexDirection: "row",
-    gap: 3,
+    gap: 2,
     justifyContent: "center",
   },
   headerRow: {
-    marginBottom: 4,
+    marginBottom: 2,
   },
   headerCell: {
     backgroundColor: "#3498db",
-    borderRadius: 4,
+    borderRadius: 3,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   },
   cell: {
     backgroundColor: "#f0f0f0",
-    borderRadius: 6,
+    borderRadius: 4,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,

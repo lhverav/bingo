@@ -234,35 +234,34 @@ export default function GameScreen() {
       )}
 
       <View style={styles.header}>
-        <Text style={styles.title}>Bingote de Oro</Text>
-        <Text style={styles.playerCode}>Codigo: {playerCode}</Text>
+        <View>
+          <Text style={styles.title}>Bingote de Oro</Text>
+          <Text style={styles.playerCode}>Codigo: {playerCode}</Text>
+        </View>
         <Text style={styles.status}>
-          {gameStatus === "waiting" && "Esperando inicio del juego..."}
-          {gameStatus === "playing" && "Juego en curso!"}
-          {gameStatus === "ended" && "Juego finalizado"}
+          {gameStatus === "waiting" && "Esperando..."}
+          {gameStatus === "playing" && "En curso"}
+          {gameStatus === "ended" && "Finalizado"}
         </Text>
       </View>
 
-      {/* Last drawn number */}
+      {/* Last drawn number + Pattern button - compact row */}
       <View style={styles.lastDrawnSection}>
-        <Text style={styles.lastDrawnLabel}>Ultimo numero</Text>
+        <TouchableOpacity
+          style={styles.patternButton}
+          onPressIn={() => setShowPatternPopup(true)}
+          onPressOut={() => setShowPatternPopup(false)}
+        >
+          <Text style={styles.patternButtonText}>
+            {PATTERN_LABELS[roundPattern || "linea"] || roundPattern}
+          </Text>
+        </TouchableOpacity>
         <View style={styles.lastDrawnBall}>
           <Text style={styles.lastDrawnNumber}>
             {lastDrawn !== null ? lastDrawn : "-"}
           </Text>
         </View>
       </View>
-
-      {/* Pattern button - above cards */}
-      <TouchableOpacity
-        style={styles.patternButton}
-        onPressIn={() => setShowPatternPopup(true)}
-        onPressOut={() => setShowPatternPopup(false)}
-      >
-        <Text style={styles.patternButtonText}>
-          Patron: {PATTERN_LABELS[roundPattern || "linea"] || roundPattern}
-        </Text>
-      </TouchableOpacity>
 
       {/* Pattern popup */}
       <Modal
@@ -354,69 +353,69 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fafafa",
-    padding: 15,
+    padding: 8,
   },
   header: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    justifyContent: "space-between",
+    marginBottom: 4,
   },
   title: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: "bold",
     color: "#FFD700",
     textShadowColor: "#FFA500",
     textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 1,
   },
   playerCode: {
-    fontSize: 14,
+    fontSize: 11,
     color: "#666",
-    marginTop: 5,
   },
   status: {
-    fontSize: 16,
+    fontSize: 11,
     color: "#333",
     fontWeight: "600",
-    marginTop: 5,
   },
   lastDrawnSection: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    justifyContent: "center",
+    marginBottom: 4,
+    gap: 8,
   },
   lastDrawnLabel: {
-    fontSize: 14,
+    fontSize: 11,
     color: "#666",
-    marginBottom: 5,
   },
   lastDrawnBall: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: "#FFD700",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#FFA500",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowRadius: 3,
+    elevation: 4,
   },
   lastDrawnNumber: {
-    fontSize: 36,
+    fontSize: 24,
     fontWeight: "bold",
     color: "#333",
   },
   patternButton: {
     backgroundColor: "#3498db",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    alignSelf: "center",
-    marginBottom: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
   },
   patternButtonText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "600",
   },
   patternPopupOverlay: {
@@ -428,7 +427,7 @@ const styles = StyleSheet.create({
   patternPopup: {
     backgroundColor: "#fff",
     borderRadius: 12,
-    padding: 20,
+    padding: 15,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
@@ -437,50 +436,51 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   patternPopupTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
     color: "#333",
-    marginBottom: 15,
+    marginBottom: 10,
   },
   patternGrid: {
-    gap: 4,
+    gap: 3,
   },
   patternRow: {
     flexDirection: "row",
-    gap: 4,
+    gap: 3,
   },
   patternCell: {
-    width: 30,
-    height: 30,
+    width: 24,
+    height: 24,
     backgroundColor: "#e0e0e0",
-    borderRadius: 4,
+    borderRadius: 3,
   },
   patternCellActive: {
     backgroundColor: "#FFD700",
   },
   drawnHistorySection: {
-    marginBottom: 10,
+    marginBottom: 4,
+    maxHeight: 50,
   },
   sectionLabel: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: "600",
     color: "#333",
-    marginBottom: 8,
+    marginBottom: 2,
   },
   drawnNumbersList: {
     flexDirection: "row",
-    gap: 8,
+    gap: 4,
   },
   drawnNumberBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: "#e0e0e0",
     justifyContent: "center",
     alignItems: "center",
   },
   drawnNumberText: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "600",
     color: "#333",
   },
@@ -491,8 +491,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
-    gap: 15,
-    paddingBottom: 20,
+    gap: 8,
+    paddingBottom: 10,
   },
   cardWrapper: {
     alignItems: "center",
@@ -505,32 +505,33 @@ const styles = StyleSheet.create({
   },
   bingoButton: {
     backgroundColor: "#e74c3c",
-    paddingVertical: 16,
-    paddingHorizontal: 60,
-    borderRadius: 30,
+    paddingVertical: 10,
+    paddingHorizontal: 40,
+    borderRadius: 20,
     alignSelf: "center",
-    marginVertical: 10,
+    marginVertical: 6,
     shadowColor: "#c0392b",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowRadius: 4,
+    elevation: 6,
   },
   bingoButtonText: {
     color: "#fff",
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "bold",
   },
   homeButton: {
     backgroundColor: "#3498db",
-    paddingVertical: 14,
-    borderRadius: 25,
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 20,
     alignItems: "center",
     marginTop: 10,
   },
   homeButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
   },
   winnerOverlay: {
