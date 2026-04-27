@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from "react-native";
-import { GameWithRounds, getScheduledGames } from "@/api/games";
+import { GameWithRounds, getPublishedGame } from "@/api/games";
 import { GameCard } from "./GameCard";
 import { useSocket } from "@/contexts/SocketContext";
 
@@ -17,46 +17,42 @@ interface GameCarouselProps {
   refreshTrigger?: number; // Increments when external refresh is needed
 }
 
+/**
+ * Displays the single published game (if any)
+ * Only one game can be published/visible to players at a time
+ */
 export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGames, refreshTrigger }: GameCarouselProps) {
-  const [games, setGames] = useState<GameWithRounds[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [game, setGame] = useState<GameWithRounds | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { socket } = useSocket();
 
-  const loadGames = useCallback(async () => {
+  const loadGame = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const scheduledGames = await getScheduledGames();
-      setGames(scheduledGames);
+      const publishedGame = await getPublishedGame();
+      setGame(publishedGame);
     } catch (err) {
-      console.error("Error loading games:", err);
-      setError(err instanceof Error ? err.message : "Error al cargar juegos");
+      console.error("Error loading published game:", err);
+      setError(err instanceof Error ? err.message : "Error al cargar el juego");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Load games on mount
+  // Load game on mount
   useEffect(() => {
-    loadGames();
-  }, [loadGames]);
+    loadGame();
+  }, [loadGame]);
 
-  // Refresh games when external trigger changes (e.g., game created event from another tab)
+  // Refresh game when external trigger changes
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
       console.log("[GameCarousel] External refresh triggered");
-      loadGames();
+      loadGame();
     }
-  }, [refreshTrigger, loadGames]);
-
-  // Reset currentIndex when games array shrinks
-  useEffect(() => {
-    if (currentIndex >= games.length && games.length > 0) {
-      setCurrentIndex(games.length - 1);
-    }
-  }, [games.length, currentIndex]);
+  }, [refreshTrigger, loadGame]);
 
   // Listen for real-time game events
   useEffect(() => {
@@ -67,55 +63,66 @@ export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGam
 
     console.log("[GameCarousel] Setting up socket listeners, connected:", socket.connected);
 
-    const handleGameCreated = () => {
-      console.log("🎮 New game created, refreshing list...");
-      loadGames();
+    const handleGamePublished = () => {
+      console.log("🎮 Game published, refreshing...");
+      loadGame();
+    };
+
+    const handleGameUnpublished = () => {
+      console.log("🎮 Game unpublished, refreshing...");
+      loadGame();
     };
 
     const handleGameStarted = () => {
-      console.log("🎮 Game started, refreshing list...");
-      loadGames();
+      console.log("🎮 Game started, refreshing...");
+      loadGame();
     };
 
     const handleGameFinished = () => {
-      console.log("🎮 Game finished, refreshing list...");
-      loadGames();
+      console.log("🎮 Game finished, refreshing...");
+      loadGame();
     };
 
     const handleGameCancelled = () => {
-      console.log("🎮 Game cancelled, refreshing list...");
-      loadGames();
+      console.log("🎮 Game cancelled, refreshing...");
+      loadGame();
     };
 
     const handleRoundCreated = () => {
-      console.log("🎯 Round created, refreshing list...");
-      loadGames();
+      console.log("🎯 Round created, refreshing...");
+      loadGame();
     };
 
     const handleRoundUpdated = () => {
-      console.log("🎯 Round updated, refreshing list...");
-      loadGames();
+      console.log("🎯 Round updated, refreshing...");
+      loadGame();
     };
 
     const handleRoundDeleted = () => {
-      console.log("🎯 Round deleted, refreshing list...");
-      loadGames();
+      console.log("🎯 Round deleted, refreshing...");
+      loadGame();
     };
 
-    // Game events
-    socket.on("game:created", handleGameCreated);
+    // Game publish events
+    socket.on("game:published", handleGamePublished);
+    socket.on("game:unpublished", handleGameUnpublished);
+
+    // Game lifecycle events
     socket.on("game:started", handleGameStarted);
     socket.on("game:finished", handleGameFinished);
     socket.on("game:cancelled", handleGameCancelled);
 
-    // Round events
+    // Round events (still needed for round info refresh)
     socket.on("round:created", handleRoundCreated);
     socket.on("round:updated", handleRoundUpdated);
     socket.on("round:deleted", handleRoundDeleted);
 
     return () => {
-      // Game events
-      socket.off("game:created", handleGameCreated);
+      // Game publish events
+      socket.off("game:published", handleGamePublished);
+      socket.off("game:unpublished", handleGameUnpublished);
+
+      // Game lifecycle events
       socket.off("game:started", handleGameStarted);
       socket.off("game:finished", handleGameFinished);
       socket.off("game:cancelled", handleGameCancelled);
@@ -125,23 +132,15 @@ export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGam
       socket.off("round:updated", handleRoundUpdated);
       socket.off("round:deleted", handleRoundDeleted);
     };
-  }, [socket, loadGames]);
-
-  const goToPrevious = () => {
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : games.length - 1));
-  };
-
-  const goToNext = () => {
-    setCurrentIndex((prev) => (prev < games.length - 1 ? prev + 1 : 0));
-  };
+  }, [socket, loadGame]);
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.sectionTitle}>Próximos Juegos</Text>
+        <Text style={styles.sectionTitle}>Próximo Juego</Text>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FFD700" />
-          <Text style={styles.loadingText}>Cargando juegos...</Text>
+          <Text style={styles.loadingText}>Cargando...</Text>
         </View>
       </View>
     );
@@ -150,10 +149,10 @@ export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGam
   if (error) {
     return (
       <View style={styles.container}>
-        <Text style={styles.sectionTitle}>Próximos Juegos</Text>
+        <Text style={styles.sectionTitle}>Próximo Juego</Text>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadGames}>
+          <TouchableOpacity style={styles.retryButton} onPress={loadGame}>
             <Text style={styles.retryButtonText}>Reintentar</Text>
           </TouchableOpacity>
         </View>
@@ -161,47 +160,32 @@ export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGam
     );
   }
 
-  if (games.length === 0) {
+  if (!game) {
     return (
       <View style={styles.container}>
-        <Text style={styles.sectionTitle}>Próximos Juegos</Text>
+        <Text style={styles.sectionTitle}>Próximo Juego</Text>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>🎱</Text>
-          <Text style={styles.emptyText}>No hay juegos pendientes</Text>
+          <Text style={styles.emptyText}>No hay juegos disponibles</Text>
           <Text style={styles.emptySubtext}>
-            Los juegos programados aparecerán aquí
+            Espera a que el organizador publique un juego
           </Text>
         </View>
       </View>
     );
   }
 
-  const currentGame = games[currentIndex];
-
-  // Guard against undefined currentGame (can happen during state transitions)
-  if (!currentGame) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.sectionTitle}>Proximos Juegos</Text>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FFD700" />
-          <Text style={styles.loadingText}>Actualizando...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  const joinedInfo = joinedGames[currentGame.id];
+  const joinedInfo = joinedGames[game.id];
   const isJoined = !!joinedInfo;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Proximos Juegos</Text>
+      <Text style={styles.sectionTitle}>Próximo Juego</Text>
 
       {/* Card Display */}
       <View style={styles.cardContainer}>
         <GameCard
-          game={currentGame}
+          game={game}
           isJoined={isJoined}
           playerCode={joinedInfo?.playerCode}
           onJoin={onJoinGame}
@@ -209,36 +193,6 @@ export function GameCarousel({ onJoinGame, onLeaveGame, onSelectCards, joinedGam
           onSelectCards={onSelectCards}
         />
       </View>
-
-      {/* Navigation */}
-      {games.length > 1 && (
-        <View style={styles.navigation}>
-          <TouchableOpacity style={styles.navButton} onPress={goToPrevious}>
-            <Text style={styles.navButtonText}>◄</Text>
-          </TouchableOpacity>
-
-          <View style={styles.indicators}>
-            {games.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.indicator,
-                  index === currentIndex && styles.indicatorActive,
-                ]}
-              />
-            ))}
-          </View>
-
-          <TouchableOpacity style={styles.navButton} onPress={goToNext}>
-            <Text style={styles.navButtonText}>►</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Counter */}
-      <Text style={styles.counter}>
-        {currentIndex + 1} de {games.length}
-      </Text>
     </View>
   );
 }
@@ -313,46 +267,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#999",
     textAlign: "center",
-  },
-  navigation: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 20,
-    gap: 20,
-  },
-  navButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#F0F0F0",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#DDD",
-  },
-  navButtonText: {
-    fontSize: 18,
-    color: "#333",
-  },
-  indicators: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  indicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#DDD",
-  },
-  indicatorActive: {
-    backgroundColor: "#FFD700",
-    width: 24,
-  },
-  counter: {
-    marginTop: 12,
-    fontSize: 12,
-    color: "#999",
   },
 });
 

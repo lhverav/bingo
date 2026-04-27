@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getScheduledGames, getGame, getMyJoinedGames, getActiveRounds } from "../controllers/games.controller";
+import { getScheduledGames, getGame, getMyJoinedGames, getActiveRounds, getPublished } from "../controllers/games.controller";
 
 const router = Router();
 
@@ -8,6 +8,12 @@ const router = Router();
  * Get all upcoming scheduled games with their rounds
  */
 router.get("/", getScheduledGames);
+
+/**
+ * GET /games/published
+ * Get the currently published game (the one visible to players)
+ */
+router.get("/published", getPublished);
 
 /**
  * GET /games/active-rounds

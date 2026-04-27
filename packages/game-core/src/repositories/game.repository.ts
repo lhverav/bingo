@@ -100,6 +100,44 @@ export class GameRepository {
     const result = await GameModel.findByIdAndDelete(id);
     return result !== null;
   }
+
+  /**
+   * Find the currently published game
+   * Only one game can be published at a time
+   */
+  async findPublished(): Promise<Game | null> {
+    await connectToDatabase();
+    const doc = await GameModel.findOne({
+      isPublished: true,
+      status: { $in: ['scheduled', 'active'] },
+    });
+    return doc ? GameMapper.toDomain(doc) : null;
+  }
+
+  /**
+   * Set published status for a game
+   */
+  async setPublished(id: string, isPublished: boolean): Promise<Game | null> {
+    await connectToDatabase();
+    const doc = await GameModel.findByIdAndUpdate(
+      id,
+      { isPublished },
+      { new: true }
+    );
+    return doc ? GameMapper.toDomain(doc) : null;
+  }
+
+  /**
+   * Unpublish all games
+   * Used before publishing a new game to ensure only one is published
+   */
+  async unpublishAll(): Promise<void> {
+    await connectToDatabase();
+    await GameModel.updateMany(
+      { isPublished: true },
+      { isPublished: false }
+    );
+  }
 }
 
 // Singleton instance for convenience

@@ -9,6 +9,9 @@ export interface GameDocument extends Document {
   status: 'scheduled' | 'active' | 'finished' | 'cancelled';
   createdBy: Types.ObjectId;
 
+  // Visibility to mobile players
+  isPublished: boolean;
+
   // Payment configuration (at game level)
   isPaid: boolean;
   pricePerCard?: number;
@@ -49,6 +52,12 @@ const GameSchema = new Schema<GameDocument>(
       required: true,
     },
 
+    // Visibility to mobile players
+    isPublished: {
+      type: Boolean,
+      default: false,
+    },
+
     // Payment configuration
     isPaid: {
       type: Boolean,
@@ -78,6 +87,7 @@ GameSchema.pre('save', function () {
 // Index for efficient queries
 GameSchema.index({ status: 1, scheduledAt: 1 });
 GameSchema.index({ createdBy: 1 });
+GameSchema.index({ isPublished: 1, status: 1 });
 
 const GameModel: Model<GameDocument> =
   mongoose.models.Game || mongoose.model<GameDocument>('Game', GameSchema);

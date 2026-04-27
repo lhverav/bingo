@@ -18,6 +18,7 @@ export class GameMapper {
       scheduledAt: doc.scheduledAt,
       status: doc.status,
       createdBy: doc.createdBy.toString(),
+      isPublished: doc.isPublished ?? false,
       isPaid: doc.isPaid,
       pricePerCard: doc.pricePerCard,
       currency: doc.currency,

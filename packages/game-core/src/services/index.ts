@@ -19,9 +19,13 @@ export {
   finishGame,
   cancelGame,
   deleteGame,
+  // Publish/Unpublish
+  getPublishedGame,
+  publishGame,
+  unpublishGame,
 } from './gameService';
 
-export type { CreateGameInput, UpdateGameInput, GameWithRoundCount } from './gameService';
+export type { CreateGameInput, UpdateGameInput, GameWithRoundCount, PublishResult } from './gameService';
 
 // Round services
 export {

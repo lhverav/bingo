@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getUpcomingGames, getGameById, roundRepository, patternRepository, getJoinedGames, gameRepository } from "@bingo/game-core";
+import { getUpcomingGames, getGameById, roundRepository, patternRepository, getJoinedGames, gameRepository, getPublishedGame } from "@bingo/game-core";
 import { Game, Round, GamePlayer } from "@bingo/domain";
 
 /**
@@ -226,5 +226,47 @@ export async function getActiveRounds(req: Request, res: Response) {
   } catch (error) {
     console.error("Error getting active rounds:", error);
     res.status(500).json({ error: "Error al obtener rondas activas" });
+  }
+}
+
+/**
+ * Get the currently published game (the one visible to mobile players)
+ * Only one game can be published at a time
+ */
+export async function getPublished(req: Request, res: Response) {
+  try {
+    const game = await getPublishedGame();
+
+    // If no game is published, return null (not an error)
+    if (!game) {
+      return res.json(null);
+    }
+
+    // Enrich with rounds
+    const rounds = await roundRepository.findByGameId(game.id);
+    const patterns = await patternRepository.findByCardType(game.cardType);
+    const patternMap = new Map(patterns.map((p) => [p.id, p]));
+
+    const roundSummaries: RoundSummary[] = rounds
+      .sort((a, b) => a.order - b.order)
+      .map((round) => {
+        const pattern = patternMap.get(round.patternId);
+        return {
+          id: round.id,
+          name: round.name,
+          order: round.order,
+          patternName: pattern?.name,
+        };
+      });
+
+    const gameWithRounds: GameWithRounds = {
+      ...game,
+      rounds: roundSummaries,
+    };
+
+    res.json(gameWithRounds);
+  } catch (error) {
+    console.error("Error getting published game:", error);
+    res.status(500).json({ error: "Error al obtener el juego publicado" });
   }
 }

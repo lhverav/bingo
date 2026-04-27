@@ -42,6 +42,9 @@ export interface Game {
   status: GameStatus;
   createdBy: string;
 
+  // Visibility to mobile players
+  isPublished: boolean;        // Only ONE game can be published at a time
+
   // Payment configuration (at game level)
   isPaid: boolean;
   pricePerCard?: number;       // If paid: price per card

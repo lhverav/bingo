@@ -28,6 +28,7 @@ export interface GameWithRounds {
 
 /**
  * Fetch all upcoming scheduled games with their rounds
+ * @deprecated Use getPublishedGame() instead - only one game is visible at a time
  */
 export async function getScheduledGames(): Promise<GameWithRounds[]> {
   const response = await fetch(`${serverConfig.baseUrl}/games`, {
@@ -41,6 +42,28 @@ export async function getScheduledGames(): Promise<GameWithRounds[]> {
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || "Error al obtener juegos");
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch the currently published game (the one visible to players)
+ * Only one game can be published at a time
+ * Returns null if no game is published
+ */
+export async function getPublishedGame(): Promise<GameWithRounds | null> {
+  const response = await fetch(`${serverConfig.baseUrl}/games/published`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Error al obtener el juego publicado");
   }
 
   return response.json();

@@ -6,7 +6,7 @@ import {
   CardType,
   Currency,
 } from '@bingo/domain';
-import { gameRepository, roundRepository } from '../repositories';
+import { gameRepository, roundRepository, gamePlayerRepository } from '../repositories';
 
 /**
  * Game service - Business logic for game operations
@@ -165,6 +165,7 @@ export async function updateGame(
 /**
  * Start a game (change status to 'active')
  * Note: Rounds can be created before or after the game starts (on the fly)
+ * Auto-publishes the game if not already published
  */
 export async function startGame(id: string): Promise<Game | null> {
   const game = await gameRepository.findById(id);
@@ -175,11 +176,20 @@ export async function startGame(id: string): Promise<Game | null> {
     throw new Error('Este juego ya ha sido iniciado o finalizado');
   }
 
+  // Auto-publish when starting (if not already published)
+  if (!game.isPublished) {
+    const publishResult = await publishGame(id);
+    if (!publishResult.success) {
+      throw new Error(publishResult.error || 'No se pudo publicar el juego');
+    }
+  }
+
   return gameRepository.updateStatus(id, 'active');
 }
 
 /**
  * Finish a game (change status to 'finished')
+ * Auto-unpublishes the game
  */
 export async function finishGame(id: string): Promise<Game | null> {
   const game = await gameRepository.findById(id);
@@ -190,11 +200,17 @@ export async function finishGame(id: string): Promise<Game | null> {
     throw new Error('Solo se pueden finalizar juegos activos');
   }
 
+  // Auto-unpublish when finishing
+  if (game.isPublished) {
+    await gameRepository.setPublished(id, false);
+  }
+
   return gameRepository.updateStatus(id, 'finished');
 }
 
 /**
  * Cancel a game (change status to 'cancelled')
+ * Auto-unpublishes the game
  */
 export async function cancelGame(id: string): Promise<Game | null> {
   const game = await gameRepository.findById(id);
@@ -203,6 +219,11 @@ export async function cancelGame(id: string): Promise<Game | null> {
   // Business rule: Cannot cancel finished games
   if (game.status === 'finished') {
     throw new Error('No se pueden cancelar juegos finalizados');
+  }
+
+  // Auto-unpublish when cancelling
+  if (game.isPublished) {
+    await gameRepository.setPublished(id, false);
   }
 
   return gameRepository.updateStatus(id, 'cancelled');
@@ -220,8 +241,115 @@ export async function deleteGame(id: string): Promise<boolean> {
     throw new Error('Solo se pueden eliminar juegos programados o cancelados');
   }
 
+  // Business rule: Cannot delete published game
+  if (game.isPublished) {
+    throw new Error('No se puede eliminar un juego publicado. Despublíquelo primero.');
+  }
+
   // Delete all rounds for this game
   await roundRepository.deleteByGameId(id);
 
   return gameRepository.delete(id);
+}
+
+// ============================================================================
+// PUBLISH / UNPUBLISH FUNCTIONS
+// ============================================================================
+
+/**
+ * Result type for publish/unpublish operations
+ */
+export interface PublishResult {
+  success: boolean;
+  error?: string;
+  game?: Game;
+}
+
+/**
+ * Get the currently published game
+ * Only one game can be published at a time
+ */
+export async function getPublishedGame(): Promise<Game | null> {
+  return gameRepository.findPublished();
+}
+
+/**
+ * Publish a game (make it visible to mobile players)
+ *
+ * Rules:
+ * - Only scheduled or active games can be published
+ * - Cannot publish if another game has players
+ * - Publishing unpublishes any other game (if it has no players)
+ */
+export async function publishGame(id: string): Promise<PublishResult> {
+  const game = await gameRepository.findById(id);
+  if (!game) {
+    return { success: false, error: 'Juego no encontrado' };
+  }
+
+  // Rule: Only scheduled or active games can be published
+  if (game.status !== 'scheduled' && game.status !== 'active') {
+    return { success: false, error: 'Solo se pueden publicar juegos programados o activos' };
+  }
+
+  // Rule: Already published
+  if (game.isPublished) {
+    return { success: true, game };
+  }
+
+  // Check if another game is published
+  const currentPublished = await gameRepository.findPublished();
+  if (currentPublished && currentPublished.id !== id) {
+    // Check if the currently published game has players
+    const playerCount = await gamePlayerRepository.countByGameId(currentPublished.id);
+    if (playerCount > 0) {
+      return {
+        success: false,
+        error: `No se puede publicar: "${currentPublished.name}" tiene ${playerCount} jugador(es) unidos`,
+      };
+    }
+
+    // Unpublish the other game (no players)
+    await gameRepository.setPublished(currentPublished.id, false);
+  }
+
+  // Publish this game
+  const updatedGame = await gameRepository.setPublished(id, true);
+  return { success: true, game: updatedGame || game };
+}
+
+/**
+ * Unpublish a game (hide from mobile players)
+ *
+ * Rules:
+ * - Cannot unpublish an active game
+ * - Cannot unpublish if game has players
+ */
+export async function unpublishGame(id: string): Promise<PublishResult> {
+  const game = await gameRepository.findById(id);
+  if (!game) {
+    return { success: false, error: 'Juego no encontrado' };
+  }
+
+  // Rule: Already unpublished
+  if (!game.isPublished) {
+    return { success: true, game };
+  }
+
+  // Rule: Cannot unpublish active game
+  if (game.status === 'active') {
+    return { success: false, error: 'No se puede despublicar un juego en curso' };
+  }
+
+  // Rule: Cannot unpublish if has players
+  const playerCount = await gamePlayerRepository.countByGameId(id);
+  if (playerCount > 0) {
+    return {
+      success: false,
+      error: `No se puede despublicar: ${playerCount} jugador(es) ya unidos`,
+    };
+  }
+
+  const updatedGame = await gameRepository.setPublished(id, false);
+  return { success: true, game: updatedGame || game };
 }

@@ -12,6 +12,9 @@ import {
   cancelGame,
   getGameById,
   getAllGamesWithRoundCount,
+  publishGame,
+  unpublishGame,
+  getPublishedGame,
 } from "@bingo/game-core";
 import { CardType, Currency } from "@bingo/domain";
 
@@ -282,4 +285,102 @@ export async function getGamesAction() {
   }
 
   return getAllGamesWithRoundCount();
+}
+
+export async function publishGameAction(formData: FormData) {
+  const session = await getSession();
+
+  if (!session.isLoggedIn) {
+    redirect("/");
+  }
+
+  const id = formData.get("id") as string;
+
+  try {
+    const result = await publishGame(id);
+
+    if (!result.success) {
+      redirect(`/host/juegos?error=${encodeURIComponent(result.error || "Error al publicar")}`);
+    }
+
+    // Notify mobile players about game published
+    try {
+      const notifyUrl = `${process.env.MOBILE_SERVER_URL || 'http://localhost:3001'}/notify`;
+      console.log(`[games] Sending GAME_PUBLISHED notification to ${notifyUrl}`);
+      await fetch(notifyUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "GAME_PUBLISHED",
+          data: {
+            gameId: result.game!.id,
+            name: result.game!.name,
+            cardType: result.game!.cardType,
+            scheduledAt: result.game!.scheduledAt,
+            status: result.game!.status,
+          },
+        }),
+      });
+    } catch (notifyError) {
+      console.error("[games] Error notifying mobile players:", notifyError);
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Error al publicar el juego";
+    redirect(`/host/juegos?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath("/host/juegos");
+  redirect("/host/juegos");
+}
+
+export async function unpublishGameAction(formData: FormData) {
+  const session = await getSession();
+
+  if (!session.isLoggedIn) {
+    redirect("/");
+  }
+
+  const id = formData.get("id") as string;
+
+  try {
+    const result = await unpublishGame(id);
+
+    if (!result.success) {
+      redirect(`/host/juegos?error=${encodeURIComponent(result.error || "Error al despublicar")}`);
+    }
+
+    // Notify mobile players about game unpublished
+    try {
+      const notifyUrl = `${process.env.MOBILE_SERVER_URL || 'http://localhost:3001'}/notify`;
+      console.log(`[games] Sending GAME_UNPUBLISHED notification to ${notifyUrl}`);
+      await fetch(notifyUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "GAME_UNPUBLISHED",
+          data: {
+            gameId: id,
+          },
+        }),
+      });
+    } catch (notifyError) {
+      console.error("[games] Error notifying mobile players:", notifyError);
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Error al despublicar el juego";
+    redirect(`/host/juegos?error=${encodeURIComponent(message)}`);
+  }
+
+  revalidatePath("/host/juegos");
+  redirect("/host/juegos");
+}
+
+export async function getPublishedGameAction() {
+  return getPublishedGame();
 }

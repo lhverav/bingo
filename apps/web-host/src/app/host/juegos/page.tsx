@@ -1,7 +1,7 @@
 import { getSession } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
 import { getAllGamesWithRoundCount } from "@bingo/game-core";
-import { deleteGameAction, startGameAction } from "@/lib/actions/games";
+import { deleteGameAction, startGameAction, publishGameAction, unpublishGameAction } from "@/lib/actions/games";
 import Link from "next/link";
 import { CARD_TYPE_LABELS } from "@bingo/domain";
 
@@ -75,6 +75,7 @@ export default async function JuegosPage({
                 <th>Fecha Programada</th>
                 <th>Rondas</th>
                 <th>Estado</th>
+                <th>Visible</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -89,6 +90,13 @@ export default async function JuegosPage({
                     <span className={`status-badge ${statusColors[game.status]}`}>
                       {statusLabels[game.status]}
                     </span>
+                  </td>
+                  <td>
+                    {game.isPublished ? (
+                      <span className="status-badge status-active">Publicado</span>
+                    ) : (
+                      <span className="status-badge status-configured">No publicado</span>
+                    )}
                   </td>
                   <td className="actions-cell">
                     <Link
@@ -106,6 +114,22 @@ export default async function JuegosPage({
                         >
                           Editar
                         </Link>
+
+                        {!game.isPublished ? (
+                          <form action={publishGameAction} style={{ display: "inline" }}>
+                            <input type="hidden" name="id" value={game.id} />
+                            <button type="submit" className="btn-action btn-publish">
+                              Publicar
+                            </button>
+                          </form>
+                        ) : (
+                          <form action={unpublishGameAction} style={{ display: "inline" }}>
+                            <input type="hidden" name="id" value={game.id} />
+                            <button type="submit" className="btn-action btn-unpublish">
+                              Despublicar
+                            </button>
+                          </form>
+                        )}
 
                         <form action={startGameAction} style={{ display: "inline" }}>
                           <input type="hidden" name="id" value={game.id} />

@@ -206,6 +206,28 @@ app.post("/notify", (req, res) => {
       console.log(`Game deleted: ${data?.gameId}`);
       break;
 
+    case "GAME_PUBLISHED":
+      // Notify all clients that a game has been published (visible to players)
+      io.emit("game:published", {
+        gameId: data?.gameId,
+        name: data?.name,
+        cardType: data?.cardType,
+        scheduledAt: data?.scheduledAt,
+        status: data?.status,
+        timestamp,
+      });
+      console.log(`Game published: ${data?.name} (${data?.gameId})`);
+      break;
+
+    case "GAME_UNPUBLISHED":
+      // Notify all clients that a game has been unpublished (hidden from players)
+      io.emit("game:unpublished", {
+        gameId: data?.gameId,
+        timestamp,
+      });
+      console.log(`Game unpublished: ${data?.gameId}`);
+      break;
+
     case "ROUND_CREATED":
       // Notify all clients about new round in a game (can be created on the fly)
       io.emit("round:created", {
