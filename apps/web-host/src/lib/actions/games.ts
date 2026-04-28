@@ -307,7 +307,7 @@ export async function publishGameAction(formData: FormData) {
     try {
       const notifyUrl = `${process.env.MOBILE_SERVER_URL || 'http://localhost:3001'}/notify`;
       console.log(`[games] Sending GAME_PUBLISHED notification to ${notifyUrl}`);
-      await fetch(notifyUrl, {
+      const notifyResponse = await fetch(notifyUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -323,6 +323,7 @@ export async function publishGameAction(formData: FormData) {
           },
         }),
       });
+      console.log(`[games] GAME_PUBLISHED notification response:`, notifyResponse.status);
     } catch (notifyError) {
       console.error("[games] Error notifying mobile players:", notifyError);
     }
@@ -356,7 +357,7 @@ export async function unpublishGameAction(formData: FormData) {
     try {
       const notifyUrl = `${process.env.MOBILE_SERVER_URL || 'http://localhost:3001'}/notify`;
       console.log(`[games] Sending GAME_UNPUBLISHED notification to ${notifyUrl}`);
-      await fetch(notifyUrl, {
+      const notifyResponse = await fetch(notifyUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -368,6 +369,7 @@ export async function unpublishGameAction(formData: FormData) {
           },
         }),
       });
+      console.log(`[games] GAME_UNPUBLISHED notification response:`, notifyResponse.status);
     } catch (notifyError) {
       console.error("[games] Error notifying mobile players:", notifyError);
     }

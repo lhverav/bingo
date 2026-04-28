@@ -148,23 +148,14 @@ export async function updateGamePlayerStatus(
 
 /**
  * Leave a game - removes the player from the game
- * Can only leave if game hasn't started (status is 'scheduled')
+ * Can leave from any game state (cleanup for finished/cancelled games)
  */
 export async function leaveGame(gameId: string, mobileUserId: string): Promise<boolean> {
-  // Verify the game exists and is still scheduled
-  const game = await gameRepository.findById(gameId);
-  if (!game) {
-    throw new Error('Juego no encontrado');
-  }
-
-  if (game.status !== 'scheduled') {
-    throw new Error('No puedes salir de un juego que ya ha comenzado');
-  }
-
-  // Find the player
+  // Find the player (game may or may not exist - allow cleanup either way)
   const player = await gamePlayerRepository.findByGameAndMobileUser(gameId, mobileUserId);
   if (!player) {
-    throw new Error('No estas registrado en este juego');
+    // Player not found - maybe already cleaned up, return success
+    return true;
   }
 
   // Delete the player

@@ -29,18 +29,28 @@ export async function connectToDatabase() {
   }
 
   if (cached.conn) {
+    console.log('[game-core] Using cached MongoDB connection');
     return cached.conn;
   }
 
   console.log('[game-core] Connecting to MongoDB:', MONGODB_URI);
+  console.log('[game-core] Connection state:', mongoose.connection.readyState);
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI).then((m) => m);
+    console.log('[game-core] Creating new connection promise...');
+    cached.promise = mongoose.connect(MONGODB_URI).then((m) => {
+      console.log('[game-core] Connection established');
+      return m;
+    });
+  } else {
+    console.log('[game-core] Reusing existing connection promise...');
   }
 
   try {
     cached.conn = await cached.promise;
+    console.log('[game-core] Connection ready, state:', mongoose.connection.readyState);
   } catch (e) {
+    console.error('[game-core] Connection failed:', e);
     cached.promise = null;
     throw e;
   }

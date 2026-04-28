@@ -3,15 +3,19 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import { roundRepository } from "@bingo/game-core";
+import { roundRepository, connectToDatabase } from "@bingo/game-core";
 import { registerRoundEvents } from "./events/roundEvents";
 import { registerGameEvents } from "./events/gameEvents";
 import authRoutes from "./routes/auth.routes";
 import gamesRoutes from "./routes/games.routes";
 
 // Load environment variables from .env file
-
 dotenv.config();
+
+// Initialize database connection
+connectToDatabase()
+  .then(() => console.log("[server] Database connected via game-core"))
+  .catch((err) => console.error("[server] Database connection error:", err));
 
 const app = express();
 
@@ -154,14 +158,15 @@ app.post("/notify", (req, res) => {
       break;
 
     case "ROUND_STARTED":
-      // Emit round:updated so "Juegos en Curso" list refreshes
-      io.emit("round:updated", {
+      // Emit round:started so mobile clients know a round is active
+      console.log(`[notify] ROUND_STARTED - emitting to ${io.engine.clientsCount} clients`);
+      io.emit("round:started", {
         gameId: data?.gameId,
         roundId: data?.roundId,
-        status: "en_progreso",
+        status: "active",
         timestamp,
       });
-      console.log(`Round ${data?.roundId} started in game ${data?.gameId}`);
+      console.log(`[notify] Round ${data?.roundId} started in game ${data?.gameId}`);
       break;
 
     case "GAME_CREATED":
@@ -190,11 +195,24 @@ app.post("/notify", (req, res) => {
 
     case "GAME_FINISHED":
       // Notify all clients that a game has finished
+      console.log(`[notify] GAME_FINISHED - emitting to ${io.engine.clientsCount} clients`);
       io.emit("game:finished", {
         gameId: data?.gameId,
+        status: "finished",
         timestamp,
       });
-      console.log(`Game finished: ${data?.gameId}`);
+      console.log(`[notify] Game finished: ${data?.gameId}`);
+      break;
+
+    case "GAME_CANCELLED":
+      // Notify all clients that a game has been cancelled
+      console.log(`[notify] GAME_CANCELLED - emitting to ${io.engine.clientsCount} clients`);
+      io.emit("game:cancelled", {
+        gameId: data?.gameId,
+        status: "cancelled",
+        timestamp,
+      });
+      console.log(`[notify] Game cancelled: ${data?.gameId}`);
       break;
 
     case "GAME_DELETED":
@@ -208,6 +226,7 @@ app.post("/notify", (req, res) => {
 
     case "GAME_PUBLISHED":
       // Notify all clients that a game has been published (visible to players)
+      console.log(`[notify] GAME_PUBLISHED - emitting to ${io.engine.clientsCount} clients`);
       io.emit("game:published", {
         gameId: data?.gameId,
         name: data?.name,
@@ -216,16 +235,17 @@ app.post("/notify", (req, res) => {
         status: data?.status,
         timestamp,
       });
-      console.log(`Game published: ${data?.name} (${data?.gameId})`);
+      console.log(`[notify] Game published: ${data?.name} (${data?.gameId})`);
       break;
 
     case "GAME_UNPUBLISHED":
       // Notify all clients that a game has been unpublished (hidden from players)
+      console.log(`[notify] GAME_UNPUBLISHED - emitting to ${io.engine.clientsCount} clients`);
       io.emit("game:unpublished", {
         gameId: data?.gameId,
         timestamp,
       });
-      console.log(`Game unpublished: ${data?.gameId}`);
+      console.log(`[notify] Game unpublished: ${data?.gameId}`);
       break;
 
     case "ROUND_CREATED":

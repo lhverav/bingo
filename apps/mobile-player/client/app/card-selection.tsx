@@ -62,7 +62,6 @@ export default function CardSelectionScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [maxSelectable, setMaxSelectable] = useState(2);
   const cardsRequestedRef = useRef(false);
-  const viewRequestedRef = useRef(false);
 
   // Game-level card state
   const [gameCards, setGameCards] = useState<Card[]>([]);
@@ -101,19 +100,13 @@ export default function CardSelectionScreen() {
   // =========================================================================
   // GAME-LEVEL CARD HOOKS
   // =========================================================================
-  const { requestGameCards, selectGameCards, viewGameCards } = useGameCardSocket({
-    // When viewing current cards
+  const { requestGameCards, selectGameCards } = useGameCardSocket({
+    // When viewing current cards (not used - main screen shows cards now)
     onGameCardsCurrent: (data) => {
-      console.log("[card-selection.tsx] Current cards received:", data);
+      console.log("[card-selection.tsx] Current cards received (unexpected):", data);
+      // If this is called, store current cards for the warning message
       if (data.hasCards && data.cards.length > 0) {
-        // Player has cards - show viewing mode
         setCurrentCards(data.cards);
-        setMode('viewing');
-      } else {
-        // Player has no cards - go directly to selection
-        console.log("[card-selection.tsx] No cards, requesting new cards for selection");
-        cardsRequestedRef.current = true;
-        requestGameCards(playerId!);
       }
     },
     // When new cards are delivered for selection
@@ -198,13 +191,13 @@ export default function CardSelectionScreen() {
   // =========================================================================
   useEffect(() => {
     if (!isConnected || !playerId) return;
-    if (viewRequestedRef.current || cardsRequestedRef.current) return;
+    if (cardsRequestedRef.current) return;
 
     if (isGameLevel) {
-      // Game-level: first VIEW current cards
-      viewRequestedRef.current = true;
-      console.log("[card-selection.tsx] Viewing current cards for player:", playerId);
-      viewGameCards(playerId);
+      // Game-level: go directly to selection mode (main screen already shows current cards)
+      cardsRequestedRef.current = true;
+      console.log("[card-selection.tsx] Requesting cards for selection, player:", playerId);
+      requestGameCards(playerId);
     } else {
       // Round-level: skip if we already have cards (reconnect scenario)
       if (cards.length > 0) {
@@ -215,7 +208,7 @@ export default function CardSelectionScreen() {
       console.log("[card-selection.tsx] Requesting round cards for player:", playerId);
       requestCards(playerId);
     }
-  }, [isConnected, playerId, isGameLevel, cards.length, requestCards, viewGameCards]);
+  }, [isConnected, playerId, isGameLevel, cards.length, requestCards, requestGameCards]);
 
   // =========================================================================
   // HANDLERS

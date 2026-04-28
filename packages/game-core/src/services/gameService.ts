@@ -189,7 +189,7 @@ export async function startGame(id: string): Promise<Game | null> {
 
 /**
  * Finish a game (change status to 'finished')
- * Auto-unpublishes the game
+ * Auto-unpublishes the game and removes all players
  */
 export async function finishGame(id: string): Promise<Game | null> {
   const game = await gameRepository.findById(id);
@@ -205,12 +205,16 @@ export async function finishGame(id: string): Promise<Game | null> {
     await gameRepository.setPublished(id, false);
   }
 
+  // Remove all players from the game (cleanup)
+  const deletedCount = await gamePlayerRepository.deleteByGameId(id);
+  console.log(`[gameService] Removed ${deletedCount} players from finished game ${id}`);
+
   return gameRepository.updateStatus(id, 'finished');
 }
 
 /**
  * Cancel a game (change status to 'cancelled')
- * Auto-unpublishes the game
+ * Auto-unpublishes the game and removes all players
  */
 export async function cancelGame(id: string): Promise<Game | null> {
   const game = await gameRepository.findById(id);
@@ -225,6 +229,10 @@ export async function cancelGame(id: string): Promise<Game | null> {
   if (game.isPublished) {
     await gameRepository.setPublished(id, false);
   }
+
+  // Remove all players from the game (cleanup)
+  const deletedCount = await gamePlayerRepository.deleteByGameId(id);
+  console.log(`[gameService] Removed ${deletedCount} players from cancelled game ${id}`);
 
   return gameRepository.updateStatus(id, 'cancelled');
 }
@@ -326,23 +334,32 @@ export async function publishGame(id: string): Promise<PublishResult> {
  * - Cannot unpublish if game has players
  */
 export async function unpublishGame(id: string): Promise<PublishResult> {
+  console.log('[gameService] unpublishGame - starting for id:', id);
+
   const game = await gameRepository.findById(id);
+  console.log('[gameService] unpublishGame - game found:', !!game);
+
   if (!game) {
     return { success: false, error: 'Juego no encontrado' };
   }
 
   // Rule: Already unpublished
   if (!game.isPublished) {
+    console.log('[gameService] unpublishGame - already unpublished');
     return { success: true, game };
   }
 
   // Rule: Cannot unpublish active game
   if (game.status === 'active') {
+    console.log('[gameService] unpublishGame - cannot unpublish active game');
     return { success: false, error: 'No se puede despublicar un juego en curso' };
   }
 
   // Rule: Cannot unpublish if has players
+  console.log('[gameService] unpublishGame - checking player count...');
   const playerCount = await gamePlayerRepository.countByGameId(id);
+  console.log('[gameService] unpublishGame - player count:', playerCount);
+
   if (playerCount > 0) {
     return {
       success: false,
@@ -350,6 +367,8 @@ export async function unpublishGame(id: string): Promise<PublishResult> {
     };
   }
 
+  console.log('[gameService] unpublishGame - setting published to false...');
   const updatedGame = await gameRepository.setPublished(id, false);
+  console.log('[gameService] unpublishGame - done');
   return { success: true, game: updatedGame || game };
 }

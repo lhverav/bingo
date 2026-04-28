@@ -1,7 +1,7 @@
 import { GamePlayer, CreateGamePlayerData, GamePlayerStatus } from '@bingo/domain';
 import { GamePlayerModel } from '../database/schemas/gamePlayer.schema';
 import { GamePlayerMapper } from '../database/mappers/gamePlayer.mapper';
-import { connectToDatabase } from '../database/connection';
+import { connectToDatabase, mongoose } from '../database/connection';
 
 /**
  * GamePlayer Repository
@@ -54,8 +54,29 @@ class GamePlayerRepository {
    * Count players in a game
    */
   async countByGameId(gameId: string): Promise<number> {
-    await connectToDatabase();
-    return GamePlayerModel.countDocuments({ gameId });
+    console.log('[gamePlayerRepository] countByGameId - connecting to database...');
+    const conn = await connectToDatabase();
+
+    // Check connection state
+    console.log('[gamePlayerRepository] countByGameId - connection state:', conn.connection.readyState);
+
+    // Convert string to ObjectId
+    const objectId = new mongoose.Types.ObjectId(gameId);
+    console.log('[gamePlayerRepository] countByGameId - querying gameId:', objectId.toString());
+
+    try {
+      // Add timeout to query
+      const count = await GamePlayerModel.countDocuments({ gameId: objectId }).maxTimeMS(5000);
+      console.log('[gamePlayerRepository] countByGameId - result:', count);
+      return count;
+    } catch (error) {
+      console.error('[gamePlayerRepository] countByGameId - query error:', error);
+      // If collection doesn't exist, return 0
+      if ((error as Error).message?.includes('doesn\'t exist')) {
+        return 0;
+      }
+      throw error;
+    }
   }
 
   /**

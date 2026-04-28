@@ -86,8 +86,14 @@ export interface GameCreatedEvent {
   timestamp: string;
 }
 
+export interface GamePublishedEvent {
+  gameId: string;
+  timestamp: string;
+}
+
 export interface GameLifecycleEvent {
   gameId: string;
+  status?: string;
   timestamp: string;
 }
 
@@ -102,6 +108,7 @@ export interface RoundCreatedEvent {
 export interface RoundLifecycleEvent {
   gameId: string;
   roundId: string;
+  status?: string;
   timestamp: string;
 }
 
@@ -225,6 +232,7 @@ export class SocketEventStream {
 
   // Game lifecycle events (from host)
   private gameCreated$ = new Subject<GameCreatedEvent>();
+  private gamePublished$ = new Subject<GamePublishedEvent>();
   private gameStatusChanged$ = new Subject<GameLifecycleEvent>();
   private roundCreated$ = new Subject<RoundCreatedEvent>();
   private roundStatusChanged$ = new Subject<RoundLifecycleEvent>();
@@ -277,11 +285,16 @@ export class SocketEventStream {
       this.socket.off('game:cards:current');
       // Game lifecycle events
       this.socket.off('game:created');
+      this.socket.off('game:published');
+      this.socket.off('game:unpublished');
       this.socket.off('game:deleted');
       this.socket.off('game:started');
       this.socket.off('game:finished');
+      this.socket.off('game:cancelled');
       this.socket.off('round:created');
+      this.socket.off('round:started');
       this.socket.off('round:updated');
+      this.socket.off('round:finished');
       this.socket.off('round:deleted');
     }
 
@@ -409,6 +422,16 @@ export class SocketEventStream {
       this.gameCreated$.next(data);
     });
 
+    this.socket.on('game:published', (data: GamePublishedEvent) => {
+      console.log('[SocketEventStream] game:published', data);
+      this.gamePublished$.next(data);
+    });
+
+    this.socket.on('game:unpublished', (data: GamePublishedEvent) => {
+      console.log('[SocketEventStream] game:unpublished', data);
+      this.gamePublished$.next(data);
+    });
+
     this.socket.on('game:deleted', (data: GameLifecycleEvent) => {
       console.log('[SocketEventStream] game:deleted', data);
       this.gameStatusChanged$.next(data);
@@ -424,14 +447,29 @@ export class SocketEventStream {
       this.gameStatusChanged$.next(data);
     });
 
+    this.socket.on('game:cancelled', (data: GameLifecycleEvent) => {
+      console.log('[SocketEventStream] game:cancelled', data);
+      this.gameStatusChanged$.next(data);
+    });
+
     this.socket.on('round:created', (data: RoundCreatedEvent) => {
       console.log('[SocketEventStream] round:created', data);
       this.roundCreated$.next(data);
     });
 
+    this.socket.on('round:started', (data: RoundLifecycleEvent) => {
+      console.log('[SocketEventStream] round:started', data);
+      this.roundStatusChanged$.next({ ...data, status: 'active' });
+    });
+
     this.socket.on('round:updated', (data: RoundLifecycleEvent) => {
       console.log('[SocketEventStream] round:updated', data);
       this.roundStatusChanged$.next(data);
+    });
+
+    this.socket.on('round:finished', (data: RoundLifecycleEvent) => {
+      console.log('[SocketEventStream] round:finished', data);
+      this.roundStatusChanged$.next({ ...data, status: 'finished' });
     });
 
     this.socket.on('round:deleted', (data: RoundLifecycleEvent) => {
@@ -641,6 +679,15 @@ export class SocketEventStream {
    */
   get onGameCreated$(): Observable<GameCreatedEvent> {
     return this.gameCreated$.asObservable().pipe(
+      share()
+    );
+  }
+
+  /**
+   * Observable for game published/unpublished events
+   */
+  get onGamePublished$(): Observable<GamePublishedEvent> {
+    return this.gamePublished$.asObservable().pipe(
       share()
     );
   }

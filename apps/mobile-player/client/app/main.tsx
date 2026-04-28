@@ -6,32 +6,33 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  RefreshControl,
+  Alert,
+  Modal,
 } from "react-native";
-import { useState, useEffect, useCallback } from "react";
-import { router } from "expo-router";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import YoutubePlayer from "react-native-youtube-iframe";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocket } from "@/contexts/SocketContext";
 import { useGame } from "@/contexts/GameContext";
 import {
-  useNotifications,
   useConnectionState,
   useGameJoinSocket,
   useGameLifecycleEvents,
+  useGameCardEvents,
+  useSocketEmit,
 } from "@/hooks";
-import { GameCarousel } from "@/components/GameCarousel";
 import { GameLobbyModal } from "@/components/GameLobbyModal";
 import { InlineGameView } from "@/components/InlineGameView";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import ProfileDrawer from "@/components/ProfileDrawer";
+import BingoCard from "@/components/BingoCard";
+import { GameWithRounds, getPublishedGame, formatGameDate } from "@/api/games";
 import { serverConfig } from "@/config/server";
 
 const YOUTUBE_VIDEO_ID =
   process.env.EXPO_PUBLIC_YOUTUBE_VIDEO_ID || "dQw4w9WgXcQ";
-
-type TabType = "proximos" | "en-curso";
 
 interface ActiveRound {
   id: string;
@@ -44,72 +45,128 @@ interface ActiveRound {
   cardType: "bingo" | "bingote";
 }
 
+interface PlayerCard {
+  id: string;
+  cells: number[][];
+}
+
 export default function MainScreen() {
-  const { isAuthenticated, loading: authLoading, user } = useAuth();
+  const { loading: authLoading, user } = useAuth();
   const { connect } = useSocket();
   const { joinedGames, addJoinedGame, removeJoinedGame } = useGame();
   const isConnected = useConnectionState();
   const insets = useSafeAreaInsets();
+  const { viewGameCards } = useSocketEmit();
 
   // Profile drawer state
   const [drawerVisible, setDrawerVisible] = useState(false);
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState<TabType>("proximos");
-
   // Video player state
   const [playing, setPlaying] = useState(false);
+
+  // Game data state
+  const [publishedGame, setPublishedGame] = useState<GameWithRounds | null>(null);
+  const [loadingGame, setLoadingGame] = useState(true);
 
   // Game lobby modal state
   const [lobbyModalVisible, setLobbyModalVisible] = useState(false);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
 
-  // Active rounds state (for "Juegos en Curso" tab)
-  const [activeRounds, setActiveRounds] = useState<ActiveRound[]>([]);
-  const [loadingRounds, setLoadingRounds] = useState(false);
-  const [refreshingRounds, setRefreshingRounds] = useState(false);
+  // Player cards state
+  const [playerCards, setPlayerCards] = useState<PlayerCard[]>([]);
+  const [loadingCards, setLoadingCards] = useState(false);
+  const cardsRequestedRef = useRef(false);
 
-  // Refresh trigger for GameCarousel (increments when game events occur)
-  const [gamesRefreshTrigger, setGamesRefreshTrigger] = useState(0);
+  // Active round state (for State C1 - round notification)
+  const [activeRound, setActiveRound] = useState<ActiveRound | null>(null);
 
-  // Currently playing round (inline game view)
+  // Playing round state (for State D)
   const [playingRound, setPlayingRound] = useState<ActiveRound | null>(null);
+
+  // Leave game confirmation dialog
+  const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
+  const [gameToLeave, setGameToLeave] = useState<string | null>(null);
+
+  // Compute current state
+  const joinedGameId = Object.keys(joinedGames)[0] || null;
+  const joinedGameInfo = joinedGameId ? joinedGames[joinedGameId] : null;
+  const hasJoinedGame = !!joinedGameId;
+  const hasCards = playerCards.length > 0;
+  const isPlayingRound = !!playingRound;
 
   // Use RxJS-based game join socket for leave functionality
   const { leaveGame } = useGameJoinSocket({
     onLeftGame: (data) => {
       console.log("[main] Left game:", data);
       removeJoinedGame(data.gameId);
+      setPlayerCards([]);
+      setActiveRound(null);
+      setPlayingRound(null);
     },
     onGameLeaveError: (error) => {
       console.error("[main] Leave game error:", error.message);
+      Alert.alert("Error", error.message);
     },
   });
 
-  // Use RxJS-based notification hook - just refresh active rounds, no popup
-  useNotifications({
-    onNotification: (data) => {
-      console.log("[main] Notification received:", data);
-      // Auto-refresh active rounds instead of showing popup
-      fetchActiveRounds();
+  // Listen for game-level card events
+  useGameCardEvents({
+    onGameCardsCurrent: (data) => {
+      console.log("[main] Current cards received:", data);
+      setLoadingCards(false);
+      if (data.hasCards && data.cards.length > 0) {
+        setPlayerCards(data.cards);
+      } else {
+        setPlayerCards([]);
+      }
+    },
+    onGameCardsError: (error) => {
+      console.error("[main] Cards error:", error.message);
+      setLoadingCards(false);
     },
   });
 
-  // Listen for game lifecycle events to refresh lists
-  // Always fetch regardless of tab - data will be ready when user switches
+  // Listen for game lifecycle events to refresh data
   useGameLifecycleEvents({
     onGameCreated: () => {
-      console.log("[main] Game created, triggering games refresh");
-      setGamesRefreshTrigger((prev) => prev + 1);
+      console.log("[main] Game created, refreshing...");
+      loadPublishedGame();
     },
-    onGameStatusChanged: () => {
-      console.log("[main] Game status changed, refreshing lists");
-      fetchActiveRounds();
-      setGamesRefreshTrigger((prev) => prev + 1);
+    onGamePublished: () => {
+      console.log("[main] Game published/unpublished, refreshing...");
+      loadPublishedGame();
     },
-    onRoundStatusChanged: () => {
-      console.log("[main] Round status changed, refreshing active rounds");
-      fetchActiveRounds();
+    onGameStatusChanged: (event) => {
+      console.log("[main] Game status changed:", event);
+      loadPublishedGame();
+      // If game finished/cancelled, clear joined state
+      if (event.status === "finished" || event.status === "cancelled") {
+        if (event.gameId === joinedGameId) {
+          removeJoinedGame(event.gameId);
+          setPlayerCards([]);
+          setActiveRound(null);
+          setPlayingRound(null);
+        }
+      }
+    },
+    onRoundCreated: (event) => {
+      console.log("[main] Round created:", event);
+      // Refresh game data to update rounds count
+      loadPublishedGame();
+    },
+    onRoundStatusChanged: (event) => {
+      console.log("[main] Round status changed:", event);
+      // Check if a round started - auto-enter game if user has cards
+      if (event.status === "active" && event.gameId === joinedGameId) {
+        fetchActiveRoundForGame(event.gameId).then(() => {
+          // Auto-enter will be handled by useEffect below
+        });
+      }
+      // If round ended, clear playing state
+      if (event.status === "finished" && playingRound?.id === event.roundId) {
+        setPlayingRound(null);
+        setActiveRound(null);
+      }
     },
   });
 
@@ -118,35 +175,80 @@ export default function MainScreen() {
     connect();
   }, [connect]);
 
-  // Fetch active rounds when switching to "en-curso" tab
+  // Load published game on mount
   useEffect(() => {
-    if (activeTab === "en-curso") {
-      fetchActiveRounds();
-    }
-  }, [activeTab]);
+    loadPublishedGame();
+  }, []);
 
-  const fetchActiveRounds = useCallback(async () => {
-    try {
-      setLoadingRounds(true);
-      const response = await fetch(`${serverConfig.apiUrl}/games/active-rounds`);
-      if (!response.ok) {
-        throw new Error("Error al cargar rondas activas");
+  // Load player cards when joined game changes
+  useEffect(() => {
+    if (hasJoinedGame && joinedGameInfo && isConnected && !cardsRequestedRef.current) {
+      console.log("[main] Loading cards for player:", joinedGameInfo.playerId);
+      cardsRequestedRef.current = true;
+      setLoadingCards(true);
+      viewGameCards(joinedGameInfo.playerId);
+    }
+    if (!hasJoinedGame) {
+      cardsRequestedRef.current = false;
+      setPlayerCards([]);
+    }
+  }, [hasJoinedGame, joinedGameInfo, isConnected, viewGameCards]);
+
+  // Check for active rounds when user has cards
+  useEffect(() => {
+    if (hasJoinedGame && hasCards && joinedGameId) {
+      fetchActiveRoundForGame(joinedGameId);
+    }
+  }, [hasJoinedGame, hasCards, joinedGameId]);
+
+  // Auto-enter game when there's an active round and user has cards
+  useEffect(() => {
+    if (activeRound && hasCards && !playingRound) {
+      console.log("[main] Auto-entering game for round:", activeRound.name);
+      setPlayingRound(activeRound);
+      setActiveRound(null);
+    }
+  }, [activeRound, hasCards, playingRound]);
+
+  // Refresh cards when screen comes into focus (e.g., returning from card selection)
+  useFocusEffect(
+    useCallback(() => {
+      if (hasJoinedGame && joinedGameInfo && isConnected) {
+        console.log("[main] Screen focused, refreshing cards");
+        cardsRequestedRef.current = false; // Reset flag to allow refresh
+        setLoadingCards(true);
+        viewGameCards(joinedGameInfo.playerId);
       }
-      const data = await response.json();
-      setActiveRounds(data);
+    }, [hasJoinedGame, joinedGameInfo, isConnected, viewGameCards])
+  );
+
+  const loadPublishedGame = useCallback(async () => {
+    try {
+      setLoadingGame(true);
+      const game = await getPublishedGame();
+      setPublishedGame(game);
     } catch (error) {
-      console.error("[main] Error fetching active rounds:", error);
-      setActiveRounds([]);
+      console.error("[main] Error loading published game:", error);
+      setPublishedGame(null);
     } finally {
-      setLoadingRounds(false);
-      setRefreshingRounds(false);
+      setLoadingGame(false);
     }
   }, []);
 
-  const onRefreshRounds = useCallback(() => {
-    setRefreshingRounds(true);
-    fetchActiveRounds();
-  }, [fetchActiveRounds]);
+  const fetchActiveRoundForGame = useCallback(async (gameId: string) => {
+    try {
+      const response = await fetch(`${serverConfig.apiUrl}/games/active-rounds`);
+      if (!response.ok) return;
+      const rounds: ActiveRound[] = await response.json();
+      // Find active round for this game
+      const round = rounds.find((r) => r.gameId === gameId);
+      if (round && !playingRound) {
+        setActiveRound(round);
+      }
+    } catch (error) {
+      console.error("[main] Error fetching active rounds:", error);
+    }
+  }, [playingRound]);
 
   const onStateChange = useCallback((state: string) => {
     if (state === "ended") {
@@ -160,15 +262,24 @@ export default function MainScreen() {
     setLobbyModalVisible(true);
   }, []);
 
-  const handleLeaveGame = useCallback(
-    (gameId: string) => {
-      console.log("Leaving game:", gameId);
-      if (user?.id) {
-        leaveGame(gameId, user.id);
-      }
-    },
-    [leaveGame, user?.id]
-  );
+  const handleLeaveGameRequest = useCallback((gameId: string) => {
+    setGameToLeave(gameId);
+    setShowLeaveConfirmation(true);
+  }, []);
+
+  const handleConfirmLeave = useCallback(() => {
+    if (gameToLeave && user?.id) {
+      console.log("Leaving game:", gameToLeave);
+      leaveGame(gameToLeave, user.id);
+    }
+    setShowLeaveConfirmation(false);
+    setGameToLeave(null);
+  }, [gameToLeave, user?.id, leaveGame]);
+
+  const handleCancelLeave = useCallback(() => {
+    setShowLeaveConfirmation(false);
+    setGameToLeave(null);
+  }, []);
 
   const handleGameJoined = useCallback(
     (gameId: string, playerId: string, playerCode: string) => {
@@ -176,6 +287,8 @@ export default function MainScreen() {
       addJoinedGame(gameId, playerId, playerCode);
       setLobbyModalVisible(false);
       setSelectedGameId(null);
+      // Reset cards request flag so we fetch cards for new game
+      cardsRequestedRef.current = false;
     },
     [addJoinedGame]
   );
@@ -193,17 +306,22 @@ export default function MainScreen() {
     setSelectedGameId(null);
   }, []);
 
-  const handlePlayRound = useCallback((round: ActiveRound) => {
-    console.log("Playing round:", round.id);
-    setPlayingRound(round);
-  }, []);
+  const handlePlayRound = useCallback(() => {
+    if (activeRound) {
+      console.log("Playing round:", activeRound.id);
+      setPlayingRound(activeRound);
+      setActiveRound(null);
+    }
+  }, [activeRound]);
 
   const handleExitRound = useCallback(() => {
     console.log("Exiting round");
     setPlayingRound(null);
-    // Refresh active rounds list
-    fetchActiveRounds();
-  }, [fetchActiveRounds]);
+    // Check for next active round
+    if (joinedGameId) {
+      fetchActiveRoundForGame(joinedGameId);
+    }
+  }, [joinedGameId, fetchActiveRoundForGame]);
 
   // Show loading while checking auth
   if (authLoading) {
@@ -215,12 +333,78 @@ export default function MainScreen() {
     );
   }
 
-  return (
-    <View style={styles.container}>
+  // =========================================================================
+  // RENDER STATE D: Playing Round
+  // =========================================================================
+  if (isPlayingRound && playingRound) {
+    return (
+      <View style={styles.container}>
+        {/* Header with Profile Avatar */}
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+          <ProfileAvatar
+            name={user?.name || ""}
+            size={40}
+            onPress={() => setDrawerVisible(true)}
+          />
+          <Text style={styles.headerTitle}>Bingote de Oro</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        {/* YouTube Video Player */}
+        <View style={styles.videoContainer}>
+          <YoutubePlayer
+            height={180}
+            width={Dimensions.get("window").width - 32}
+            play={playing}
+            videoId={YOUTUBE_VIDEO_ID}
+            onChangeState={onStateChange}
+          />
+        </View>
+
+        {/* Disabled Action Buttons */}
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity style={[styles.actionButton, styles.actionButtonDisabled]} disabled>
+            <Text style={[styles.actionButtonText, styles.actionButtonTextDisabled]}>
+              CAMBIAR CARTONES
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.leaveButton, styles.leaveButtonDisabled]} disabled>
+            <Text style={[styles.leaveButtonText, styles.leaveButtonTextDisabled]}>
+              SALIR DEL JUEGO
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Inline Game View */}
+        <View style={styles.contentContainer}>
+          <InlineGameView
+            roundId={playingRound.id}
+            roundName={playingRound.name}
+            gameName={playingRound.gameName}
+            patternName={playingRound.patternName}
+            cardType={playingRound.cardType}
+            onExit={handleExitRound}
+          />
+        </View>
+
+        {/* Profile Drawer */}
+        <ProfileDrawer
+          visible={drawerVisible}
+          onClose={() => setDrawerVisible(false)}
+        />
+      </View>
+    );
+  }
+
+  // =========================================================================
+  // RENDER COMMON HEADER + VIDEO
+  // =========================================================================
+  const renderHeader = () => (
+    <>
       {/* Header with Profile Avatar */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <ProfileAvatar
-          name={user?.name || ''}
+          name={user?.name || ""}
           size={40}
           onPress={() => setDrawerVisible(true)}
         />
@@ -238,139 +422,247 @@ export default function MainScreen() {
           onChangeState={onStateChange}
         />
       </View>
+    </>
+  );
 
-      {/* Connection status */}
-      <Text style={styles.connectionStatus}>
-        {isConnected ? "● Conectado" : "○ Desconectado"}
-      </Text>
+  // =========================================================================
+  // RENDER STATE A: Not Joined Any Game
+  // =========================================================================
+  if (!hasJoinedGame) {
+    return (
+      <View style={styles.container}>
+        {renderHeader()}
 
-      {/* Chrome-style Tabs */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "proximos" && styles.tabActive]}
-          onPress={() => setActiveTab("proximos")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "proximos" && styles.tabTextActive,
-            ]}
-          >
-            Proximos Juegos
-          </Text>
-          {activeTab === "proximos" && <View style={styles.tabIndicator} />}
-        </TouchableOpacity>
+        {/* Dynamic Content - Next Game Info */}
+        <ScrollView style={styles.contentContainer} contentContainerStyle={styles.scrollContent}>
+          {loadingGame ? (
+            <View style={styles.centerContent}>
+              <ActivityIndicator size="large" color="#FFD700" />
+              <Text style={styles.loadingText}>Cargando juego...</Text>
+            </View>
+          ) : publishedGame ? (
+            <View style={styles.gameInfoCard}>
+              <Text style={styles.gameInfoTitle}>{publishedGame.name}</Text>
 
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "en-curso" && styles.tabActive]}
-          onPress={() => setActiveTab("en-curso")}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === "en-curso" && styles.tabTextActive,
-            ]}
-          >
-            Juegos en Curso
-          </Text>
-          {activeTab === "en-curso" && <View style={styles.tabIndicator} />}
-        </TouchableOpacity>
-      </View>
-
-      {/* Tab Content */}
-      <View style={styles.contentContainer}>
-        {activeTab === "proximos" ? (
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-          >
-            <GameCarousel
-              onJoinGame={handleJoinGame}
-              onLeaveGame={handleLeaveGame}
-              onSelectCards={handleSelectCards}
-              joinedGames={joinedGames}
-              refreshTrigger={gamesRefreshTrigger}
-            />
-          </ScrollView>
-        ) : playingRound ? (
-          // Show inline game view when playing a round
-          <InlineGameView
-            roundId={playingRound.id}
-            roundName={playingRound.name}
-            gameName={playingRound.gameName}
-            patternName={playingRound.patternName}
-            cardType={playingRound.cardType}
-            onExit={handleExitRound}
-          />
-        ) : (
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshingRounds}
-                onRefresh={onRefreshRounds}
-              />
-            }
-          >
-            {loadingRounds ? (
-              <View style={styles.emptyContainer}>
-                <ActivityIndicator size="large" color="#FFD700" />
-                <Text style={styles.loadingText}>Cargando rondas...</Text>
-              </View>
-            ) : activeRounds.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyIcon}>🎱</Text>
-                <Text style={styles.emptyTitle}>No hay juegos en curso</Text>
-                <Text style={styles.emptySubtitle}>
-                  Espera a que el anfitrion inicie una ronda
+              <View style={styles.gameInfoRow}>
+                <Text style={styles.gameInfoIcon}>📅</Text>
+                <Text style={styles.gameInfoText}>
+                  {formatGameDate(publishedGame.scheduledAt)}
                 </Text>
               </View>
-            ) : (
-              activeRounds.map((round) => (
-                <View key={round.id} style={styles.roundCard}>
-                  <View style={styles.roundInfo}>
-                    <Text style={styles.roundGameName}>{round.gameName}</Text>
-                    <Text style={styles.roundName}>
-                      Ronda {round.order}: {round.name}
-                    </Text>
-                    {round.patternName && (
-                      <Text style={styles.roundPattern}>
-                        Patron: {round.patternName}
-                      </Text>
-                    )}
-                    <View style={styles.roundBadgeRow}>
-                      <View style={styles.roundBadge}>
-                        <Text style={styles.roundBadgeText}>
-                          {round.cardType === "bingote" ? "BINGOTE" : "BINGO"}
-                        </Text>
-                      </View>
-                      <View style={[styles.roundBadge, styles.roundBadgeActive]}>
-                        <Text style={styles.roundBadgeText}>EN CURSO</Text>
-                      </View>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.playButton}
-                    onPress={() => handlePlayRound(round)}
-                  >
-                    <Text style={styles.playButtonText}>Jugar</Text>
-                  </TouchableOpacity>
-                </View>
-              ))
-            )}
-          </ScrollView>
-        )}
+
+              <View style={styles.gameInfoRow}>
+                <Text style={styles.gameInfoIcon}>🎮</Text>
+                <Text style={styles.gameInfoText}>
+                  {publishedGame.cardType === "bingote" ? "BINGOTE" : "BINGO"}
+                </Text>
+              </View>
+
+              <View style={styles.gameInfoRow}>
+                <Text style={styles.gameInfoIcon}>📋</Text>
+                <Text style={styles.gameInfoText}>
+                  {publishedGame.rounds.length} ronda{publishedGame.rounds.length !== 1 ? "s" : ""}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.joinButton}
+                onPress={() => handleJoinGame(publishedGame.id)}
+              >
+                <Text style={styles.joinButtonText}>UNIRME</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyIcon}>🎱</Text>
+              <Text style={styles.emptyTitle}>No hay proximos juegos disponibles</Text>
+              <Text style={styles.emptySubtitle}>
+                Espera a que el organizador publique un juego
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Game Lobby Modal */}
+        <GameLobbyModal
+          key={selectedGameId || "no-game"}
+          visible={lobbyModalVisible}
+          gameId={selectedGameId}
+          onClose={handleLobbyClose}
+          onJoined={handleGameJoined}
+        />
+
+        {/* Profile Drawer */}
+        <ProfileDrawer
+          visible={drawerVisible}
+          onClose={() => setDrawerVisible(false)}
+        />
+      </View>
+    );
+  }
+
+  // =========================================================================
+  // RENDER STATE B: Joined Game, No Cards Selected
+  // =========================================================================
+  if (hasJoinedGame && !hasCards && !loadingCards) {
+    return (
+      <View style={styles.container}>
+        {renderHeader()}
+
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsContainer}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleSelectCards(joinedGameId!)}
+          >
+            <Text style={styles.actionButtonText}>MIS CARTONES</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.leaveButton}
+            onPress={() => handleLeaveGameRequest(joinedGameId!)}
+          >
+            <Text style={styles.leaveButtonText}>SALIR DEL JUEGO</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Empty Content */}
+        <View style={[styles.contentContainer, styles.centerContent]}>
+          <Text style={styles.noCardsText}>
+            Selecciona tus cartones para participar
+          </Text>
+        </View>
+
+        {/* Leave Confirmation Modal */}
+        <Modal
+          visible={showLeaveConfirmation}
+          transparent
+          animationType="fade"
+          onRequestClose={handleCancelLeave}
+        >
+          <View style={styles.confirmationOverlay}>
+            <View style={styles.confirmationDialog}>
+              <Text style={styles.confirmationText}>
+                ¿Estas seguro que deseas salir?
+              </Text>
+              <View style={styles.confirmationButtons}>
+                <TouchableOpacity
+                  style={styles.confirmationCancelButton}
+                  onPress={handleCancelLeave}
+                >
+                  <Text style={styles.confirmationCancelText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.confirmationConfirmButton}
+                  onPress={handleConfirmLeave}
+                >
+                  <Text style={styles.confirmationConfirmText}>Confirmar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Profile Drawer */}
+        <ProfileDrawer
+          visible={drawerVisible}
+          onClose={() => setDrawerVisible(false)}
+        />
+      </View>
+    );
+  }
+
+  // =========================================================================
+  // RENDER STATE C/C1: Has Cards, Waiting for Round
+  // =========================================================================
+  return (
+    <View style={styles.container}>
+      {renderHeader()}
+
+      {/* Action Buttons */}
+      <View style={styles.actionButtonsContainer}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => handleSelectCards(joinedGameId!)}
+        >
+          <Text style={styles.actionButtonText}>CAMBIAR CARTONES</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.leaveButton}
+          onPress={() => handleLeaveGameRequest(joinedGameId!)}
+        >
+          <Text style={styles.leaveButtonText}>SALIR DEL JUEGO</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Game Lobby Modal */}
-      <GameLobbyModal
-        key={selectedGameId || "no-game"}
-        visible={lobbyModalVisible}
-        gameId={selectedGameId}
-        onClose={handleLobbyClose}
-        onJoined={handleGameJoined}
-      />
+      {/* Round Status Indicator (below buttons) */}
+      {activeRound && (
+        <View style={styles.roundStatusBar}>
+          <Text style={styles.roundStatusText}>
+            🎮 {activeRound.name} - <Text style={styles.roundStatusActive}>En Curso</Text>
+          </Text>
+        </View>
+      )}
+
+      <ScrollView style={styles.contentContainer} contentContainerStyle={styles.scrollContent}>
+        {/* Note: With auto-enter, activeRound state triggers automatic game entry */}
+
+        {/* Loading Cards */}
+        {loadingCards && (
+          <View style={styles.centerContent}>
+            <ActivityIndicator size="large" color="#FFD700" />
+            <Text style={styles.loadingText}>Cargando cartones...</Text>
+          </View>
+        )}
+
+        {/* Player Cards Display */}
+        {!loadingCards && hasCards && (
+          <View style={styles.cardsSection}>
+            <Text style={styles.cardsSectionTitle}>Mis Cartones</Text>
+            <View style={styles.cardsGrid}>
+              {playerCards.map((card) => (
+                <View key={card.id} style={styles.cardWrapper}>
+                  <BingoCard
+                    id={card.id}
+                    cells={card.cells}
+                    selected={false}
+                    disabled={true}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Leave Confirmation Modal */}
+      <Modal
+        visible={showLeaveConfirmation}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelLeave}
+      >
+        <View style={styles.confirmationOverlay}>
+          <View style={styles.confirmationDialog}>
+            <Text style={styles.confirmationText}>
+              ¿Estas seguro que deseas salir?
+            </Text>
+            <View style={styles.confirmationButtons}>
+              <TouchableOpacity
+                style={styles.confirmationCancelButton}
+                onPress={handleCancelLeave}
+              >
+                <Text style={styles.confirmationCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmationConfirmButton}
+                onPress={handleConfirmLeave}
+              >
+                <Text style={styles.confirmationConfirmText}>Confirmar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Profile Drawer */}
       <ProfileDrawer
@@ -389,6 +681,7 @@ const styles = StyleSheet.create({
   centerContent: {
     justifyContent: "center",
     alignItems: "center",
+    padding: 20,
   },
   header: {
     flexDirection: "row",
@@ -413,48 +706,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: "#fff",
   },
-  connectionStatus: {
-    textAlign: "center",
-    paddingVertical: 8,
-    backgroundColor: "#fff",
-    color: "#27ae60",
-    fontSize: 14,
-  },
-  tabContainer: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 14,
-    alignItems: "center",
-    position: "relative",
-  },
-  tabActive: {},
-  tabText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#888",
-  },
-  tabTextActive: {
-    color: "#FFD700",
-  },
-  tabIndicator: {
-    position: "absolute",
-    bottom: 0,
-    left: 20,
-    right: 20,
-    height: 3,
-    backgroundColor: "#FFD700",
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
-  },
   contentContainer: {
-    flex: 1,
-  },
-  scrollView: {
     flex: 1,
   },
   scrollContent: {
@@ -466,6 +718,59 @@ const styles = StyleSheet.create({
     color: "#666",
     marginTop: 16,
   },
+  // State A - Game Info Card
+  gameInfoCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#FFD700",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: "#FFD700",
+  },
+  gameInfoTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  gameInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    width: "100%",
+  },
+  gameInfoIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  gameInfoText: {
+    fontSize: 16,
+    color: "#666",
+  },
+  joinButton: {
+    backgroundColor: "#FFD700",
+    paddingVertical: 16,
+    paddingHorizontal: 60,
+    borderRadius: 25,
+    marginTop: 20,
+    shadowColor: "#FFA500",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  joinButtonText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  // Empty State
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -480,76 +785,157 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
     marginBottom: 8,
+    textAlign: "center",
   },
   emptySubtitle: {
     fontSize: 16,
     color: "#888",
     textAlign: "center",
   },
-  roundCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+  // Action Buttons (State B, C, C1)
+  actionButtonsContainer: {
     flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    gap: 12,
   },
-  roundInfo: {
+  actionButton: {
     flex: 1,
+    backgroundColor: "#4CAF50",
+    paddingVertical: 14,
+    borderRadius: 25,
+    alignItems: "center",
+    shadowColor: "#388E3C",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 4,
   },
-  roundGameName: {
-    fontSize: 12,
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  actionButtonDisabled: {
+    backgroundColor: "#ccc",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  actionButtonTextDisabled: {
+    color: "#999",
+  },
+  leaveButton: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+    paddingVertical: 14,
+    borderRadius: 25,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#e74c3c",
+  },
+  leaveButtonText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#e74c3c",
+  },
+  leaveButtonDisabled: {
+    borderColor: "#ccc",
+  },
+  leaveButtonTextDisabled: {
+    color: "#999",
+  },
+  noCardsText: {
+    fontSize: 16,
     color: "#888",
-    marginBottom: 2,
+    textAlign: "center",
   },
-  roundName: {
+  // Round Status Bar (below action buttons)
+  roundStatusBar: {
+    backgroundColor: "#e8f5e9",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#c8e6c9",
+  },
+  roundStatusText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+  },
+  roundStatusActive: {
+    color: "#27ae60",
+    fontWeight: "bold",
+  },
+  // Cards Section
+  cardsSection: {
+    marginTop: 8,
+  },
+  cardsSectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#333",
-    marginBottom: 4,
+    marginBottom: 16,
+    textAlign: "center",
   },
-  roundPattern: {
-    fontSize: 14,
-    color: "#666",
+  cardsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 16,
+  },
+  cardWrapper: {
     marginBottom: 8,
   },
-  roundBadgeRow: {
+  // Confirmation Dialog
+  confirmationOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  confirmationDialog: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    width: "80%",
+    maxWidth: 320,
+    alignItems: "center",
+  },
+  confirmationText: {
+    fontSize: 18,
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  confirmationButtons: {
     flexDirection: "row",
-    gap: 8,
+    gap: 12,
+    width: "100%",
   },
-  roundBadge: {
-    backgroundColor: "#3498db",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  roundBadgeActive: {
-    backgroundColor: "#27ae60",
-  },
-  roundBadgeText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  playButton: {
-    backgroundColor: "#FFD700",
-    paddingHorizontal: 24,
+  confirmationCancelButton: {
+    flex: 1,
+    backgroundColor: "#f0f0f0",
     paddingVertical: 12,
     borderRadius: 20,
-    shadowColor: "#FFA500",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    alignItems: "center",
   },
-  playButtonText: {
-    color: "#333",
-    fontSize: 16,
-    fontWeight: "bold",
+  confirmationCancelText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+  },
+  confirmationConfirmButton: {
+    flex: 1,
+    backgroundColor: "#e74c3c",
+    paddingVertical: 12,
+    borderRadius: 20,
+    alignItems: "center",
+  },
+  confirmationConfirmText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
   },
 });

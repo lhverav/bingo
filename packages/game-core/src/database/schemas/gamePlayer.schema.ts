@@ -1,4 +1,5 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import { Schema, Document, Model, Types } from 'mongoose';
+import { mongoose } from '../connection';
 
 /**
  * GamePlayer document interface

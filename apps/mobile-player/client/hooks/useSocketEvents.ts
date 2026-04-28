@@ -23,6 +23,7 @@ import {
   GameCardsCurrentEvent,
   // Game lifecycle events
   GameCreatedEvent,
+  GamePublishedEvent,
   GameLifecycleEvent,
   RoundCreatedEvent,
   RoundLifecycleEvent,
@@ -70,6 +71,7 @@ export interface UseGameCardHandlers {
 
 export interface UseGameLifecycleHandlers {
   onGameCreated?: (event: GameCreatedEvent) => void;
+  onGamePublished?: (event: GamePublishedEvent) => void;
   onGameStatusChanged?: (event: GameLifecycleEvent) => void;
   onRoundCreated?: (event: RoundCreatedEvent) => void;
   onRoundStatusChanged?: (event: RoundLifecycleEvent) => void;
@@ -336,6 +338,13 @@ export function useGameLifecycleEvents(handlers: UseGameLifecycleHandlers): void
     subscriptions.push(
       socketEventStream.onGameCreated$.subscribe((event) => {
         handlersRef.current.onGameCreated?.(event);
+      })
+    );
+
+    // Subscribe to game published/unpublished
+    subscriptions.push(
+      socketEventStream.onGamePublished$.subscribe((event) => {
+        handlersRef.current.onGamePublished?.(event);
       })
     );
 
