@@ -80,6 +80,9 @@ export default function MainScreen() {
   // Active round state (for State C1 - round notification)
   const [activeRound, setActiveRound] = useState<ActiveRound | null>(null);
 
+  // Flag: Can user play the active round? Only true if round started while user was ready
+  const [canPlayActiveRound, setCanPlayActiveRound] = useState(false);
+
   // Playing round state (for State D)
   const [playingRound, setPlayingRound] = useState<ActiveRound | null>(null);
 
@@ -102,6 +105,7 @@ export default function MainScreen() {
       setPlayerCards([]);
       setActiveRound(null);
       setPlayingRound(null);
+      setCanPlayActiveRound(false);
     },
     onGameLeaveError: (error) => {
       console.error("[main] Leave game error:", error.message);
@@ -146,6 +150,7 @@ export default function MainScreen() {
           setPlayerCards([]);
           setActiveRound(null);
           setPlayingRound(null);
+          setCanPlayActiveRound(false);
         }
       }
     },
@@ -156,16 +161,23 @@ export default function MainScreen() {
     },
     onRoundStatusChanged: (event) => {
       console.log("[main] Round status changed:", event);
-      // Check if a round started - auto-enter game if user has cards
+      // Check if a round started - this is a REAL-TIME event, user can play
       if (event.status === "active" && event.gameId === joinedGameId) {
-        fetchActiveRoundForGame(event.gameId).then(() => {
-          // Auto-enter will be handled by useEffect below
-        });
+        console.log("[main] Round started in real-time, user CAN play");
+        setCanPlayActiveRound(true); // User was present when round started
+        fetchActiveRoundForGame(event.gameId);
       }
-      // If round ended, clear playing state
-      if (event.status === "finished" && playingRound?.id === event.roundId) {
-        setPlayingRound(null);
-        setActiveRound(null);
+      // If round ended, clear states (whether user was playing or waiting)
+      if (event.status === "finished") {
+        // Clear playing state if user was playing this round
+        if (playingRound?.id === event.roundId) {
+          setPlayingRound(null);
+        }
+        // Clear active round if it matches (user was waiting)
+        if (activeRound?.id === event.roundId) {
+          setActiveRound(null);
+        }
+        setCanPlayActiveRound(false);
       }
     },
   });
@@ -201,14 +213,15 @@ export default function MainScreen() {
     }
   }, [hasJoinedGame, hasCards, joinedGameId]);
 
-  // Auto-enter game when there's an active round and user has cards
+  // Auto-enter game ONLY when round started while user was ready (real-time event)
   useEffect(() => {
-    if (activeRound && hasCards && !playingRound) {
+    if (activeRound && hasCards && !playingRound && canPlayActiveRound) {
       console.log("[main] Auto-entering game for round:", activeRound.name);
       setPlayingRound(activeRound);
       setActiveRound(null);
+      setCanPlayActiveRound(false);
     }
-  }, [activeRound, hasCards, playingRound]);
+  }, [activeRound, hasCards, playingRound, canPlayActiveRound]);
 
   // Refresh cards when screen comes into focus (e.g., returning from card selection)
   useFocusEffect(
@@ -242,13 +255,15 @@ export default function MainScreen() {
       const rounds: ActiveRound[] = await response.json();
       // Find active round for this game
       const round = rounds.find((r) => r.gameId === gameId);
-      if (round && !playingRound) {
+      if (round) {
         setActiveRound(round);
+      } else {
+        setActiveRound(null);
       }
     } catch (error) {
       console.error("[main] Error fetching active rounds:", error);
     }
-  }, [playingRound]);
+  }, []);
 
   const onStateChange = useCallback((state: string) => {
     if (state === "ended") {
@@ -317,7 +332,8 @@ export default function MainScreen() {
   const handleExitRound = useCallback(() => {
     console.log("Exiting round");
     setPlayingRound(null);
-    // Check for next active round
+    setCanPlayActiveRound(false);
+    // Check for next active round (but user won't auto-enter since they left mid-round)
     if (joinedGameId) {
       fetchActiveRoundForGame(joinedGameId);
     }
@@ -596,10 +612,19 @@ export default function MainScreen() {
 
       {/* Round Status Indicator (below buttons) */}
       {activeRound && (
-        <View style={styles.roundStatusBar}>
-          <Text style={styles.roundStatusText}>
-            🎮 {activeRound.name} - <Text style={styles.roundStatusActive}>En Curso</Text>
-          </Text>
+        <View style={[
+          styles.roundStatusBar,
+          !canPlayActiveRound && styles.roundStatusBarWaiting
+        ]}>
+          {canPlayActiveRound ? (
+            <Text style={styles.roundStatusText}>
+              🎮 {activeRound.name} - <Text style={styles.roundStatusActive}>Entrando...</Text>
+            </Text>
+          ) : (
+            <Text style={styles.roundStatusText}>
+              ⏳ {activeRound.name} - <Text style={styles.roundStatusWaiting}>En Curso (Espera la siguiente ronda)</Text>
+            </Text>
+          )}
         </View>
       )}
 
@@ -858,6 +883,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#c8e6c9",
   },
+  roundStatusBarWaiting: {
+    backgroundColor: "#fff3e0",
+    borderBottomColor: "#ffe0b2",
+  },
   roundStatusText: {
     fontSize: 14,
     fontWeight: "600",
@@ -866,6 +895,10 @@ const styles = StyleSheet.create({
   },
   roundStatusActive: {
     color: "#27ae60",
+    fontWeight: "bold",
+  },
+  roundStatusWaiting: {
+    color: "#f57c00",
     fontWeight: "bold",
   },
   // Cards Section

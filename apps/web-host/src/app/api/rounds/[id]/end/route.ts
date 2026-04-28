@@ -36,6 +36,7 @@ export async function POST(
         body: JSON.stringify({
           type: "ROUND_ENDED",
           data: {
+            gameId: round.gameId,
             roundId: params.id,
             winners: winnerResult.winners,
             patternName: winnerResult.patternName,

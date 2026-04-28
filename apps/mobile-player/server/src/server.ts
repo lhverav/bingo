@@ -146,10 +146,11 @@ app.post("/notify", (req, res) => {
           timestamp,
         });
 
-        // Also emit round:updated globally so "Juegos en Curso" list refreshes
-        io.emit("round:updated", {
+        // Also emit round:finished globally so clients can update their state
+        io.emit("round:finished", {
+          gameId: data.gameId,
           roundId: data.roundId,
-          status: "finalizada",
+          status: "finished",
           timestamp,
         });
 
